@@ -6,8 +6,8 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: Prompt 3 complete
-- Last completed prompt: Prompt 3: Implement the core finite-state-machine foundation.
+- Current sequential prompt: Prompt 4 complete
+- Last completed prompt: Prompt 4: Create the hardware abstraction layer.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
 - Added repository instructions and architecture documentation.
@@ -34,6 +34,20 @@ PVI-FTC | Editable master guide
   target state, then updates the target state in that same cycle.
 - `Transition` compares source states by instance identity and uses `BooleanSupplier` for its
   condition. The FSM reports update-before-initialization with a clear exception.
+- Completed Prompt 4: added `DriveHardware`, `IntakeHardware`, `VisionHardware`, and
+  `RobotHardware` in `common.hardware`.
+- `DriveHardware` requires the configured `frontLeft`, `frontRight`, `rearLeft`, and `rearRight`
+  `DcMotorEx` motors. It configures left motors reverse, right motors forward, BRAKE zero-power
+  behavior, and `RUN_WITHOUT_ENCODER` mode without resetting encoders. It clamps requested motor
+  powers and retains their last commanded values for telemetry.
+- `IntakeHardware` treats the configured `intake` `DcMotorEx` as optional. A missing intake leaves
+  it unavailable and makes intake commands safe no-ops, without preventing drivetrain startup.
+- `VisionHardware` provides only the safe optional lifecycle. Camera, AprilTag, OpenCV, and
+  VisionPortal setup remain deferred, so it currently reports unavailable.
+- `RobotHardware` owns all three wrappers, initializes them in drivetrain, intake, vision order,
+  and provides `stopAll()`.
+- Required versus optional policy: drive motors are required and fail clearly when absent; intake
+  and vision are optional during early testing and must not disable the drivetrain.
 ## Current public APIs
 - `org.firstinspires.ftc.teamcode.core.robot.Subsystem`
   - `initialize()`, `update()`, `stop()`, and `getName()`
@@ -49,6 +63,15 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.core.fsm.FSM`
   - `FSM()`, `FSM(State)`, `setInitialState(State)`, `addTransition(Transition)`
   - `initialize()`, `update()`, `getCurrentState()`, and `getCurrentStateName()`
+- `org.firstinspires.ftc.teamcode.common.hardware.DriveHardware`
+  - `initialize(HardwareMap)`, `setMotorPowers(double, double, double, double)`, `stop()`,
+    `setBrakeMode()`, `setFloatMode()`, and individual last-commanded-power getters
+- `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
+  - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
+- `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
+  - `initialize()`, `update()`, `stop()`, and `isAvailable()`
+- `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
+  - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
 ## Build status
 - Approved JDK: Record the team-approved version here.
 - Android Studio version: Record the team-approved version here.
@@ -59,8 +82,10 @@ PVI-FTC | Editable master guide
 ## Known limitations and TODO items
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
+- Vision hardware integration is intentionally deferred until a future prompt defines camera and
+  processor requirements.
 ## Next planned task
-Prompt 4: To be assigned.
+Prompt 5: To be assigned.
 ## Update instructions
 After every completed prompt, replace or extend the sections above with:
 - prompt number and title;

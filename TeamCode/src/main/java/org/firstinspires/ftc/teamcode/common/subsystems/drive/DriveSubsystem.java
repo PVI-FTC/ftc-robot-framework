@@ -75,9 +75,19 @@ public class DriveSubsystem implements Subsystem {
         requestedRotate = safeInput(rotate);
     }
 
-    /** Requests normal driver-controlled mecanum behavior. */
-    public void enableManualDrive() {
+    /** Requests mecanum behavior that applies the stored drive values. */
+    public void enableRequestedDrive() {
         requestedMode = RequestedMode.MANUAL;
+    }
+
+    /**
+     * Requests normal driver-controlled mecanum behavior.
+     *
+     * <p>This TeleOp-facing name is retained for compatibility. Autonomous code should use
+     * {@link #enableRequestedDrive()} because the applied values can come from any higher layer.</p>
+     */
+    public void enableManualDrive() {
+        enableRequestedDrive();
     }
 
     /** Requests the safe disabled behavior. */

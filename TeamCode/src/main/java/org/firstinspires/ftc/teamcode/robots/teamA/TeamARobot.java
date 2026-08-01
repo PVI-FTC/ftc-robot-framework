@@ -68,9 +68,19 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         driveSubsystem.drive(forward, strafe, rotate);
     }
 
-    /** Requests normal manual drivetrain behavior. */
+    /** Requests drivetrain behavior that applies the stored drive values. */
+    public void enableRequestedDrive() {
+        driveSubsystem.enableRequestedDrive();
+    }
+
+    /**
+     * Requests normal manual drivetrain behavior.
+     *
+     * <p>This TeleOp-facing name is retained for compatibility. Autonomous code should use
+     * {@link #enableRequestedDrive()}.</p>
+     */
     public void enableManualDrive() {
-        driveSubsystem.enableManualDrive();
+        enableRequestedDrive();
     }
 
     /** Requests the safe disabled drivetrain behavior. */

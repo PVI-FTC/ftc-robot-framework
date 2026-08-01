@@ -6,9 +6,8 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: Prompt 16 complete
-- Last completed prompt: Prompt 16: Create Team B/C TeleOp skeletons and perform the
-  architecture audit.
+- Current sequential prompt: Autonomous drivetrain activation fix complete
+- Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
 - Added repository instructions and architecture documentation.
@@ -52,7 +51,7 @@ PVI-FTC | Editable master guide
 - Completed Prompt 5: added `DriveSubsystem` and its `DisabledDriveState`,
   `ManualDriveState`, and `HeadingHoldState` in `common.subsystems.drive`.
 - `DriveSubsystem` owns the drive FSM and depends on `DriveHardware` through its constructor. It
-  stores requested forward, strafe, and rotate values; its public request methods select manual,
+  stores requested forward, strafe, and rotate values; its public request methods select requested-drive,
   disabled, or heading-hold mode without exposing FSM state manipulation.
 - Mecanum calculations live only in `DriveSubsystem`. It applies the standard four-wheel equations,
   normalizes all four powers when needed, and sends the results through `DriveHardware`.
@@ -157,6 +156,13 @@ PVI-FTC | Editable master guide
   manipulated by OpModes; autonomous remains non-blocking and does not use InputManager; mecanum
   calculation and subsystem lifecycle ownership are not duplicated; shared packages contain no
   Team A class dependency; and optional intake/vision failures do not disable required drive.
+- Fixed Team A autonomous drivetrain activation: `TimedDriveStep` now requests the robot's
+  requested-drive mode before applying its timed drive request. Previously, `TeamAAutoOpMode`
+  started by disabling drive and the timed step updated only the requested inputs, so
+  `DisabledDriveState` continuously commanded zero motor power.
+- `AutonomousRobotControl` now calls the autonomous-neutral `enableRequestedDrive()` API.
+  `enableManualDrive()` remains available on Team A's robot and drive subsystem as the
+  TeleOp-compatible convenience name.
 ## Current public APIs
 - `org.firstinspires.ftc.teamcode.core.robot.Subsystem`
   - `initialize()`, `update()`, `stop()`, and `getName()`
@@ -184,7 +190,8 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
   - `DriveSubsystem(DriveHardware)`
   - `initialize()`, `update()`, `stop()`, and `getName()`
-  - `drive(double, double, double)`, `enableManualDrive()`, `disableDrive()`, and
+  - `drive(double, double, double)`, `enableRequestedDrive()`, `enableManualDrive()`,
+    `disableDrive()`, and
     `enableHeadingHold()`
   - `getCurrentStateName()`, `getRequestedForward()`, `getRequestedStrafe()`, and
     `getRequestedRotate()`
@@ -193,7 +200,8 @@ PVI-FTC | Editable master guide
   - public `State` implementations with `DriveSubsystem` constructors
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot`
   - `TeamARobot()`, `TeamARobot(RobotHardware)`, and `initialize(HardwareMap)`
-  - `drive(double, double, double)`, `enableManualDrive()`, `disableDrive()`, and
+  - `drive(double, double, double)`, `enableRequestedDrive()`, `enableManualDrive()`,
+    `disableDrive()`, and
     `enableHeadingHold()`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `stopIntake()`, `holdIntake()`, `ejectIntake()`, `getIntakeStateName()`,
@@ -226,7 +234,7 @@ PVI-FTC | Editable master guide
   `TimedIntakeStep`
   - non-blocking baseline timed steps
 - `org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl`
-  - narrow drive and intake requests implemented by TeamARobot
+  - narrow `enableRequestedDrive()`, drive, and intake requests implemented by TeamARobot
 - `org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAAutoOpMode`
   - iterative non-blocking Team A demonstration autonomous sequence
 - `org.firstinspires.ftc.teamcode.robots.teamB.TeamBRobot` and

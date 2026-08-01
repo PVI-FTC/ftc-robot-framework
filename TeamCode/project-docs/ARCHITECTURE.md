@@ -44,14 +44,9 @@ core.fsm
   robots.teamB
   robots.teamC
 - robot composition and team-specific extensions
-
-PVI-FTC Codex Sequential Repository Build — Master Instructions
-
-PVI-FTC | Editable master guide
-
-opmodes.teleop
-opmodes.autonomous
-opmodes.testing
+  - opmodes.teleop
+  - opmodes.autonomous
+  - opmodes.testing
 - FTC SDK entry points only
 ## Dependency direction
 OpMode

@@ -2,9 +2,9 @@
 
 PVI-FTC | Editable master guide
 
-[Click here to read the ARCHITECTURE guide](ARCHITECTURE.md)
+[Click here to read the ARCHITECTURE guide](../TeamCode/project-docs/ARCHITECTURE.md)
 
-[Click here to read the STUDENT CODING WORKFLOW guide](STUDENT_WORKFLOW.md)
+[Click here to read the STUDENT CODING WORKFLOW guide](../TeamCode/project-docs/STUDENT_WORKFLOW.md)
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController

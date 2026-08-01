@@ -1,8 +1,10 @@
 # PVI-FTC Implementation Status
 
-PVI-FTC Codex Sequential Repository Build — Master Instructions
-
 PVI-FTC | Editable master guide
+
+[Click here to read the ARCHITECTURE guide](../TeamCode/project-docs/ARCHITECTURE.md)
+
+[Click here to read the STUDENT CODING WORKFLOW guide](../TeamCode/project-docs/STUDENT_WORKFLOW.md)
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
@@ -245,12 +247,10 @@ PVI-FTC | Editable master guide
   `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamCTeleOp`
   - iterative drive-only TeleOp lifecycles using the corresponding robot public API
 ## Build status
-- Approved JDK: Record the team-approved version here. Prompt 16 validation used Java 17.0.12.
-- Android Studio version: Record the team-approved version here.
-- FTC SDK version or tag: Record here.
+- Approved JDK: Record the team-approved version here. Microsoft OpenJDK Java 17.0.x
+- Android Studio version: Quail 1
+- FTC SDK version or tag: Release 11.2.1
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
-- Prompt 16 pre-edit baseline result: `BUILD SUCCESSFUL` (49 tasks executed).
-- Prompt 16 final result: `BUILD SUCCESSFUL` (9 tasks executed, 40 up-to-date).
 ## Known limitations and TODO items
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
@@ -268,14 +268,12 @@ PVI-FTC | Editable master guide
   mode-selection mappings remain TODO items.
 - Deferred architecture review: no larger or ambiguous Prompt 16 findings require a speculative
   refactor at this time.
-## Next planned task
-Prompt 17: To be assigned.
+
 ## Update instructions
-After every completed prompt, replace or extend the sections above with:
-- prompt number and title;
+After every completed update, replace or extend the sections above with:
 - completed classes and behavior;
 - actual package names and public APIs;
 - important implementation decisions;
 - build command and result;
 - known limitations;
-- next prompt.
+

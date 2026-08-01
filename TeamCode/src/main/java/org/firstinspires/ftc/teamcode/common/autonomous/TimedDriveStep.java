@@ -28,7 +28,7 @@ public class TimedDriveStep implements AutoStep {
     @Override public void start() {
         timer.reset();
         started = true;
-        robot.enableManualDrive();
+        robot.enableRequestedDrive();
         robot.drive(forward, strafe, rotate);
     }
     @Override public void update() { if (!isFinished()) { robot.drive(forward, strafe, rotate); } }

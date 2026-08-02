@@ -127,3 +127,36 @@ The baseline intentionally defers:
 - simulation frameworks.
   A Scheduler should be introduced only when commands, cancellation, parallel execution, subsystem
   requirements, and default behaviors create a demonstrated need.
+
+## Planned localization and pathing pilot
+This section records intended design only. It does not mean Pedro Pathing, Pinpoint, a follower, or a path has been implemented. `IMPLEMENTATION_STATUS.md` remains the record of code that actually exists.
+
+### Team-selectable composition
+- The existing `TeamARobot` remains the simple Team A robot and continues to use the shared baseline drivetrain.
+- A future, separate `TeamAPedroRobot` will be the Team A pilot composition. Other teams remain free to keep the simple robot or later provide their own team-specific pathing composition.
+- Vendor classes such as Pedro `Follower`, `Path`, `PathChain`, and `Pose` stay in the selected team package. Common Robot, subsystem, autonomous, and localization APIs remain vendor-neutral.
+
+### Ownership and dependencies
+```text
+Pathing OpMode
+-> TeamAPedroRobot public API
+-> neutral drive/path request seam
+-> drive subsystem FSM and team-specific Pedro controller
+-> Pedro follower, Pinpoint, and the four pilot drive motors
+```
+- This flow continues to point downward. OpModes do not access motors, Pinpoint, `HardwareMap`, or the follower directly.
+- The Pedro pilot composition will be the only owner of its four drive motors and Pinpoint device. It must not also initialize those motors through the existing `DriveHardware` composition.
+- Manual drive, following a path, cancellation, and stop will be requested through the Robot public API. The drive FSM will select one active mode, so two controllers cannot command the same motors.
+
+### Lifecycle and entry paths
+- During the future pathing robot initialization, team-specific code may obtain the required hardware through the allowed hardware boundary and create the follower. It will use only inspected hardware configuration.
+- Each FTC loop, TeleOp maps gamepad input through `InputManager` and the Robot public API. Autonomous updates `AutoSequence` and uses Robot public APIs; it does not use `InputManager`.
+- The follower will be updated exactly once per loop by the pathing-capable Robot/subsystem lifecycle. It must not use blocking waits, loops, or a new scheduler.
+- On cancellation or FTC stop, the active pathing mode must command safe zero drivetrain output before any later motor command is possible.
+
+### Visualization, safety, and deferred decisions
+- Path shapes and field layouts will be designed and inspected in an external official visualization tool. The visualizer is not part of the on-robot control loop. Robot telemetry may report pose and path status for observation.
+- Do not invent motor names or directions, Pinpoint name, pod type, pod offsets, encoder directions, robot mass, power limits, constraints, gains, or tuning results.
+- Physical configuration, localization checks, direction checks, tuning, and any powered path test remain deferred until a real robot is inspected and the required safety gates are satisfied.
+- A teacher or approved adult supervises powered tests, with a clear area and a named Driver Station STOP controller.
+- A general command scheduler, Ivy, and parallel autonomous actions remain deliberately deferred. The existing non-blocking `AutoSequence` remains the autonomous sequencing mechanism.

@@ -4,7 +4,7 @@ This is the durable, branch-local progress record used by the student guide. It 
 different student determine what has actually been reviewed without relying on an earlier
 conversation.
 
-Working branch: `UNCONFIRMED`
+Working branch: `PedroPathingSetup`
 
 ## Status meanings
 
@@ -36,7 +36,7 @@ Working branch: `UNCONFIRMED`
 
 | Prompt | Status | Review date | Durable evidence or decision |
 | --- | --- | --- | --- |
-| LP-01 | Not started | — | Architecture discovery not started. |
+| LP-01 | Reviewed | 2026-08-02 | Student accepted the separate, team-specific Team A Pedro Robot design. Baseline drivetrain ownership is in `DriveSubsystem` and `DriveHardware`. |
 | LP-02 | Not started | — | Architecture decision has not been recorded. |
 | LP-03 | Not started | — | Dependency and compatibility research not started. |
 | LP-04 | Not started | — | Dependency installation not started. |

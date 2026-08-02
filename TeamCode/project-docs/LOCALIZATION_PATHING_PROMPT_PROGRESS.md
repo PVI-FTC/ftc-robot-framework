@@ -1,0 +1,49 @@
+# Localization and Pathing Prompt Progress
+
+This is the durable, branch-local progress record used by the student guide. It lets a new chat or a
+different student determine what has actually been reviewed without relying on an earlier
+conversation.
+
+Working branch: `UNCONFIRMED`
+
+## Status meanings
+
+- `Not started`: the prompt has not been executed on this branch.
+- `Results ready`: the assistant produced results, but the student has not finished reviewing them.
+- `Reviewed`: the student reviewed the evidence, resolved every question required for the next
+  prompt, and explicitly accepted the result.
+- `Blocked`: work stopped because a prerequisite, build, permission, or required decision is
+  unresolved. Record the blocker instead of advancing.
+
+## Progress rules
+
+- `Start Here` advances past a prompt only when its status is `Reviewed`.
+- Running a prompt does not automatically make it `Reviewed`.
+- Immediately before presenting results, the assistant updates only that prompt's row to `Results
+  ready`, or to `Blocked` when work cannot continue. This status-only edit is administrative
+  recordkeeping and is allowed even when the prompt itself is read-only.
+- After the student explicitly accepts the result and resolves required questions, update only that
+  row in a separate turn to mark `Reviewed`.
+- Save a short repository-based evidence reference or decision. Do not use chat history as the only
+  evidence.
+- A different student continuing the same branch reads this record and the cited repository evidence
+  before proceeding.
+- A fresh student-branch template uses `Working branch: UNCONFIRMED` and sets every prompt to `Not
+  started`. `Start Here` replaces `UNCONFIRMED` only after the student confirms the checked-out
+  branch. Students must not reset an existing branch's record merely to skip a blocker.
+
+## Prompt record
+
+| Prompt | Status | Review date | Durable evidence or decision |
+| --- | --- | --- | --- |
+| LP-01 | Not started | — | Architecture discovery not started. |
+| LP-02 | Not started | — | Architecture decision has not been recorded. |
+| LP-03 | Not started | — | Dependency and compatibility research not started. |
+| LP-04 | Not started | — | Dependency installation not started. |
+| LP-05 | Not started | — | Vendor-neutral integration seams not started. |
+| LP-06 | Not started | — | Team-specific Pedro/Pinpoint pilot integration not started. |
+| LP-07 | Not started | — | Session 2 software validation not started. |
+| LP-08 | Not started | — | Staged physical configuration not started. |
+| LP-09 | Not started | — | Pinpoint pose and restricted manual-drive hardware checks not started. |
+| LP-10 | Not started | — | Version-matched Pedro tuning and evidence collection not started. |
+| LP-11 | Not started | — | Cautious visualized pilot path and final hardware reconciliation not started. |

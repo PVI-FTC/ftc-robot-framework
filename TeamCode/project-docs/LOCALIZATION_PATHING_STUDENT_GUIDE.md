@@ -1,7 +1,11 @@
 # Localization and Pathing Student Guide
 
-## Start here by executing this prompt in your AI Agent
+## Start Here: copy this prompt into your AI Agent
 
+Copy only the contents of the snippet below. Stop at the closing snippet marker; do not copy the
+`Purpose` section or anything after it.
+
+```text
 > - Read `TeamCode/project-docs/LOCALIZATION_PATHING_STUDENT_GUIDE.md`.
 > - Assume the student has already created and checked out the one local branch they intend to use
 >   for all localization and pathing work. Never create or switch branches.
@@ -70,6 +74,7 @@
 > - Mark a prompt `Reviewed` only in a later turn, after the student explicitly accepts the evidence
 >   and all questions required for the next prompt are resolved. Never execute the next prompt
 >   automatically.
+```
 
 ## Purpose
 

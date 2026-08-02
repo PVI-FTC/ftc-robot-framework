@@ -37,7 +37,7 @@ Working branch: `PedroPathingSetup`
 | Prompt | Status | Review date | Durable evidence or decision |
 | --- | --- | --- | --- |
 | LP-01 | Reviewed | 2026-08-02 | Student accepted the separate, team-specific Team A Pedro Robot design. Baseline drivetrain ownership is in `DriveSubsystem` and `DriveHardware`. |
-| LP-02 | Results ready | 2026-08-02 | `ARCHITECTURE.md` now records the approved separate Team A Pedro Robot design as future intent only. |
+| LP-02 | Reviewed | 2026-08-02 | Student accepted `ARCHITECTURE.md` documentation of the approved separate Team A Pedro Robot design as future intent only. |
 | LP-03 | Not started | — | Dependency and compatibility research not started. |
 | LP-04 | Not started | — | Dependency installation not started. |
 | LP-05 | Not started | — | Vendor-neutral integration seams not started. |

@@ -12,6 +12,11 @@ PVI-FTC | Editable master guide
 - Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- LP-04 localization/pathing setup: added the `https://mymaven.bylazar.com/releases` repository and pinned `com.pedropathing:ftc:2.1.2` in `build.dependencies.gradle`.
+- Raised the shared TeamCode and FtcRobotController compile SDK settings from 30 to 34. FTC SDK 11.2.1, Gradle 9.1.0, Android Gradle Plugin 8.13.2, and Java 8 source/target compatibility remain unchanged.
+- Verified `TeamCode:assembleDebug` with Microsoft OpenJDK 17.0.20; build succeeded. Android SDK Platform 34 installed in the existing per-user SDK location after its license was accepted.
+- No Pedro drivetrain, Pinpoint localization, dashboard, path, or hardware configuration code exists yet.
+
 - Added repository instructions and architecture documentation.
 - Added sequential student workflow documentation.
 - Completed Prompt 1: confirmed the TeamCode Java source root is

@@ -39,7 +39,7 @@ Working branch: `PedroPathingSetup`
 | LP-01 | Reviewed | 2026-08-02 | Student accepted the separate, team-specific Team A Pedro Robot design. Baseline drivetrain ownership is in `DriveSubsystem` and `DriveHardware`. |
 | LP-02 | Reviewed | 2026-08-02 | Student accepted `ARCHITECTURE.md` documentation of the approved separate Team A Pedro Robot design as future intent only. |
 | LP-03 | Reviewed | 2026-08-02 | Student accepted pinned Pedro v2.1.2 core-only pilot plan, compile SDK 34 requirement, and Microsoft OpenJDK 17.0.2 Gradle readiness. |
-| LP-04 | Not started | — | Dependency installation not started. |
+| LP-04 | Results ready | 2026-08-02 | Added pinned Pedro `2.1.2`, required repository, compile SDK 34, and implementation status; JDK 17 TeamCode build succeeded. |
 | LP-05 | Not started | — | Vendor-neutral integration seams not started. |
 | LP-06 | Not started | — | Team-specific Pedro/Pinpoint pilot integration not started. |
 | LP-07 | Not started | — | Session 2 software validation not started. |

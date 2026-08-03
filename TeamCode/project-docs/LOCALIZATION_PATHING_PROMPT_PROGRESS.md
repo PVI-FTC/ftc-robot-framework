@@ -4,7 +4,7 @@ This is the durable, branch-local progress record used by the student guide. It 
 different student determine what has actually been reviewed without relying on an earlier
 conversation.
 
-Working branch: `PedroPathingSetup`
+Working branch: `PedroPathingSetup2.0`
 
 ## Status meanings
 

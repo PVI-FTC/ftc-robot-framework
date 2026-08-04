@@ -17,8 +17,13 @@ public final class TeamAPedroDriveController implements DriveController {
 
     @Override public void updateManualDrive(double forward, double strafe, double rotate) {
         requireFollower();
-        if (!teleOpStarted) { follower.startTeleOpDrive(); teleOpStarted = true; }
         follower.setTeleOpDrive(forward, strafe, rotate, true);
+        if (!teleOpStarted) {
+            // Pedro performs this loop's first follower update during startup.
+            follower.startTeleOpDrive();
+            teleOpStarted = true;
+            return;
+        }
         follower.update();
     }
     @Override public void updatePathFollowing() { requireFollower(); teleOpStarted = false; follower.update(); }

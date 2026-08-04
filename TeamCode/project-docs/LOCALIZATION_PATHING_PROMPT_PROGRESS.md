@@ -42,7 +42,7 @@ Working branch: `PedroPathingSetup2.0`
 | LP-04 | Reviewed | 2026-08-02 | Student accepted pinned Pedro `2.1.2`, compile SDK 34, successful Android Studio Sync, and successful JDK 17 TeamCode build; no Pedro behavior exists yet. |
 | LP-05 | Reviewed | 2026-08-03 | Student accepted vendor-neutral pose/drive seams, safe path-following FSM state, preserved simple mecanum composition, and successful TeamCode build. |
 | LP-06 | Reviewed | 2026-08-04 | Student accepted separate Team A Pedro robot/controller/factory/configuration gate, preserved TeamARobot, and successful JDK 17 TeamCode build. |
-| LP-07 | Not started | — | Session 2 software validation not started. |
+| LP-07 | Reviewed | 2026-08-04 | Student accepted Session 2 static/lifecycle validation, successful Android Studio Sync/TeamCode assembly, and the real-hardware limitations. |
 | LP-08 | Not started | — | Staged physical configuration not started. |
 | LP-09 | Not started | — | Pinpoint pose and restricted manual-drive hardware checks not started. |
 | LP-10 | Not started | — | Version-matched Pedro tuning and evidence collection not started. |

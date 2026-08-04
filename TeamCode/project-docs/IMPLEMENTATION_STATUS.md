@@ -17,6 +17,9 @@ PVI-FTC | Editable master guide
 - Default Pedro configuration is explicitly unconfigured. Initialization fails before hardware lookup or follower creation until Team A provides real motor, Pinpoint, pod, offset, direction, mass, power, constraint, and tuning facts.
 - No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a later approved prompt supplies a path and opens its safety gate. No physical behavior has been verified.
 - `TeamCode:assembleDebug` succeeded with Microsoft OpenJDK 17.0.20; no supported local unit-test source set exists.
+- LP-07 Session 2 validation: static inspection confirms Pedro imports stay inside Team A, `TeamAPedroRobot` has no direct hardware lookup or `RobotHardware`/`DriveHardware` ownership, and the simple Team A/B/C robots retain their default mecanum controller.
+- Corrected one Session 2 lifecycle defect: on the first manual loop, `TeamAPedroDriveController` lets Pedro's `startTeleOpDrive()` perform its built-in update and returns. Later manual loops call `follower.update()` once. This avoids a double follower update on startup.
+- Software evidence shows `breakFollowing()` is the configured cancellation path, but physical motor stop behavior, Pinpoint pose accuracy, tuning, and safe path execution still require real-hardware bring-up after actual configuration facts are supplied.
 
 - LP-05 localization/pathing seams: added the vendor-neutral `PoseEstimate` value and `DriveController` interface. `MecanumDriveController` preserves the simple drive behavior and reports unavailable pose/path-following capability.
 - `DriveSubsystem` now owns mutually exclusive disabled, manual, heading-hold, and path-following FSM requests. Its existing `DriveHardware` constructor remains the default simple mecanum composition; a controller constructor supports a future team-specific implementation.

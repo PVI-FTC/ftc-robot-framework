@@ -12,9 +12,36 @@ PVI-FTC | Editable master guide
 - Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- LP-08 staged Team A Pedro readiness: the default `TeamAPedroRobot` now uses configuration facts
+  inspected or measured on the real robot and may initialize its follower/localizer in the disabled
+  drive state. Restricted manual drive and path following remain separate closed permissions.
+- Recorded LP-08 configuration evidence:
+
+  | Value | Recorded source | Unit | Status after LP-08 |
+  | --- | --- | --- | --- |
+  | Motors `frontLeft`, `rearLeft`, `frontRight`, `rearRight` | Director checked Driver Station configuration | names | Physically verified |
+  | Control Hub motor ports 0 FL, 1 FR, 2 RL, 3 RR | Director checked arrangement | ports | Physically verified |
+  | Pinpoint name `pinpoint`, Control Hub I2C port 3 | Director checked configuration and wiring | name/port | Physically verified |
+  | Forward pod on Pinpoint X; strafe pod on Pinpoint Y | Director traced connections | connections | Physically verified |
+  | goBILDA 4-Bar 32 mm pods | Director inspected pod model | model | Physically verified |
+  | `forwardPodY = -6.25`, `strafePodX = -10.0` | Director manually measured from center of rotation | inches | Recorded physical measurements; localization unverified |
+  | Robot mass `7.0` | Student measured | kilograms | Recorded physical measurement |
+  | Starting pose `(0, 0, 0)` | Director approved | inches/radians | Recorded; localization unverified |
+  | Left motors reverse; right motors forward | Existing `DriveHardware` setting, recorded by director | directions | Recorded; Pedro motion unverified |
+  | Forward and strafe encoders forward | Director-approved provisional test setup | directions | Unknown physically; must verify in LP-09 |
+  | Restricted manual maximum power `0.20` | Director-approved safety ceiling | fraction | Recorded; manual-drive gate still closed |
+  | Pedro gains, velocities, constraints, braking, and path-end values | Not yet tuned | varies | Unknown; path-following gate closed |
+- `TeamAPedroFollowerFactory` applies the approved `(0, 0, 0)` starting pose and cancels following
+  before the drive subsystem enters its continuously disabled state. No path or OpMode was added,
+  and no deployment or powered robot test occurred.
+- Pedro `com.pedropathing:ftc:2.1.2` resolved in Gradle dependency insight and the existing Pedro
+  imports compiled successfully. Red imports remaining in Android Studio indicate Sync/index state,
+  not a missing command-line dependency.
 - LP-06 Team A pilot: added `TeamAPedroRobot`, `TeamAPedroDriveController`, `TeamAPedroFollowerFactory`, and `TeamAPedroConfiguration` under `robots.teamA`. `TeamARobot` remains unchanged as the simple option.
 - The Pedro robot owns only its follower-backed DriveSubsystem and does not create `RobotHardware` or `DriveHardware`, preventing duplicate pilot-motor ownership. The follower factory uses Pedro 2.1.2 `FollowerBuilder` with Pinpoint and mecanum builders.
-- Default Pedro configuration is explicitly unconfigured. Initialization fails before hardware lookup or follower creation until Team A provides real motor, Pinpoint, pod, offset, direction, mass, power, constraint, and tuning facts.
+- The earlier all-or-nothing unconfigured default was replaced in LP-08. The default now holds
+  inspected initialization facts, while manual-drive and path-following permissions remain closed
+  until their separate physical evidence exists.
 - No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a later approved prompt supplies a path and opens its safety gate. No physical behavior has been verified.
 - `TeamCode:assembleDebug` succeeded with Microsoft OpenJDK 17.0.20; no supported local unit-test source set exists.
 - LP-07 Session 2 validation: static inspection confirms Pedro imports stay inside Team A, `TeamAPedroRobot` has no direct hardware lookup or `RobotHardware`/`DriveHardware` ownership, and the simple Team A/B/C robots retain their default mecanum controller.
@@ -232,6 +259,14 @@ PVI-FTC | Editable master guide
   - `startIntake()`, `stopIntake()`, `holdIntake()`, `ejectIntake()`, `getIntakeStateName()`,
     and `isIntakeAvailable()`
   - `enableVision()`, `disableVision()`, `getVisionStateName()`, and `isVisionAvailable()`
+- `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroConfiguration`
+  - `unconfigured()`, `configured(...)`, and `recordedTeamAConfiguration()`
+  - read-only readiness queries for safe initialization, restricted manual drive, and path following
+- `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroRobot`
+  - default recorded Team A configuration plus the existing injectable constructor
+  - `initialize(HardwareMap)`, drive mode requests, cancellation, pose/state diagnostics, and
+    read-only readiness queries; manual drive and path following fail closed while their gates are
+    unavailable
 - `org.firstinspires.ftc.teamcode.core.input.InputManager`
   - `InputManager(Gamepad)` and `update()` once per TeleOp loop
   - held, just-pressed, and just-released button queries for A, B, X, Y, and both bumpers
@@ -275,6 +310,13 @@ PVI-FTC | Editable master guide
 - FTC SDK version or tag: Release 11.2.1
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
 ## Known limitations and TODO items
+- Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
+  resolves and compiles Pedro 2.1.2.
+- LP-09 must verify Pinpoint connection/status, pose signs, approximate distances, return-to-start
+  error, provisional encoder directions, recorded motor directions, restricted manual movement,
+  cancellation, Driver Station STOP, and `robot.stop()` before opening the manual-drive gate.
+- Path following remains closed until later version-matched tuning records accepted velocities,
+  gains or predictive-braking values, constraints, repeatability, and safe stop behavior.
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
 - Vision hardware integration is intentionally deferred until a future prompt defines camera and

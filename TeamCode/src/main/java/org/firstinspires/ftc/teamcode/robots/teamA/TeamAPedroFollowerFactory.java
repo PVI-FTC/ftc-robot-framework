@@ -10,9 +10,14 @@ public final class TeamAPedroFollowerFactory {
         if (hardwareMap == null) throw new IllegalArgumentException("Pedro follower needs a hardware map.");
         if (configuration == null) throw new IllegalArgumentException("Pedro follower needs configuration.");
         configuration.requireConfigured();
-        return new FollowerBuilder(configuration.getFollowerConstants(), hardwareMap)
+        Follower follower = new FollowerBuilder(configuration.getFollowerConstants(), hardwareMap)
                 .pinpointLocalizer(configuration.getPinpointConstants())
                 .mecanumDrivetrain(configuration.getMecanumConstants())
                 .build();
+        if (configuration.getStartingPose() != null) {
+            follower.setStartingPose(configuration.getStartingPose());
+        }
+        follower.breakFollowing();
+        return follower;
     }
 }

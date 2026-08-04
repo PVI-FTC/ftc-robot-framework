@@ -160,3 +160,14 @@ Pathing OpMode
 - Physical configuration, localization checks, direction checks, tuning, and any powered path test remain deferred until a real robot is inspected and the required safety gates are satisfied.
 - A teacher or approved adult supervises powered tests, with a clear area and a named Driver Station STOP controller.
 - A general command scheduler, Ivy, and parallel autonomous actions remain deliberately deferred. The existing non-blocking `AutoSequence` remains the autonomous sequencing mechanism.
+
+### Staged Pedro readiness gates
+- Safe initialization may create the Team A follower and Pinpoint localizer from recorded hardware
+  facts while the drive FSM remains disabled and commands zero output. This gate does not authorize
+  manual driving or path following.
+- Restricted manual-drive testing is a separate permission. It stays closed until LP-09 begins with
+  the required physical inspection, raised-wheel support, adult supervision, and Driver Station
+  STOP plan.
+- Path following is a third permission. It stays closed until localization, motor and encoder
+  directions, required tuning, constraints, and stop behavior have been physically verified and
+  accepted.

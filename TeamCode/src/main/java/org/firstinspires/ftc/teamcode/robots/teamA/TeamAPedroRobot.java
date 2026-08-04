@@ -13,7 +13,9 @@ public class TeamAPedroRobot extends Robot {
     private final DriveSubsystem driveSubsystem;
     private boolean hardwareInitialized;
 
-    public TeamAPedroRobot() { this(TeamAPedroConfiguration.unconfigured(), new TeamAPedroFollowerFactory()); }
+    public TeamAPedroRobot() {
+        this(TeamAPedroConfiguration.recordedTeamAConfiguration(), new TeamAPedroFollowerFactory());
+    }
     public TeamAPedroRobot(TeamAPedroConfiguration configuration, TeamAPedroFollowerFactory followerFactory) {
         if (configuration == null || followerFactory == null) throw new IllegalArgumentException("Team A Pedro robot needs configuration and follower factory.");
         this.configuration = configuration;
@@ -30,13 +32,24 @@ public class TeamAPedroRobot extends Robot {
         super.initialize();
     }
     public void drive(double forward, double strafe, double rotate) { driveSubsystem.drive(forward, strafe, rotate); }
-    public void enableManualDrive() { driveSubsystem.enableManualDrive(); }
-    /** No Team A path exists in LP-06, so this leaves drivetrain output disabled. */
-    public void enablePathFollowing() { driveSubsystem.cancelPathFollowing(); }
+    public void enableManualDrive() {
+        driveSubsystem.disableDrive();
+        configuration.requireRestrictedManualDriveReady();
+        driveSubsystem.enableManualDrive();
+    }
+    /** No Team A path or tuning approval exists, so this remains locked. */
+    public void enablePathFollowing() {
+        driveSubsystem.disableDrive();
+        configuration.requirePathFollowingReady();
+        driveSubsystem.enablePathFollowing();
+    }
     public void cancelPathFollowing() { driveSubsystem.cancelPathFollowing(); }
     public void disableDrive() { driveSubsystem.disableDrive(); }
     public boolean isPathFollowingActive() { return driveSubsystem.isPathFollowingActive(); }
     public boolean isPathFollowingComplete() { return !driveSubsystem.isPathFollowingActive(); }
     public PoseEstimate getPoseEstimate() { return driveSubsystem.getPoseEstimate(); }
     public String getDriveStateName() { return driveSubsystem.getCurrentStateName(); }
+    public boolean isSafeInitializationReady() { return configuration.isSafeInitializationReady(); }
+    public boolean isRestrictedManualDriveReady() { return configuration.isRestrictedManualDriveReady(); }
+    public boolean isPathFollowingReady() { return configuration.isPathFollowingReady(); }
 }

@@ -40,7 +40,7 @@ Working branch: `PedroPathingSetup2.0`
 | LP-02 | Reviewed | 2026-08-02 | Student accepted `ARCHITECTURE.md` documentation of the approved separate Team A Pedro Robot design as future intent only. |
 | LP-03 | Reviewed | 2026-08-02 | Student accepted pinned Pedro v2.1.2 core-only pilot plan, compile SDK 34 requirement, and Microsoft OpenJDK 17.0.2 Gradle readiness. |
 | LP-04 | Reviewed | 2026-08-02 | Student accepted pinned Pedro `2.1.2`, compile SDK 34, successful Android Studio Sync, and successful JDK 17 TeamCode build; no Pedro behavior exists yet. |
-| LP-05 | Not started | — | Vendor-neutral integration seams not started. |
+| LP-05 | Reviewed | 2026-08-03 | Student accepted vendor-neutral pose/drive seams, safe path-following FSM state, preserved simple mecanum composition, and successful TeamCode build. |
 | LP-06 | Not started | — | Team-specific Pedro/Pinpoint pilot integration not started. |
 | LP-07 | Not started | — | Session 2 software validation not started. |
 | LP-08 | Not started | — | Staged physical configuration not started. |

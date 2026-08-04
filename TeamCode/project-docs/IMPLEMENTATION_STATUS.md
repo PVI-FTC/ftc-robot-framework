@@ -12,6 +12,11 @@ PVI-FTC | Editable master guide
 - Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- LP-05 localization/pathing seams: added the vendor-neutral `PoseEstimate` value and `DriveController` interface. `MecanumDriveController` preserves the simple drive behavior and reports unavailable pose/path-following capability.
+- `DriveSubsystem` now owns mutually exclusive disabled, manual, heading-hold, and path-following FSM requests. Its existing `DriveHardware` constructor remains the default simple mecanum composition; a controller constructor supports a future team-specific implementation.
+- `PathFollowingDriveState` updates a controller once per FTC loop. The baseline mecanum controller safely stops when path following is requested, so Teams A, B, and C retain their existing simple-drive behavior.
+- No supported TeamCode unit-test source set exists, so the new seams were compile-checked with `TeamCode:assembleDebug`. Common source imports contain no Pedro classes.
+
 - LP-04 localization/pathing setup: added the `https://mymaven.bylazar.com/releases` repository and pinned `com.pedropathing:ftc:2.1.2` in `build.dependencies.gradle`.
 - Raised the shared TeamCode and FtcRobotController compile SDK settings from 30 to 34. FTC SDK 11.2.1, Gradle 9.1.0, Android Gradle Plugin 8.13.2, and Java 8 source/target compatibility remain unchanged.
 - Verified `TeamCode:assembleDebug` with Microsoft OpenJDK 17.0.20; build succeeded. Android SDK Platform 34 installed in the existing per-user SDK location after its license was accepted.
@@ -57,11 +62,12 @@ PVI-FTC | Editable master guide
   and vision are optional during early testing and must not disable the drivetrain.
 - Completed Prompt 5: added `DriveSubsystem` and its `DisabledDriveState`,
   `ManualDriveState`, and `HeadingHoldState` in `common.subsystems.drive`.
-- `DriveSubsystem` owns the drive FSM and depends on `DriveHardware` through its constructor. It
-  stores requested forward, strafe, and rotate values; its public request methods select requested-drive,
-  disabled, or heading-hold mode without exposing FSM state manipulation.
-- Mecanum calculations live only in `DriveSubsystem`. It applies the standard four-wheel equations,
-  normalizes all four powers when needed, and sends the results through `DriveHardware`.
+- `DriveSubsystem` owns the drive FSM. Its existing `DriveHardware` constructor uses the default
+  simple controller, while its optional controller constructor supports future team-specific pathing.
+  It stores requested forward, strafe, and rotate values; its public requests select disabled,
+  manual, heading-hold, or path-following mode without exposing FSM state manipulation.
+- `DriveSubsystem` owns drive-mode selection. Its default `MecanumDriveController` applies the standard
+  four-wheel equations, normalizes power when needed, and sends the results through `DriveHardware`.
 - Disabled drive continuously stops the motors. Heading hold is an explicit safe manual-drive
   fallback with no IMU target or correction; IMU heading correction remains deferred.
 - Drive requests made before initialization are stored safely. The FSM initializes in disabled
@@ -195,15 +201,18 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
   - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
-  - `DriveSubsystem(DriveHardware)`
+  - `DriveSubsystem(DriveHardware)` and `DriveSubsystem(DriveController)`
   - `initialize()`, `update()`, `stop()`, and `getName()`
   - `drive(double, double, double)`, `enableRequestedDrive()`, `enableManualDrive()`,
-    `disableDrive()`, and
-    `enableHeadingHold()`
-  - `getCurrentStateName()`, `getRequestedForward()`, `getRequestedStrafe()`, and
-    `getRequestedRotate()`
+    `disableDrive()`, `enableHeadingHold()`, `enablePathFollowing()`, and `cancelPathFollowing()`
+  - request diagnostics plus `getPoseEstimate()` and `isPathFollowingActive()`
+- `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveController` and
+  `MecanumDriveController`
+  - library-neutral optional pathing/localization seam and the default simple-mecanum implementation
+- `org.firstinspires.ftc.teamcode.common.localization.PoseEstimate`
+  - immutable available/unavailable pose boundary using inches and radians
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DisabledDriveState`,
-  `ManualDriveState`, and `HeadingHoldState`
+  `ManualDriveState`, `HeadingHoldState`, and `PathFollowingDriveState`
   - public `State` implementations with `DriveSubsystem` constructors
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot`
   - `TeamARobot()`, `TeamARobot(RobotHardware)`, and `initialize(HardwareMap)`

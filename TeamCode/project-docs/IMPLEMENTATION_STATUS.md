@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- LP-06 Team A pilot: added `TeamAPedroRobot`, `TeamAPedroDriveController`, `TeamAPedroFollowerFactory`, and `TeamAPedroConfiguration` under `robots.teamA`. `TeamARobot` remains unchanged as the simple option.
+- The Pedro robot owns only its follower-backed DriveSubsystem and does not create `RobotHardware` or `DriveHardware`, preventing duplicate pilot-motor ownership. The follower factory uses Pedro 2.1.2 `FollowerBuilder` with Pinpoint and mecanum builders.
+- Default Pedro configuration is explicitly unconfigured. Initialization fails before hardware lookup or follower creation until Team A provides real motor, Pinpoint, pod, offset, direction, mass, power, constraint, and tuning facts.
+- No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a later approved prompt supplies a path and opens its safety gate. No physical behavior has been verified.
+- `TeamCode:assembleDebug` succeeded with Microsoft OpenJDK 17.0.20; no supported local unit-test source set exists.
+
 - LP-05 localization/pathing seams: added the vendor-neutral `PoseEstimate` value and `DriveController` interface. `MecanumDriveController` preserves the simple drive behavior and reports unavailable pose/path-following capability.
 - `DriveSubsystem` now owns mutually exclusive disabled, manual, heading-hold, and path-following FSM requests. Its existing `DriveHardware` constructor remains the default simple mecanum composition; a controller constructor supports a future team-specific implementation.
 - `PathFollowingDriveState` updates a controller once per FTC loop. The baseline mecanum controller safely stops when path following is requested, so Teams A, B, and C retain their existing simple-drive behavior.

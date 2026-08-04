@@ -3,7 +3,7 @@
 This branch-local record is the source of truth for student handoff. Do not use chat history to
 infer completion.
 
-Working branch: `UNCONFIRMED`
+Working branch: `codex/Vision`
 
 ## Status meanings
 
@@ -24,7 +24,7 @@ Working branch: `UNCONFIRMED`
 
 | Prompt | Status | Review date | Durable evidence or decision |
 | --- | --- | --- | --- |
-| AV-01 | Not started | — | Architecture and official-guidance discovery not started. |
+| AV-01 | Reviewed | 2026-08-04 | Student approved the observation-only, Logitech/UVC-first separate Team A vision-only pilot; current FSM remains behavior owner. Evidence: current FSM and SDK samples inspected; official FTC VisionPortal/AprilTag, calibration, UVC, lifecycle, and Limelight guidance reviewed. |
 | AV-02 | Not started | — | Vision architecture decision not reviewed. |
 | AV-03 | Not started | — | FTC API and baseline-build compatibility check not started. |
 | AV-04 | Not started | — | Optional neutral observation boundary not implemented. |

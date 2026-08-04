@@ -14,6 +14,10 @@ PVI-FTC | Editable master guide
 ## Completed work
 - Added repository instructions and architecture documentation.
 - Added sequential student workflow documentation.
+- Added AprilTag vision-pilot planning artifacts: a student guide, teacher guide, branch-local
+  progress record, and separate architecture decision record. These documents define an
+  observation-only, Logitech-first and Limelight-ready learning path; no AprilTag, VisionPortal,
+  Limelight, localization-fusion, or drivetrain-control implementation has been added.
 - Completed Prompt 1: confirmed the TeamCode Java source root is
   `TeamCode/src/main/java` and its root package is `org.firstinspires.ftc.teamcode`.
 - Added documented package-level structure under that root: `core.fsm`, `core.robot`,

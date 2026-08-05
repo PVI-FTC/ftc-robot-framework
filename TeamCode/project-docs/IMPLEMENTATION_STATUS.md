@@ -12,6 +12,11 @@ PVI-FTC | Editable master guide
 - Last completed prompt: Fixed Team A autonomous drivetrain activation.
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- Added `LOCALIZATION_PATHING_TEACHER_VERIFICATION_PROMPT.md`, a reusable read-only teacher review
+  prompt that generates a checklist matched to the branch's recorded LP status. It audits
+  repository evidence, staged readiness gates, physical facts, software boundaries, build results,
+  and student understanding without advancing prompts, changing progress, authorizing motion, or
+  modifying the branch.
 - LP-08 staged Team A Pedro readiness: the default `TeamAPedroRobot` now uses configuration facts
   inspected or measured on the real robot and may initialize its follower/localizer in the disabled
   drive state. Restricted manual drive and path following remain separate closed permissions.

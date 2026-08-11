@@ -126,8 +126,7 @@ public class VisionSubsystem implements Subsystem {
         targetDetected = !latestObservations.isEmpty();
     }
 
-    void stopVisionHardware() {
-        visionHardware.stop();
+    void clearVisionObservations() {
         latestObservations = Collections.emptyList();
         targetDetected = false;
     }

@@ -146,6 +146,10 @@ PVI-FTC | Editable master guide
   `logitechVisionWebcam`. Missing or unavailable camera hardware is caught as an unavailable
   result. The source reports IDs only; metric robot-relative pose remains unavailable until the
   later calibration and mount evidence gate.
+- AprilTag vision prompt AV-06 corrected the pilot lifecycle so entering the disabled FSM state
+  clears stale observations without closing the initialized optional camera. Active vision states
+  remain the only states that update the source, and `robot.stop()` still closes VisionPortal and
+  clears observations. This allows a later OpMode `start()` enable request to succeed.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

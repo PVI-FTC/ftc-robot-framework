@@ -29,6 +29,6 @@ Working branch: `codex/Vision`
 | AV-03 | Reviewed | 2026-08-11 | Student approved AV-04's neutral observation/source-boundary file plan. FTC SDK 11.2.1 samples/APIs verified for VisionPortal, AprilTagProcessor, and separate Limelight3A; Vision/Hardware artifacts already supplied and baseline build passed. |
 | AV-04 | Reviewed | 2026-08-11 | Student accepted the neutral observation boundary: immutable ID-only-safe observations, one internal source, and VisionSubsystem FSM ownership. Default source remains safely unavailable; pre/post builds passed. |
 | AV-05 | Reviewed | 2026-08-11 | Student accepted the separate Team A Logitech/UVC vision-only pilot and testing OpMode using confirmed configured name `logitechVisionWebcam`. TeamARobot, drive, localization, TeleOps, and autonomous remain unchanged. Android Studio TeamCode build passed after Gradle sync. |
-| AV-06 | Not started | — | Session 2 software-only validation not completed. |
+| AV-06 | Reviewed | 2026-08-11 | Student accepted the corrected camera/FSM lifecycle. Java 17 baseline and post-fix builds passed; active states alone update the source, robot stop releases it, and `git diff --check` passed. |
 | AV-07 | Not started | — | Physical camera/tag configuration and safety gate not reviewed. |
 | AV-08 | Not started | — | Supervised stationary AprilTag validation not completed. |

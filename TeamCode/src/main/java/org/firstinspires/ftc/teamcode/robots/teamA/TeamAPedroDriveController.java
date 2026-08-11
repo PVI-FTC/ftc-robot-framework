@@ -17,17 +17,26 @@ public final class TeamAPedroDriveController implements DriveController {
 
     @Override public void updateManualDrive(double forward, double strafe, double rotate) {
         requireFollower();
-        follower.setTeleOpDrive(forward, strafe, rotate, true);
         if (!teleOpStarted) {
-            // Pedro performs this loop's first follower update during startup.
+            // Pedro initializes its internal teleop pose during startup. Starting before setting
+            // field-oriented input avoids reading that pose while it is still null.
             follower.startTeleOpDrive();
             teleOpStarted = true;
+            follower.setTeleOpDrive(forward, strafe, rotate, true);
             return;
         }
+        follower.setTeleOpDrive(forward, strafe, rotate, true);
         follower.update();
     }
     @Override public void updatePathFollowing() { requireFollower(); teleOpStarted = false; follower.update(); }
-    @Override public void stop() { if (follower != null) follower.breakFollowing(); teleOpStarted = false; }
+    @Override public void stop() {
+        if (follower != null) {
+            follower.breakFollowing();
+            // Keep localization current while the disabled state commands zero drivetrain output.
+            follower.updatePose();
+        }
+        teleOpStarted = false;
+    }
     @Override public PoseEstimate getPoseEstimate() {
         if (follower == null) return PoseEstimate.unavailable();
         Pose pose = follower.getPose();

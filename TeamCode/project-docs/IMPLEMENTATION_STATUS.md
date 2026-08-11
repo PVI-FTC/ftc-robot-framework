@@ -8,10 +8,40 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: Autonomous drivetrain activation fix complete
-- Last completed prompt: Fixed Team A autonomous drivetrain activation.
+- Current sequential prompt: LP-09 results ready for student review
+- Last completed prompt: LP-08 staged physical configuration and readiness gates
 - Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
 ## Completed work
+- LP-09 added `TeamAPedroDiagnostic`, a narrow testing OpMode that initializes
+  `TeamAPedroRobot`, starts disabled, uses `InputManager`, calls `robot.update()` once per loop,
+  reports the library-neutral pose and readiness gates, and calls `robot.stop()` from FTC stop. It
+  never accesses the follower, motors, Pinpoint, FSM, or `HardwareMap.get(...)` directly.
+- The LP-09 director supervised with a stable inspected robot, secure wiring, clear test area,
+  approved raised-wheel support, charged battery, and Driver Station STOP responsibility. No path
+  was requested or enabled.
+- LP-09 localization observations with the drivetrain disabled:
+
+  | Check | Expected | Observed | Result |
+  | --- | --- | --- | --- |
+  | Initial connection | Available pose near `(0, 0, 0)` | `(-0.0, -0.0019, 0.0002°)` | Passed |
+  | First 24 in forward | X increases | `(-23.8, 0.1891, -0.2°)` | X sign failed; changed only forward encoder to `REVERSED` |
+  | Forward retest | X near `+24` | `(23.9, 0.1, 0.5°)` | Passed |
+  | First 24 in left | Y increases | Delta `(0.3, -24.2, -1.5°)` | Y sign failed; changed only strafe encoder to `REVERSED` |
+  | Left retest | Y near `+24` | `(0.6906, 23.9803, 0.5484°)` | Passed |
+  | 90° counterclockwise rotation | Heading near `+90°` | `(0.1209, 0.2142, 91.38°)` | Passed; angle measured with protractor |
+  | 24 in forward and return | Return near zero | Forward `(23.9, 0.6, -0.2°)`; return `(-0.3, 0.1, -0.5°)` | Passed; about `0.32 in` final position error |
+- The first restricted forward request stopped with a Pedro 2.1.2 null-pose exception before motor
+  output. Version-matched bytecode showed that field-oriented `setTeleOpDrive(...)` reads Pedro's
+  internal pose, which is initialized by `startTeleOpDrive()`. `TeamAPedroDriveController` now
+  starts Pedro at zero output before storing the first requested command, adding a safe one-loop
+  delay; the rebuilt retest had no exception.
+- Raised-wheel tests at the director-approved `0.20` ceiling verified forward, left-strafe, and
+  counterclockwise wheel patterns. Releasing either deadman control, holding X, Driver Station STOP,
+  and the OpMode `robot.stop()` path all removed output. The director reported no unexpected sound,
+  vibration, or movement. Diagnostic strafe and rotation signs were corrected one at a time from
+  observed wheel patterns.
+- Safe initialization and restricted manual driving are now open for the recorded Team A
+  configuration. Path following remains closed until LP-10 tuning evidence is accepted.
 - Added `LOCALIZATION_PATHING_TEACHER_VERIFICATION_PROMPT.md`, a reusable read-only teacher review
   prompt that generates a checklist matched to the branch's recorded LP status. It audits
   repository evidence, staged readiness gates, physical facts, software boundaries, build results,
@@ -19,7 +49,8 @@ PVI-FTC | Editable master guide
   modifying the branch.
 - LP-08 staged Team A Pedro readiness: the default `TeamAPedroRobot` now uses configuration facts
   inspected or measured on the real robot and may initialize its follower/localizer in the disabled
-  drive state. Restricted manual drive and path following remain separate closed permissions.
+  drive state. At the LP-08 checkpoint, restricted manual drive and path following were separate
+  closed permissions.
 - Recorded LP-08 configuration evidence:
 
   | Value | Recorded source | Unit | Status after LP-08 |
@@ -29,12 +60,12 @@ PVI-FTC | Editable master guide
   | Pinpoint name `pinpoint`, Control Hub I2C port 3 | Director checked configuration and wiring | name/port | Physically verified |
   | Forward pod on Pinpoint X; strafe pod on Pinpoint Y | Director traced connections | connections | Physically verified |
   | goBILDA 4-Bar 32 mm pods | Director inspected pod model | model | Physically verified |
-  | `forwardPodY = -6.25`, `strafePodX = -10.0` | Director manually measured from center of rotation | inches | Recorded physical measurements; localization unverified |
+  | `forwardPodY = -6.25`, `strafePodX = -10.0` | Director manually measured from center of rotation | inches | Accepted through LP-09 localization checks |
   | Robot mass `4.85` | Director measured | kilograms | Recorded physical measurement |
-  | Starting pose `(0, 0, 0)` | Director approved | inches/radians | Recorded; localization unverified |
-  | Left motors reverse; right motors forward | Existing `DriveHardware` setting, recorded by director | directions | Recorded; Pedro motion unverified |
-  | Forward and strafe encoders forward | Director-approved provisional test setup | directions | Unknown physically; must verify in LP-09 |
-  | Restricted manual maximum power `0.20` | Director-approved safety ceiling | fraction | Recorded; manual-drive gate still closed |
+  | Starting pose `(0, 0, 0)` | Director approved | inches/radians | Used and verified in LP-09 diagnostics |
+  | Left motors reverse; right motors forward | Existing `DriveHardware` setting, recorded by director | directions | Physically verified in LP-09 raised-wheel checks |
+  | Forward and strafe encoders reversed | LP-09 unpowered 24 in direction tests | directions | Physically verified |
+  | Restricted manual maximum power `0.20` | Director-approved safety ceiling | fraction | Raised-wheel checks passed; manual-drive gate open |
   | Pedro gains, velocities, constraints, braking, and path-end values | Not yet tuned | varies | Unknown; path-following gate closed |
 - `TeamAPedroFollowerFactory` applies the approved `(0, 0, 0)` starting pose and cancels following
   before the drive subsystem enters its continuously disabled state. No path or OpMode was added,
@@ -47,7 +78,9 @@ PVI-FTC | Editable master guide
 - The earlier all-or-nothing unconfigured default was replaced in LP-08. The default now holds
   inspected initialization facts, while manual-drive and path-following permissions remain closed
   until their separate physical evidence exists.
-- No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a later approved prompt supplies a path and opens its safety gate. No physical behavior has been verified.
+- No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a
+  later approved prompt supplies a path and opens its safety gate. LP-09 verified only localization
+  and restricted raised-wheel manual behavior.
 - `TeamCode:assembleDebug` succeeded with Microsoft OpenJDK 17.0.20; no supported local unit-test source set exists.
 - LP-07 Session 2 validation: static inspection confirms Pedro imports stay inside Team A, `TeamAPedroRobot` has no direct hardware lookup or `RobotHardware`/`DriveHardware` ownership, and the simple Team A/B/C robots retain their default mecanum controller.
 - Corrected one Session 2 lifecycle defect: on the first manual loop, `TeamAPedroDriveController` lets Pedro's `startTeleOpDrive()` perform its built-in update and returns. Later manual loops call `follower.update()` once. This avoids a double follower update on startup.
@@ -265,7 +298,8 @@ PVI-FTC | Editable master guide
     and `isIntakeAvailable()`
   - `enableVision()`, `disableVision()`, `getVisionStateName()`, and `isVisionAvailable()`
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroConfiguration`
-  - `unconfigured()`, `configured(...)`, and `recordedTeamAConfiguration()`
+  - `unconfigured()`, `configured(...)`, `recordedTeamAConfiguration()`, and
+    `restrictedManualTestConfiguration()`
   - read-only readiness queries for safe initialization, restricted manual drive, and path following
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroRobot`
   - default recorded Team A configuration plus the existing injectable constructor
@@ -309,6 +343,9 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamBTeleOp` and
   `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamCTeleOp`
   - iterative drive-only TeleOp lifecycles using the corresponding robot public API
+- `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAPedroDiagnostic`
+  - disabled-by-default LP-09 pose telemetry and deadman-controlled raised-wheel requests at the
+    configured restricted ceiling
 ## Build status
 - Approved JDK: Record the team-approved version here. Microsoft OpenJDK Java 17.0.x
 - Android Studio version: Quail 1
@@ -317,9 +354,10 @@ PVI-FTC | Editable master guide
 ## Known limitations and TODO items
 - Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
   resolves and compiles Pedro 2.1.2.
-- LP-09 must verify Pinpoint connection/status, pose signs, approximate distances, return-to-start
-  error, provisional encoder directions, recorded motor directions, restricted manual movement,
-  cancellation, Driver Station STOP, and `robot.stop()` before opening the manual-drive gate.
+- LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder
+  directions, recorded motor directions, restricted raised-wheel movement, cancellation, Driver
+  Station STOP, and `robot.stop()`. Ground driving outside a later supervised tuning/test plan has
+  not been authorized.
 - Path following remains closed until later version-matched tuning records accepted velocities,
   gains or predictive-braking values, constraints, repeatability, and safe stop behavior.
 - Configure branch protection and pull-request review.

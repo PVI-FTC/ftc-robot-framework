@@ -46,11 +46,18 @@ public final class TeamAPedroConfiguration {
                 null, false, false);
     }
 
-    /**
-     * Holds Team A facts recorded during LP-08. Encoder and motor directions still require the
-     * supervised LP-09 checks, so powered permissions remain closed.
-     */
+    /** Holds Team A facts verified through LP-09; path following remains locked for tuning. */
     public static TeamAPedroConfiguration recordedTeamAConfiguration() {
+        return createRecordedTeamAConfiguration(true);
+    }
+
+    /** Opens only the supervised LP-09 restricted-manual test permission. */
+    public static TeamAPedroConfiguration restrictedManualTestConfiguration() {
+        return createRecordedTeamAConfiguration(true);
+    }
+
+    private static TeamAPedroConfiguration createRecordedTeamAConfiguration(
+            boolean restrictedManualDriveReady) {
         FollowerConstants follower = new FollowerConstants().mass(4.85);
         MecanumConstants mecanum = new MecanumConstants()
                 .maxPower(0.20)
@@ -68,11 +75,12 @@ public final class TeamAPedroConfiguration {
                 .distanceUnit(DistanceUnit.INCH)
                 .hardwareMapName("pinpoint")
                 .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD)
-                // Provisional test setup only; LP-09 must verify both coordinate signs.
-                .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD)
-                .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD);
+                // LP-09 forward test: 24 in forward reported -23.8 in before this reversal.
+                .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
+                // LP-09 left test: 24 in left reported -24.2 in before this reversal.
+                .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);
         return new TeamAPedroConfiguration(null, follower, mecanum, pinpoint,
-                new Pose(0.0, 0.0, 0.0), false, false);
+                new Pose(0.0, 0.0, 0.0), restrictedManualDriveReady, false);
     }
 
     public boolean isConfigured() { return missingConfigurationReason == null; }

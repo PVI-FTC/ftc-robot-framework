@@ -44,6 +44,6 @@ Working branch: `PedroPathingSetup2.0`
 | LP-06 | Reviewed | 2026-08-04 | Student accepted separate Team A Pedro robot/controller/factory/configuration gate, preserved TeamARobot, and successful JDK 17 TeamCode build. |
 | LP-07 | Reviewed | 2026-08-04 | Student accepted Session 2 static/lifecycle validation, successful Android Studio Sync/TeamCode assembly, and the real-hardware limitations. |
 | LP-08 | Reviewed | 2026-08-04 | Student accepted recorded Team A hardware facts, separate initialization/manual/path gates, and successful TeamCode build; LP-09 hardware checks remain required. |
-| LP-09 | Not started | — | Pinpoint pose and restricted manual-drive hardware checks not started. |
+| LP-09 | Reviewed | 2026-08-11 | Director accepted verified Pinpoint signs/distances/rotation/return error and restricted raised-wheel drive/stop behavior; manual gate open, path gate closed, TeamCode build passed. |
 | LP-10 | Not started | — | Version-matched Pedro tuning and evidence collection not started. |
 | LP-11 | Not started | — | Cautious visualized pilot path and final hardware reconciliation not started. |

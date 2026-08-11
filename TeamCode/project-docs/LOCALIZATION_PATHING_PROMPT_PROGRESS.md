@@ -45,5 +45,5 @@ Working branch: `PedroPathingSetup2.0`
 | LP-07 | Reviewed | 2026-08-04 | Student accepted Session 2 static/lifecycle validation, successful Android Studio Sync/TeamCode assembly, and the real-hardware limitations. |
 | LP-08 | Reviewed | 2026-08-04 | Student accepted recorded Team A hardware facts, separate initialization/manual/path gates, and successful TeamCode build; LP-09 hardware checks remain required. |
 | LP-09 | Reviewed | 2026-08-11 | Director accepted verified Pinpoint signs/distances/rotation/return error and restricted raised-wheel drive/stop behavior; manual gate open, path gate closed, TeamCode build passed. |
-| LP-10 | Not started | — | Version-matched Pedro tuning and evidence collection not started. |
+| LP-10 | Results ready | 2026-08-11 | Director chose integrated approach A and confirmed the first motion safety gate. The first 24-inch, 0.20-power shakedown exposed an inner-OpMode stop-service exception on bumper release; a latched zero-output fix awaits rebuilt retest, no tuning value is accepted, and the path gate remains closed. |
 | LP-11 | Not started | — | Cautious visualized pilot path and final hardware reconciliation not started. |

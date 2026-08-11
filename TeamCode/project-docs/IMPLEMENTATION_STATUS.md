@@ -8,10 +8,34 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: LP-09 results ready for student review
-- Last completed prompt: LP-08 staged physical configuration and readiness gates
-- Last verified commit: 7d11d07 (Prompt 1 package-structure merge)
+- Current sequential prompt: LP-10 tuning support integrated; powered tuning evidence pending
+- Last completed prompt: LP-09 localization and restricted-manual hardware verification
+- Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- LP-10 approach A was authorized by the director. The testing-only `TeamAPedroTuning` selector is
+  adapted from official Pedro Pathing Quickstart commit
+  `d3aea9ca3c5b4c09eded8580229b86996480ee89`, whose dependency file pins Pedro FTC `2.1.2`, Pedro
+  telemetry `1.0.0`, and FullPanels `1.0.12`. The installed Pedro FTC AAR itself contains no tuning
+  OpModes.
+- `TeamAPedroTuning` constructs exactly one follower through `TeamAPedroFollowerFactory` and the
+  recorded Team A configuration; it does not construct `TeamAPedroRobot` or call
+  `HardwareMap.get(...)`. Irrelevant swerve-only tuners and their direct analog-sensor access were
+  omitted from the mecanum integration. After the director confirmed the first ground-test safety
+  gate, the selector exposes only a 24-inch forward shakedown at the `0.20` ceiling.
+- The adaptation preserves the director-approved `0.20` tuning-power ceiling, caps the official
+  predictive-braking power sweep to that ceiling, returns immediately from automatic tuner STOP
+  requests, and gives every selected tuner a shared final STOP callback that cancels following and
+  commands zero output. No path execution has occurred, no tuning values were accepted, and the
+  path-following gate remains closed.
+- On the first 24-inch forward shakedown, releasing right bumper after the movement produced a null
+  `OpModeServices` exception from the selected inner tuner's `requestOpModeStop()` call. Pedro's
+  `SelectableOpMode` creates the selected tuner internally rather than registering it as a standalone
+  FTC OpMode, so that inner object has no service through which it can request its own stop. The
+  zero-output call occurred before the exception, but no tuning result was accepted. The reachable
+  shakedown now latches an aborted state, holds zero output, and instructs the operator to use Driver
+  Station STOP instead of calling the unsupported service.
+- The LP-10 tuning-support increment passes `TeamCode:assembleDebug` with the version-matched
+  telemetry dependencies.
 - LP-09 added `TeamAPedroDiagnostic`, a narrow testing OpMode that initializes
   `TeamAPedroRobot`, starts disabled, uses `InputManager`, calls `robot.update()` once per loop,
   reports the library-neutral pose and readiness gates, and calls `robot.stop()` from FTC stop. It
@@ -352,6 +376,15 @@ PVI-FTC | Editable master guide
 - FTC SDK version or tag: Release 11.2.1
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
 ## Known limitations and TODO items
+- `TeamAPedroTuning` currently exposes only the forward-velocity shakedown. It requires right
+  bumper plus A to arm and right bumper to remain held; release, B, the 24-inch pose delta, or Driver
+  Station STOP ends motion. The first attempt threw an inner-OpMode stop-service exception after
+  bumper release; the fix requires a rebuilt rerun before this safety behavior is accepted. Its
+  displayed velocity is observational only and must not be saved as the maximum-velocity constant.
+  The official 48-inch/full-command test is not authorized.
+- Forward/lateral velocity, heading, drive-algorithm, validation, braking/zero-power acceleration,
+  and path-end constraints remain unmeasured. Path following stays locked until the required LP-10
+  evidence is accepted.
 - Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
   resolves and compiles Pedro 2.1.2.
 - LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder

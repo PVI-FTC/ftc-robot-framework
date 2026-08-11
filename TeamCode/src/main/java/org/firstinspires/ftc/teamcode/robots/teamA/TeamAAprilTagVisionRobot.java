@@ -9,28 +9,20 @@ import org.firstinspires.ftc.teamcode.core.robot.Robot;
 
 import java.util.List;
 
-/** Separate Team A composition for the stationary AprilTag observation pilot. */
+/** Separate, stationary Team A AprilTag pilot with no drivetrain or localization behavior. */
 public class TeamAAprilTagVisionRobot extends Robot {
-    public static final String LOGITECH_VISION_WEBCAM_NAME = "logitechVisionWebcam";
-
     private final VisionHardware visionHardware;
     private final VisionSubsystem visionSubsystem;
     private boolean hardwareInitialized;
 
-    public TeamAAprilTagVisionRobot() {
-        this(new VisionHardware(LOGITECH_VISION_WEBCAM_NAME));
-    }
-
-    TeamAAprilTagVisionRobot(VisionHardware visionHardware) {
-        if (visionHardware == null) {
-            throw new IllegalArgumentException("AprilTag vision robot needs vision hardware.");
-        }
-        this.visionHardware = visionHardware;
+    /** Creates the pilot for one configured Logitech/UVC webcam hardware name. */
+    public TeamAAprilTagVisionRobot(String webcamHardwareName) {
+        visionHardware = new VisionHardware(webcamHardwareName);
         visionSubsystem = new VisionSubsystem(visionHardware);
         registerSubsystem(visionSubsystem);
     }
 
-    /** Initializes only the optional vision hardware and its subsystem lifecycle. */
+    /** Initializes the optional camera source, then the vision subsystem lifecycle. */
     public void initialize(HardwareMap hardwareMap) {
         if (hardwareInitialized) {
             return;
@@ -40,11 +32,29 @@ public class TeamAAprilTagVisionRobot extends Robot {
         super.initialize();
     }
 
-    public void enableVision() { visionSubsystem.enableVision(); }
-    public void disableVision() { visionSubsystem.disableVision(); }
-    public boolean isVisionAvailable() { return visionSubsystem.isAvailable(); }
-    public String getVisionStateName() { return visionSubsystem.getCurrentStateName(); }
+    public void enableVision() {
+        visionSubsystem.enableVision();
+    }
+
+    public void disableVision() {
+        visionSubsystem.disableVision();
+    }
+
+    public String getVisionStateName() {
+        return visionSubsystem.getCurrentStateName();
+    }
+
+    public boolean isVisionAvailable() {
+        return visionSubsystem.isAvailable();
+    }
+
+    /** Returns the latest immutable, library-neutral AprilTag observations. */
     public List<AprilTagObservation> getAprilTagObservations() {
         return visionSubsystem.getLatestObservations();
+    }
+
+    @Override
+    protected void onStop() {
+        visionHardware.stop();
     }
 }

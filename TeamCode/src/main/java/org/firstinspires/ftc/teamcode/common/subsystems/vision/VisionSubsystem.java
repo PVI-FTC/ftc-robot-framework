@@ -1,17 +1,21 @@
 package org.firstinspires.ftc.teamcode.common.subsystems.vision;
 
 import org.firstinspires.ftc.teamcode.common.hardware.VisionHardware;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
 import org.firstinspires.ftc.teamcode.core.fsm.FSM;
 import org.firstinspires.ftc.teamcode.core.fsm.Transition;
 import org.firstinspires.ftc.teamcode.core.robot.Subsystem;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Safe vision lifecycle and target-observation state machine.
  *
- * <p>Vision processing is deliberately deferred. A future processor reports observations through
- * {@link #reportTargetDetected(boolean)}; this subsystem does not create cameras or invent target
- * data. A positive observation enters TargetAcquired for one update cycle before Tracking. A loss
- * enters LostTarget for one update cycle before returning to Searching.</p>
+ * <p>This subsystem does not create cameras or invent target data. Its active states update the
+ * hardware wrapper once per robot loop, then use its neutral observations to choose FSM behavior.
+ * A positive observation enters TargetAcquired for one update cycle before Tracking. A loss enters
+ * LostTarget for one update cycle before returning to Searching.</p>
  */
 public class VisionSubsystem implements Subsystem {
     private final VisionHardware visionHardware;
@@ -24,6 +28,7 @@ public class VisionSubsystem implements Subsystem {
 
     private boolean visionRequested;
     private boolean targetDetected;
+    private List<AprilTagObservation> latestObservations = Collections.emptyList();
 
     /** Creates a vision subsystem that uses the supplied lifecycle-only hardware wrapper. */
     public VisionSubsystem(VisionHardware visionHardware) {
@@ -57,6 +62,7 @@ public class VisionSubsystem implements Subsystem {
         visionRequested = false;
         targetDetected = false;
         visionHardware.stop();
+        latestObservations = Collections.emptyList();
     }
 
     @Override
@@ -101,6 +107,11 @@ public class VisionSubsystem implements Subsystem {
         return visionHardware.isAvailable();
     }
 
+    /** Returns the latest neutral observations collected during an active vision update. */
+    public List<AprilTagObservation> getLatestObservations() {
+        return latestObservations;
+    }
+
     boolean isVisionRequested() {
         return visionRequested;
     }
@@ -111,10 +122,14 @@ public class VisionSubsystem implements Subsystem {
 
     void updateVisionHardware() {
         visionHardware.update();
+        latestObservations = visionHardware.getObservations();
+        targetDetected = !latestObservations.isEmpty();
     }
 
     void stopVisionHardware() {
         visionHardware.stop();
+        latestObservations = Collections.emptyList();
+        targetDetected = false;
     }
 
     private void addTransitions() {

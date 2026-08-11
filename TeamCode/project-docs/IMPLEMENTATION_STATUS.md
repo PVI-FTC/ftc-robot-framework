@@ -130,6 +130,22 @@ PVI-FTC | Editable master guide
   it. No TeleOp target reports are generated. Vision state and availability are now telemetry
   items; drive and intake controls remain unchanged.
 - Missing vision hardware remains safe and does not prevent Team A drive or intake initialization.
+- AprilTag vision prompt AV-04 added the library-neutral immutable `AprilTagObservation` model
+  and the internal `AprilTagVisionSource` seam. Observations document tag ID, timestamp,
+  robot-relative right/forward/up position, pitch/roll/yaw, range/bearing/elevation,
+  reference-frame name, and quality status without exposing FTC or Limelight types.
+- `VisionHardware` now updates one internal source once per active vision lifecycle update and
+  returns an immutable observation snapshot. Its default source remains unavailable and empty, so
+  existing simple robots retain safe no-camera behavior. `VisionSubsystem` remains the sole FSM
+  owner and derives detection from that snapshot only after its active states update hardware.
+  No camera, VisionPortal, Limelight, calibration, mount value, field pose, localization, Pedro,
+  drivetrain, or autonomous behavior was added.
+- AprilTag vision prompt AV-05 added the separate `TeamAAprilTagVisionRobot` and the narrow
+  `TeamAAprilTagVisionTestOpMode`. Only this robot composes the Logitech/UVC
+  `VisionPortalAprilTagSource`, using the student-selected configured name
+  `logitechVisionWebcam`. Missing or unavailable camera hardware is caught as an unavailable
+  result. The source reports IDs only; metric robot-relative pose remains unavailable until the
+  later calibration and mount evidence gate.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do
@@ -190,7 +206,12 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
   - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
-  - `initialize()`, `update()`, `stop()`, and `isAvailable()`
+  - `VisionHardware()`, `VisionHardware(String)`, `initialize()`, `initialize(HardwareMap)`,
+    `update()`, `stop()`, `isAvailable()`, and
+    `getObservations()`
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation`
+  - immutable neutral tag ID, timestamp, pose-availability, reference-frame, quality, position,
+    orientation, range, bearing, and elevation getters; unavailable metric values are `NaN`
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
   - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
@@ -227,7 +248,13 @@ PVI-FTC | Editable master guide
   - public `State` implementations with `IntakeSubsystem` constructors
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem`
   - `VisionSubsystem(VisionHardware)`, lifecycle methods, `enableVision()`, `disableVision()`,
-    `reportTargetDetected(boolean)`, `getCurrentStateName()`, and `isAvailable()`
+    `reportTargetDetected(boolean)`, `getCurrentStateName()`, `isAvailable()`, and
+    `getLatestObservations()`
+- `org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot`
+  - `TeamAAprilTagVisionRobot()`, `initialize(HardwareMap)`, public vision enable/disable,
+    availability/state diagnostics, and `getAprilTagObservations()`
+- `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAAprilTagVisionTestOpMode`
+  - stationary diagnostic that uses only TeamAAprilTagVisionRobot public APIs
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionDisabledState`,
   `SearchingState`, `TargetAcquiredState`, `TrackingState`, and `LostTargetState`
   - public `State` implementations with `VisionSubsystem` constructors
@@ -258,8 +285,9 @@ PVI-FTC | Editable master guide
 ## Known limitations and TODO items
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
-- Vision hardware integration is intentionally deferred until a future prompt defines camera and
-  processor requirements.
+- Camera-source integration is intentionally deferred until a future prompt defines the Logitech
+  camera name and VisionPortal setup. The neutral observation boundary exists, but its default
+  source remains unavailable and does not create a camera.
 - IMU heading correction remains intentionally deferred. `HeadingHoldState` currently provides a
   safe manual-drive fallback.
 - Intake holding power remains zero until a future mechanism prompt defines the physical holding

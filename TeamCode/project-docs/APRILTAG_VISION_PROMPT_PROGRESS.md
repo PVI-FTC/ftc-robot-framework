@@ -25,9 +25,9 @@ Working branch: `codex/Vision`
 | Prompt | Status | Review date | Durable evidence or decision |
 | --- | --- | --- | --- |
 | AV-01 | Reviewed | 2026-08-04 | Student approved the observation-only, Logitech/UVC-first separate Team A vision-only pilot; current FSM remains behavior owner. Evidence: current FSM and SDK samples inspected; official FTC VisionPortal/AprilTag, calibration, UVC, lifecycle, and Limelight guidance reviewed. |
-| AV-02 | Not started | — | Vision architecture decision not reviewed. |
-| AV-03 | Not started | — | FTC API and baseline-build compatibility check not started. |
-| AV-04 | Not started | — | Optional neutral observation boundary not implemented. |
+| AV-02 | Reviewed | 2026-08-11 | Student accepted the unchanged approved decision: separate Team A vision-only composition, VisionSubsystem FSM ownership, neutral observations, and Logitech-first/Limelight-later rule. AV-02 baseline build passed. |
+| AV-03 | Reviewed | 2026-08-11 | Student approved AV-04's neutral observation/source-boundary file plan. FTC SDK 11.2.1 samples/APIs verified for VisionPortal, AprilTagProcessor, and separate Limelight3A; Vision/Hardware artifacts already supplied and baseline build passed. |
+| AV-04 | Reviewed | 2026-08-11 | Student accepted the neutral observation boundary: immutable ID-only-safe observations, one internal source, and VisionSubsystem FSM ownership. Default source remains safely unavailable; pre/post builds passed. |
 | AV-05 | Not started | — | Logitech pilot composition and testing OpMode not implemented. |
 | AV-06 | Not started | — | Session 2 software-only validation not completed. |
 | AV-07 | Not started | — | Physical camera/tag configuration and safety gate not reviewed. |

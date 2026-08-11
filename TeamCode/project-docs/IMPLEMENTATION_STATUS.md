@@ -30,7 +30,7 @@ PVI-FTC | Editable master guide
   | Forward pod on Pinpoint X; strafe pod on Pinpoint Y | Director traced connections | connections | Physically verified |
   | goBILDA 4-Bar 32 mm pods | Director inspected pod model | model | Physically verified |
   | `forwardPodY = -6.25`, `strafePodX = -10.0` | Director manually measured from center of rotation | inches | Recorded physical measurements; localization unverified |
-  | Robot mass `7.0` | Student measured | kilograms | Recorded physical measurement |
+  | Robot mass `4.85` | Director measured | kilograms | Recorded physical measurement |
   | Starting pose `(0, 0, 0)` | Director approved | inches/radians | Recorded; localization unverified |
   | Left motors reverse; right motors forward | Existing `DriveHardware` setting, recorded by director | directions | Recorded; Pedro motion unverified |
   | Forward and strafe encoders forward | Director-approved provisional test setup | directions | Unknown physically; must verify in LP-09 |

@@ -51,7 +51,7 @@ public final class TeamAPedroConfiguration {
      * supervised LP-09 checks, so powered permissions remain closed.
      */
     public static TeamAPedroConfiguration recordedTeamAConfiguration() {
-        FollowerConstants follower = new FollowerConstants().mass(7.0);
+        FollowerConstants follower = new FollowerConstants().mass(4.85);
         MecanumConstants mecanum = new MecanumConstants()
                 .maxPower(0.20)
                 .leftFrontMotorName("frontLeft")

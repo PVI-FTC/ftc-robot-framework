@@ -47,8 +47,9 @@ import java.util.List;
 @Configurable
 @TeleOp(name = "Team A Pedro Tuning", group = "Testing")
 public class TeamAPedroTuning extends SelectableOpMode {
-    static final double APPROVED_MAX_TUNING_POWER = 0.20;
+    static final double OFFICIAL_TUNING_MAX_POWER = 1.0;
     public static Follower follower;
+    private static TeamAPedroTuning activeSelector;
 
     @IgnoreConfigurable
     static PoseHistory poseHistory;
@@ -61,9 +62,35 @@ public class TeamAPedroTuning extends SelectableOpMode {
 
     public TeamAPedroTuning() {
         super("Select a Tuning OpMode", s -> {
-            s.folder("LP-10 Approved", approved ->
-                    approved.add("Forward Velocity Shakedown", ForwardVelocityTuner::new));
+            s.folder("Localization", l -> {
+                l.add("Localization Test", LocalizationTest::new);
+                l.add("Offsets Tuner", OffsetsTuner::new);
+                l.add("Forward Tuner", ForwardTuner::new);
+                l.add("Lateral Tuner", LateralTuner::new);
+                l.add("Turn Tuner", TurnTuner::new);
+            });
+            s.folder("Automatic", a -> {
+                a.add("Forward Velocity Tuner", ForwardVelocityTuner::new);
+                a.add("Lateral Velocity Tuner", LateralVelocityTuner::new);
+                a.add("Forward Zero Power Acceleration Tuner",
+                        ForwardZeroPowerAccelerationTuner::new);
+                a.add("Lateral Zero Power Acceleration Tuner",
+                        LateralZeroPowerAccelerationTuner::new);
+                a.add("Predictive Braking Tuner", PredictiveBrakingTuner::new);
+            });
+            s.folder("Manual", p -> {
+                p.add("Translational Tuner", TranslationalTuner::new);
+                p.add("Heading Tuner", HeadingTuner::new);
+                p.add("Drive Tuner", DriveTuner::new);
+                p.add("Centripetal Tuner", CentripetalTuner::new);
+            });
+            s.folder("Tests", p -> {
+                p.add("Line", Line::new);
+                p.add("Triangle", Triangle::new);
+                p.add("Circle", Circle::new);
+            });
         });
+        activeSelector = this;
     }
 
     @Override
@@ -77,8 +104,7 @@ public class TeamAPedroTuning extends SelectableOpMode {
                     TeamAPedroConfiguration.recordedTeamAConfiguration());
         }
 
-        // LP-10 starts fail-closed. Raise this ceiling only after a fresh director safety gate.
-        follower.setMaxPower(APPROVED_MAX_TUNING_POWER);
+        follower.setMaxPower(OFFICIAL_TUNING_MAX_POWER);
         follower.setStartingPose(new Pose());
 
         poseHistory = follower.getPoseHistory();
@@ -110,6 +136,12 @@ public class TeamAPedroTuning extends SelectableOpMode {
         follower.startTeleopDrive(true);
         follower.setTeleOpDrive(0,0,0,true);
         follower.update();
+    }
+
+    /** Requests STOP through the registered outer selector rather than an unregistered inner tuner. */
+    public static void requestSelectorStop() {
+        stopRobot();
+        if (activeSelector != null) activeSelector.requestOpModeStop();
     }
 }
 
@@ -351,11 +383,9 @@ class TurnTuner extends TeamAPedroTuningOpMode {
  */
 class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
     private final ArrayList<Double> velocities = new ArrayList<>();
-    public static double DISTANCE = 24;
+    public static double DISTANCE = 48;
     public static double RECORD_NUMBER = 10;
 
-    private boolean armed;
-    private boolean aborted;
     private boolean end;
 
     @Override
@@ -366,10 +396,10 @@ class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
     /** This initializes the drive motors as well as the cache of velocities and the Panels telemetry. */
     @Override
     public void init_loop() {
-        telemetryM.debug("LP-10 shakedown: " + DISTANCE + " inches forward at a 0.20 power ceiling.");
-        telemetryM.debug("After Play, hold right bumper and press A to arm. Keep right bumper held.");
-        telemetryM.debug("Release right bumper, press B, or use Driver Station STOP to stop.");
-        telemetryM.debug("This shakedown result is not an accepted maximum-velocity constant.");
+        telemetryM.debug("The robot will run at 1 power until it reaches " + DISTANCE + " inches forward.");
+        telemetryM.debug("Make sure you have enough room, since the robot has inertia after cutting power.");
+        telemetryM.debug("After running the distance, the robot will cut power from the drivetrain and display the forward velocity.");
+        telemetryM.debug("Press B on game pad 1 to stop.");
         telemetryM.debug("pose", follower.getPose());
         telemetryM.update(telemetry);
 
@@ -377,15 +407,14 @@ class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
         drawCurrent();
     }
 
-    /** Starts stopped and waits for the explicit LP-10 arm controls. */
+    /** This starts the OpMode by setting the drive motors to run forward at full power. */
     @Override
     public void start() {
         for (int i = 0; i < RECORD_NUMBER; i++) {
             velocities.add(0.0);
         }
-        stopRobot();
-        armed = false;
-        aborted = false;
+        follower.startTeleopDrive(true);
+        follower.update();
         end = false;
     }
 
@@ -397,41 +426,21 @@ class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
      */
     @Override
     public void loop() {
-        if (!end && (gamepad1.b || (armed && !gamepad1.right_bumper))) {
-            aborted = true;
+        if (gamepad1.bWasPressed()) {
             stopRobot();
-            telemetryM.debug("Shakedown stopped early by a safety control.");
-            telemetryM.debug("No velocity result is valid. Use Driver Station STOP.");
-            telemetryM.update(telemetry);
+            TeamAPedroTuning.requestSelectorStop();
             return;
         }
 
         follower.update();
         drawCurrentAndHistory();
 
-        if (aborted) {
-            stopRobot();
-            telemetryM.debug("Shakedown remains stopped. Use Driver Station STOP.");
-            telemetryM.update(telemetry);
-            return;
-        }
-
-        if (!armed) {
-            telemetryM.debug("Stopped: hold right bumper and press A to begin the shakedown.");
-            telemetryM.update(telemetry);
-            if (gamepad1.right_bumper && gamepad1.aWasPressed()) {
-                armed = true;
-            }
-            return;
-        }
-
         if (!end) {
-            if (Math.abs(follower.getPose().getX() - 72.0) >= DISTANCE) {
+            if (Math.abs(follower.getPose().getX()) > (DISTANCE + 72)) {
                 end = true;
                 stopRobot();
             } else {
                 follower.setTeleOpDrive(1,0,0,true);
-                //double currentVelocity = Math.abs(follower.getVelocity().getXComponent());
                 double currentVelocity = Math.abs(follower.poseTracker.getLocalizer().getVelocity().getX());
                 velocities.add(currentVelocity);
                 velocities.remove(0);
@@ -443,9 +452,9 @@ class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
                 average += velocity;
             }
             average /= velocities.size();
-            telemetryM.debug("Shakedown forward velocity observation: " + average + " in/s");
+            telemetryM.debug("Forward Velocity: " + average);
             telemetryM.debug("\n");
-            telemetryM.debug("Do not save this as XMovement; STOP and report the observation.");
+            telemetryM.debug("Press A to set the Forward Velocity temporarily (while robot remains on).");
 
             for (int i = 0; i < velocities.size(); i++) {
                 telemetry.addData(String.valueOf(i), velocities.get(i));
@@ -453,6 +462,12 @@ class ForwardVelocityTuner extends TeamAPedroTuningOpMode {
 
             telemetryM.update(telemetry);
             telemetry.update();
+
+            if (gamepad1.aWasPressed()) {
+                follower.setXVelocity(average);
+                String message = "XMovement: " + average;
+                changes.add(message);
+            }
         }
     }
 }
@@ -509,6 +524,7 @@ class LateralVelocityTuner extends TeamAPedroTuningOpMode {
         }
         follower.startTeleopDrive(true);
         follower.update();
+        end = false;
     }
 
     /**
@@ -521,7 +537,7 @@ class LateralVelocityTuner extends TeamAPedroTuningOpMode {
     public void loop() {
         if (gamepad1.bWasPressed()) {
             stopRobot();
-            requestOpModeStop();
+            TeamAPedroTuning.requestSelectorStop();
             return;
         }
 
@@ -621,7 +637,7 @@ class ForwardZeroPowerAccelerationTuner extends TeamAPedroTuningOpMode {
     public void loop() {
         if (gamepad1.bWasPressed()) {
             stopRobot();
-            requestOpModeStop();
+            TeamAPedroTuning.requestSelectorStop();
             return;
         }
 
@@ -726,7 +742,7 @@ class LateralZeroPowerAccelerationTuner extends TeamAPedroTuningOpMode {
     public void loop() {
         if (gamepad1.bWasPressed()) {
             stopRobot();
-            requestOpModeStop();
+            TeamAPedroTuning.requestSelectorStop();
             return;
         }
 
@@ -853,7 +869,7 @@ class PredictiveBrakingTuner extends TeamAPedroTuningOpMode {
 
         if (gamepad1.b) {
             stopRobot();
-            requestOpModeStop();
+            TeamAPedroTuning.requestSelectorStop();
             return;
         }
 
@@ -867,8 +883,7 @@ class PredictiveBrakingTuner extends TeamAPedroTuningOpMode {
                 }
 
                 double currentPower = TEST_POWERS[iteration];
-                follower.setMaxPower(Math.min(currentPower,
-                        TeamAPedroTuning.APPROVED_MAX_TUNING_POWER));
+                follower.setMaxPower(currentPower);
                 follower.setTeleOpDrive(direction, 0, 0, true);
 
                 timer.reset();

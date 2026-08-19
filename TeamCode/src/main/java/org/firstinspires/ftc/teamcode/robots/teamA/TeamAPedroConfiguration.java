@@ -60,6 +60,7 @@ public final class TeamAPedroConfiguration {
             boolean restrictedManualDriveReady) {
         FollowerConstants follower = new FollowerConstants().mass(4.85);
         MecanumConstants mecanum = new MecanumConstants()
+                .xVelocity(52.375)
                 .maxPower(0.20)
                 .leftFrontMotorName("frontLeft")
                 .leftRearMotorName("rearLeft")

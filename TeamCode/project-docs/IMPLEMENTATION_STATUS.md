@@ -34,6 +34,104 @@ PVI-FTC | Editable master guide
   zero-output call occurred before the exception, but no tuning result was accepted. The reachable
   shakedown now latches an aborted state, holds zero output, and instructs the operator to use Driver
   Station STOP instead of calling the unsupported service.
+- The rebuilt 24-inch forward shakedown completed without an exception. The student measured
+  `24.2 in` of travel, reported a raw `8.62 in/s` velocity observation, and described the final
+  heading as slightly left by approximately 2%. Automatic stopping, bumper release, and Driver
+  Station STOP all worked, and no unusual sound was observed. Start and end poses were not
+  reported, so this trial does not establish pose drift or repeatability. The `8.62 in/s` result is
+  retained as raw shakedown evidence only and is not an accepted forward-velocity constant.
+- A second 24-inch shakedown measured `24.0 in`, reported `10.107 in/s`, and had no observed drift
+  or turning. Driver Station telemetry again did not visibly report the captured start/end poses or
+  pose delta. The two velocity observations differ by `1.487 in/s` (the second is about 17.3% above
+  the first), so neither is accepted. The single next hypothesis is that a 24-inch run at the `0.20`
+  ceiling did not yield a repeatable steady-velocity sample. The result display now removes the ten
+  raw sample rows and uses only standard Driver Station telemetry for velocity and pose evidence.
+- A third shakedown reported `9.997 in/s`, start pose `(72.000, 72.00) in`, end pose
+  `(96.06, 71.83) in`, and delta `(24.06, -0.169, -1.28 deg)`. The second and third velocity
+  observations differ by `0.110 in/s`, about 1.1% of their `10.052 in/s` average, supporting the
+  hypothesis that the first `8.62 in/s` observation was an outlier. Manual measurement was exactly
+  `24.000 in`; automatic stop, bumper release, and Driver Station STOP all worked; and no abnormal
+  sound was reported. `10.052 in/s` is the candidate forward-velocity value pending explicit
+  director acceptance.
+- The director accepted `10.052 in/s` as Team A's forward velocity at the restricted `0.20` power
+  ceiling. Pedro 2.1.2 stores this drivetrain value in `MecanumConstants`, so the recorded Team A
+  configuration now applies `.xVelocity(10.052)`. The tuning selector is disabled again before the
+  next category; lateral velocity and all later values remain unset, and path following stays
+  locked.
+- The director confirmed the lateral-motion safety gate: adult supervision, six feet clear to the
+  robot's left, front/back clearance, secure hardware, charged battery, and a designated Driver
+  Station STOP operator. The next build exposes only a 24-inch robot-left shakedown at the `0.20`
+  ceiling. It uses the LP-09-verified negative Pedro strafe command, requires right bumper plus A to
+  arm and continued bumper hold, and stops on 24-inch Y delta, bumper release, B, or Driver Station
+  STOP. No lateral result has been accepted.
+- The first lateral shakedown was rejected. It reported `6.62 in/s`, start pose
+  `(72, 72, -3.39 deg)`, end pose `(69.61, 47.95, -6.74 deg)`, and pose delta
+  `(-2.38, -24.04, -3.35 deg)` as calculated from the two headings. Manual travel was `24.3 in`;
+  the robot moved right instead of left and turned slightly right. No abnormal sound, vibration, or
+  wheel slip was reported. Only Driver Station STOP is confirmed; automatic distance stop, bumper
+  release, and B were not accepted as verified stop evidence.
+- The direct tuning composition therefore uses the opposite strafe sign from the earlier diagnostic
+  route. The tuner command is changed from `-1` to `+1` and the OpMode is disabled again. The single
+  next hypothesis is that positive direct Pedro strafe moves this robot left. That hypothesis must
+  pass a short, lower-power direction/stop check before lateral velocity testing resumes.
+- The director confirmed the follow-up direction-check gate with clearance on both sides, adult
+  supervision, secure hardware, charged battery, and a designated STOP operator. Only a 6-inch
+  positive-strafe check is exposed. The initial `0.10` attempt did not move the robot, so the
+  director authorized raising the follower ceiling to `0.20`. It reports PASS only when Y increases
+  and does not display or save a lateral-velocity candidate.
+- The 6-inch positive-strafe direction check passed at the `0.20` ceiling; the director stated that
+  no additional data from that direction-only check is required. The selector now advances to one
+  24-inch robot-left lateral-velocity shakedown at the same `0.20` ceiling. Its velocity display is
+  raw evidence only and does not save a Y-velocity value.
+- The first corrected-direction lateral-velocity shakedown reported `7.394 in/s`. Manual travel was
+  `24.5 in` against the 24-inch target, and the robot moved approximately `0.5 in` forward during
+  the strafe. No turning, slipping, or other abnormal behavior was reported. This is retained as raw
+  trial-one evidence pending one same-configuration repeatability run; no lateral-velocity value is
+  accepted yet.
+- The second corrected-direction lateral shakedown reported `7.324 in/s`, `24.25 in` of manual
+  travel, and approximately `0.5 in` of forward drift. The two corrected-direction velocities differ
+  by `0.070 in/s`, about 0.95% of their `7.359 in/s` average. Their repeatability supports
+  `7.359 in/s` as the lateral-velocity candidate.
+- The director accepted `7.359 in/s` as Team A's lateral velocity at the restricted `0.20` power
+  ceiling. Pedro 2.1.2 stores it in `MecanumConstants`, so the recorded Team A configuration now
+  applies `.yVelocity(7.359)`. The tuning selector is disabled before heading tuning; no later
+  category is exposed and path following remains locked.
+- The director instructed LP-10 to proceed to heading tuning. The stock Quickstart `HeadingTuner`
+  is not exposed unchanged because it continuously alternates along 40-inch paths and instructs an
+  operator to push the powered robot. The reviewed increment instead exposes only a one-way
+  24-inch heading-hold baseline at the existing `0.20` ceiling. It requires right bumper plus A and
+  continued bumper hold, forbids human contact during motion, and stops on path completion,
+  24-inch X travel, bumper release, B, or Driver Station STOP. It reports start/end pose, heading
+  delta, and maximum heading error without saving a PIDF value. This narrow testing-only path does
+  not open the application path-following gate.
+- The director confirmed the heading-baseline safety gate: the robot and wiring are secure, the
+  battery is charged, at least three feet forward is clear, adult supervision and a designated
+  Driver Station STOP operator are present, and nobody will touch or push the robot during powered
+  motion. The authorized limits remain one 24-inch forward pass at the `0.20` ceiling.
+- The director then superseded the per-tuner unlocking approach and requested the complete Pedro
+  Quickstart tuning workflow. `TeamAPedroTuning` now exposes every applicable menu from pinned
+  Quickstart commit `d3aea9ca3c5b4c09eded8580229b86996480ee89`: Localization, Automatic,
+  Manual, and Tests. The Swerve folder is intentionally omitted because Team A is mecanum and the
+  swerve-only tuners require hardware that this robot does not have. Official 48-inch/full-command
+  velocity behavior, the continuous 40-inch manual tuners, and the full predictive-braking power
+  sweep are restored. The testing OpMode overrides its follower to `1.0` maximum power without
+  changing the recorded robot configuration's normal `0.20` limit.
+- The earlier `10.052 in/s` forward and `7.359 in/s` lateral values were measured at a restricted
+  `0.20` power ceiling, so they are retained only as low-power observations and removed from
+  `MecanumConstants`; Pedro's intended maximum-velocity constants require the restored full-power
+  tuners. Inner-tuner STOP requests are routed through the registered outer selector to preserve
+  Pedro behavior without the previously observed null `OpModeServices` exception. The application
+  path-following gate remains closed while LP-10 tuning continues.
+- The first restored full-power `Forward Velocity Tuner` run completed automatically and reported
+  `52.741 in/s`. It is retained as trial-one evidence pending a same-program repeat before the
+  maximum forward velocity is written to `MecanumConstants`.
+- The second restored full-power forward run completed automatically and reported `52.008 in/s`.
+  The two results differ by `0.733 in/s`, about 1.4% of their `52.3745 in/s` average. The recorded
+  Team A configuration now applies the rounded `.xVelocity(52.375)`, and the workflow advances to
+  the official full-power lateral velocity tuner.
+- The first restored full-power `Lateral Velocity Tuner` run completed automatically and reported
+  `41.477 in/s`. It is retained as lateral trial-one evidence pending one same-program repeat before
+  writing `yVelocity`.
 - The LP-10 tuning-support increment passes `TeamCode:assembleDebug` with the version-matched
   telemetry dependencies.
 - LP-09 added `TeamAPedroDiagnostic`, a narrow testing OpMode that initializes
@@ -376,15 +474,13 @@ PVI-FTC | Editable master guide
 - FTC SDK version or tag: Release 11.2.1
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
 ## Known limitations and TODO items
-- `TeamAPedroTuning` currently exposes only the forward-velocity shakedown. It requires right
-  bumper plus A to arm and right bumper to remain held; release, B, the 24-inch pose delta, or Driver
-  Station STOP ends motion. The first attempt threw an inner-OpMode stop-service exception after
-  bumper release; the fix requires a rebuilt rerun before this safety behavior is accepted. Its
-  displayed velocity is observational only and must not be saved as the maximum-velocity constant.
-  The official 48-inch/full-command test is not authorized.
-- Forward/lateral velocity, heading, drive-algorithm, validation, braking/zero-power acceleration,
-  and path-end constraints remain unmeasured. Path following stays locked until the required LP-10
-  evidence is accepted.
+- `TeamAPedroTuning` exposes the full Pedro Quickstart menu applicable to Team A's mecanum robot.
+  The Swerve-only folder is omitted. The operator must follow the documented Pedro order rather
+  than menu order because every applicable option is now visible.
+- Full-power forward/lateral velocity, heading, drive-algorithm, validation, braking or zero-power
+  acceleration, and path-end constraints remain incomplete. The earlier restricted-power velocity
+  observations are not configured as Pedro maximum velocities. Path following stays locked until
+  the required LP-10 evidence is accepted.
 - Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
   resolves and compiles Pedro 2.1.2.
 - LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder

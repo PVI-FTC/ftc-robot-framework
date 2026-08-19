@@ -150,6 +150,11 @@ PVI-FTC | Editable master guide
   clears stale observations without closing the initialized optional camera. Active vision states
   remain the only states that update the source, and `robot.stop()` still closes VisionPortal and
   clears observations. This allows a later OpMode `start()` enable request to succeed.
+- AprilTag vision prompt AV-07 recorded the supervised stationary-test equipment and safety facts
+  in `APRILTAG_VISION_PHYSICAL_TEST_EVIDENCE.md`. The Logitech C920, configured name, official
+  DECODE tag 22, physical mount, robot frame, measurement setup, supervision, and STOP operator
+  open the later ID-only stationary gate. Metric robot-relative validation remains closed because
+  the actual VisionPortal resolution and matching calibration are unknown.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

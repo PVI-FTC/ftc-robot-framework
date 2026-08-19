@@ -155,6 +155,12 @@ PVI-FTC | Editable master guide
   DECODE tag 22, physical mount, robot frame, measurement setup, supervision, and STOP operator
   open the later ID-only stationary gate. Metric robot-relative validation remains closed because
   the actual VisionPortal resolution and matching calibration are unknown.
+- AprilTag vision prompt AV-08 added processing timestamp/age telemetry to the narrow diagnostic
+  and completed supervised ID-only stationary validation with drive motors disconnected. The
+  Logitech C920 reported a 640-by-480 stream, detected ID 22, cleared observations on loss,
+  reacquired the tag, remained stable, closed its preview on stop, and reopened without a
+  camera-in-use error. The one-loop `LostTarget` state was not visible at Driver Station refresh
+  speed. Metric validation remains closed until matching calibration is verified.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

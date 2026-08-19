@@ -47,7 +47,16 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
         telemetry.addData("Detection Count", observations.size());
         for (AprilTagObservation observation : observations) {
             telemetry.addData("Tag " + observation.getTagId(), observation.getQualityStatus());
+            telemetry.addData("Tag " + observation.getTagId() + " Processing Timestamp (ns)",
+                    observation.getTimestampNanos());
+            telemetry.addData("Tag " + observation.getTagId() + " Processing Age (ms)",
+                    getProcessingAgeMillis(observation));
         }
         telemetry.update();
+    }
+
+    private double getProcessingAgeMillis(AprilTagObservation observation) {
+        long ageNanos = Math.max(0, System.nanoTime() - observation.getTimestampNanos());
+        return ageNanos / 1_000_000.0;
     }
 }

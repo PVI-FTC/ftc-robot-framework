@@ -80,3 +80,30 @@ must continue reporting ID-only observations and must not invent metric values.
 - Approved runtime: Microsoft OpenJDK 17.0.20.
 - Command: `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug`.
 - Result on 2026-08-19: `BUILD SUCCESSFUL`.
+
+## AV-08 stationary validation results
+
+Validation was performed on 2026-08-19 with the drive motors physically disconnected and the
+Director acting as both adult supervisor and Driver Station STOP operator.
+
+- Initialization: diagnostic telemetry appeared without error; camera preview opened.
+- Actual VisionPortal stream resolution reported during the run: 640 by 480 pixels.
+- Camera availability after start: `true`.
+- Visible tag result: ID 22, detection count 1, stable `Tracking` state.
+- Example processing timestamp: 4977714512324 nanoseconds.
+- Example processing age: 0.0974 milliseconds; age remained non-negative and small.
+- Timestamp meaning: source processing time when the detection was copied, not camera exposure
+  time.
+- Loss test: detection count changed to 0, the old ID cleared, and the stable state became
+  `Searching`.
+- The one-loop `LostTarget` state was not visible at Driver Station telemetry refresh speed; this
+  transient state was not physically confirmed.
+- Reacquisition: count returned to 1, ID returned as 22, state returned to `Tracking`, and the
+  processing timestamp advanced.
+- Short stability check: ID 22, count 1, and `Tracking` remained stable with no reported camera or
+  availability error.
+- Stop: OpMode stopped without error or movement, and the camera preview closed.
+- Resource reacquisition: a second INIT reopened the camera preview without a camera-in-use, USB,
+  or portal error; the second stop also completed cleanly.
+- Metric validation was not attempted. Matching Logitech C920 calibration at the now-observed
+  640-by-480 stream resolution remains unverified.

@@ -45,5 +45,5 @@ Working branch: `PedroPathingSetup2.0`
 | LP-07 | Reviewed | 2026-08-04 | Student accepted Session 2 static/lifecycle validation, successful Android Studio Sync/TeamCode assembly, and the real-hardware limitations. |
 | LP-08 | Reviewed | 2026-08-04 | Student accepted recorded Team A hardware facts, separate initialization/manual/path gates, and successful TeamCode build; LP-09 hardware checks remain required. |
 | LP-09 | Reviewed | 2026-08-11 | Director accepted verified Pinpoint signs/distances/rotation/return error and restricted raised-wheel drive/stop behavior; manual gate open, path gate closed, TeamCode build passed. |
-| LP-10 | In progress | 2026-08-19 | Full-power forward trials averaged `52.375 in/s`, recorded as `xVelocity`. Lateral trial 1 reported `41.477 in/s` and completed automatically; one repeat remains and path gate stays closed. |
-| LP-11 | Not started | — | Cautious visualized pilot path and final hardware reconciliation not started. |
+| LP-10 | Reviewed | 2026-08-20 | Director accepted the complete tuning evidence, Predictive Braking `P=0.15`, endpoint `0.97`, and the `0.20` application power limit. TeamCode build passed and the path-readiness gate is open; no pilot path exists yet. |
+| LP-11 | Results ready | 2026-08-20 | Student Visualizer export and restricted-power pilot implementation are ready; TeamCode build passed. First ground run, observed telemetry, stop evidence, and final acceptance remain pending. |

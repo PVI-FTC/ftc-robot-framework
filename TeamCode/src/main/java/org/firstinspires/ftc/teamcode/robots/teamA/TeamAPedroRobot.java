@@ -37,7 +37,14 @@ public class TeamAPedroRobot extends Robot {
         configuration.requireRestrictedManualDriveReady();
         driveSubsystem.enableManualDrive();
     }
-    /** No Team A path or tuning approval exists, so this remains locked. */
+    /** Starts the reviewed LP-11 pilot path through the existing drive-mode request seam. */
+    public void startPilotPath() {
+        configuration.requirePathFollowingReady();
+        driveController.startPilotPath();
+        driveSubsystem.enablePathFollowing();
+    }
+
+    /** Enables updates for a path already requested through a narrow Team A Robot method. */
     public void enablePathFollowing() {
         driveSubsystem.disableDrive();
         configuration.requirePathFollowingReady();

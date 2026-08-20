@@ -8,10 +8,26 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: LP-10 tuning support integrated; powered tuning evidence pending
-- Last completed prompt: LP-09 localization and restricted-manual hardware verification
+- Current sequential prompt: LP-11 pilot implementation ready for pre-deployment review
+- Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- LP-11 preserves the student-created Pedro Visualizer `1.2.1` export as
+  `TeamCode/project-docs/TeamA_LP11_Pilot.pp`. The reviewed chain contains one straight line from
+  `(0, 0)` to `(24, 0)` inches, no control points or waits, and an effective `0` degree heading.
+  The code adaptation uses explicit constant heading rather than copying unrelated Visualizer
+  simulation settings or generated framework code.
+- Added `TeamAPedroPilotPath`, a Team A-owned Pedro `PathChain` definition, and
+  `TeamAPedroPilotPathStep`, a non-blocking `AutoStep` that requests the path once, checks completion
+  on later loops, and cancels through the Robot API. `TeamAPedroDriveController` remains the follower
+  owner and starts the path behind `TeamAPedroRobot.startPilotPath()`.
+- Added the thin testing-only `TeamAPedroPilotAutoOpMode`. It initializes `TeamAPedroRobot`, advances
+  one `AutoSequence`, calls `robot.update()` once per loop, records expected/observed poses and end
+  errors, and routes completion and FTC STOP through the existing cancel/stop paths. The application
+  power remains the single recorded `TeamAPedroConfiguration.APPLICATION_MAX_POWER = 0.20` value.
+- The LP-11 pre-deployment `TeamCode:assembleDebug` build passed. Static review found no direct
+  OpMode ownership of the follower, motors, or Pinpoint; no gamepad routing in autonomous; and no
+  blocking wait, loop, or extra scheduler. The first physical pilot run remains pending.
 - LP-10 approach A was authorized by the director. The testing-only `TeamAPedroTuning` selector is
   adapted from official Pedro Pathing Quickstart commit
   `d3aea9ca3c5b4c09eded8580229b86996480ee89`, whose dependency file pins Pedro FTC `2.1.2`, Pedro
@@ -132,6 +148,56 @@ PVI-FTC | Editable master guide
 - The first restored full-power `Lateral Velocity Tuner` run completed automatically and reported
   `41.477 in/s`. It is retained as lateral trial-one evidence pending one same-program repeat before
   writing `yVelocity`.
+- The second restored full-power lateral run completed automatically and reported `42.560 in/s`.
+  The two results differ by `1.083 in/s`, about 2.6% of their `42.0185 in/s` average. The recorded
+  Team A configuration now applies the rounded `.yVelocity(42.019)`, and the official workflow
+  advances to heading tuning.
+- Panels is already installed and integrated for the upcoming PID stages through FullPanels
+  `1.0.12`, Pedro telemetry `1.0.0`, `@Configurable`, `PanelsConfigurables.refreshClass(...)`, and
+  the Quickstart field/telemetry support. Live PID edits will be made under
+  `Tuning -> Follower -> Constants`; the operator must press Enter to apply each edit, report the
+  final values, and then those values must be copied into `TeamAPedroConfiguration` because Panels
+  edits do not persist in source code.
+- Heading PIDF tuning in Panels finished with `P=2.2`, `I=0.2`, `D=0.189`, and `F=0.02`; the
+  director reported that the robot returned to its original heading. The recorded Team A follower
+  configuration now applies
+  `.headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))`.
+- The director selected Pedro's Predictive Braking drive algorithm instead of the longer manual
+  translational/drive PIDF route. The next program is the restored automatic
+  `Predictive Braking Tuner`, which performs 12 alternating one-second drive/brake samples from
+  full power down to `0.20` and reports `kQuadraticFriction` and `kLinearBraking`.
+- All 12 Predictive Braking samples completed. The tuner reported
+  `kQuadratic=0.002367856854157051` and `kLinear=0.051792761842529726`. Team A's follower now uses
+  `.predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(0.1, kLinear, kQuadratic))`
+  with Pedro's recommended initial `kP=0.1`, plus `.centripetalScaling(0.0)`. The next step is the
+  continuous Line test to adjust only Predictive Braking `kP`.
+- The Line test selected Predictive Braking `P=0.4`. The robot showed slight sliding overshoot,
+  corrected it, and held without jitter. The configured Predictive Braking coefficients now use
+  `P=0.4`. Team A configuration also gains the narrow `PathConstraints` value required by the
+  follower factory and starts Predictive Braking validation at Pedro's conservative recommended
+  parametric-end constraint `0.97`, preserving the default `100 ms` timeout and other defaults.
+- The rebuilt Line validation with `P=0.4` and parametric-end `0.97` settled and reversed correctly
+  at both endpoints with no overshoot, undershoot, lateral drift, or heading drift, but it produced
+  heavy holding jitter. That combination is rejected. The next single-variable trial lowers only
+  Predictive Braking `P` to `0.30` through Panels; the measured braking coefficients and `0.97`
+  constraint remain unchanged.
+- Panels did not apply the attempted live Predictive Braking P change. The code is therefore updated
+  directly from `P=0.4` to `P=0.3` for a rebuild and re-upload. No other Predictive Braking value or
+  path constraint changed.
+- The director requested the next code-based Predictive Braking trial at `P=0.2`. Only P changed
+  from `0.3` to `0.2`; the measured linear/quadratic braking coefficients and parametric-end `0.97`
+  remain unchanged.
+- The next director-requested code trial places Predictive Braking P midway between `0.10` and
+  `0.20`, at `P=0.15`. The measured braking coefficients and parametric-end `0.97` remain unchanged.
+- The rebuilt Line validation at Predictive Braking `P=0.15` had only very slight, nearly absent
+  jitter. It had no overshoot or undershoot, settled and reversed correctly at both endpoints, and
+  showed no lateral or heading drift. This accepts `P=0.15` and the `0.97` parametric-end constraint
+  as the recorded Team A Predictive Braking values. In accordance with Pedro's Predictive Braking
+  guidance, centripetal scaling remains disabled at `0.0`.
+- The director accepted the complete LP-10 tuning evidence and authorized path following at the
+  existing `0.20` application power limit. `recordedTeamAConfiguration()` now opens the path gate;
+  the LP-09-only diagnostic configuration deliberately keeps that gate closed. No pilot path is
+  implemented or started by this permission change.
 - The LP-10 tuning-support increment passes `TeamCode:assembleDebug` with the version-matched
   telemetry dependencies.
 - LP-09 added `TeamAPedroDiagnostic`, a narrow testing OpMode that initializes
@@ -162,8 +228,8 @@ PVI-FTC | Editable master guide
   and the OpMode `robot.stop()` path all removed output. The director reported no unexpected sound,
   vibration, or movement. Diagnostic strafe and rotation signs were corrected one at a time from
   observed wheel patterns.
-- Safe initialization and restricted manual driving are now open for the recorded Team A
-  configuration. Path following remains closed until LP-10 tuning evidence is accepted.
+- Safe initialization, restricted manual driving, and path following are open for the recorded
+  Team A configuration after the director accepted LP-10 tuning evidence and the `0.20` limit.
 - Added `LOCALIZATION_PATHING_TEACHER_VERIFICATION_PROMPT.md`, a reusable read-only teacher review
   prompt that generates a checklist matched to the branch's recorded LP status. It audits
   repository evidence, staged readiness gates, physical facts, software boundaries, build results,
@@ -188,7 +254,7 @@ PVI-FTC | Editable master guide
   | Left motors reverse; right motors forward | Existing `DriveHardware` setting, recorded by director | directions | Physically verified in LP-09 raised-wheel checks |
   | Forward and strafe encoders reversed | LP-09 unpowered 24 in direction tests | directions | Physically verified |
   | Restricted manual maximum power `0.20` | Director-approved safety ceiling | fraction | Raised-wheel checks passed; manual-drive gate open |
-  | Pedro gains, velocities, constraints, braking, and path-end values | Not yet tuned | varies | Unknown; path-following gate closed |
+  | Pedro gains, velocities, constraints, braking, and path-end values | LP-10 powered tuning | varies | Recorded and Line-validated; path-following gate open at `0.20` application power |
 - `TeamAPedroFollowerFactory` applies the approved `(0, 0, 0)` starting pose and cancels following
   before the drive subsystem enters its continuously disabled state. No path or OpMode was added,
   and no deployment or powered robot test occurred.
@@ -200,8 +266,8 @@ PVI-FTC | Editable master guide
 - The earlier all-or-nothing unconfigured default was replaced in LP-08. The default now holds
   inspected initialization facts, while manual-drive and path-following permissions remain closed
   until their separate physical evidence exists.
-- No Team A path or pathing OpMode exists. `enablePathFollowing()` remains safely disabled until a
-  later approved prompt supplies a path and opens its safety gate. LP-09 verified only localization
+- No Team A path or pathing OpMode exists. LP-10 opened the path-readiness gate, but no path can run
+  until a later approved prompt supplies one. LP-09 verified only localization
   and restricted raised-wheel manual behavior.
 - `TeamCode:assembleDebug` succeeded with Microsoft OpenJDK 17.0.20; no supported local unit-test source set exists.
 - LP-07 Session 2 validation: static inspection confirms Pedro imports stay inside Team A, `TeamAPedroRobot` has no direct hardware lookup or `RobotHardware`/`DriveHardware` ownership, and the simple Team A/B/C robots retain their default mecanum controller.
@@ -477,18 +543,18 @@ PVI-FTC | Editable master guide
 - `TeamAPedroTuning` exposes the full Pedro Quickstart menu applicable to Team A's mecanum robot.
   The Swerve-only folder is omitted. The operator must follow the documented Pedro order rather
   than menu order because every applicable option is now visible.
-- Full-power forward/lateral velocity, heading, drive-algorithm, validation, braking or zero-power
-  acceleration, and path-end constraints remain incomplete. The earlier restricted-power velocity
-  observations are not configured as Pedro maximum velocities. Path following stays locked until
-  the required LP-10 evidence is accepted.
+- Full-power velocities, heading PIDF, Predictive Braking coefficients, `P=0.15`, and the `0.97`
+  parametric-end constraint are recorded and validated by the Line test. The director accepted the
+  evidence and the `0.20` application limit, so path readiness is open. No pilot path exists yet.
 - Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
   resolves and compiles Pedro 2.1.2.
 - LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder
   directions, recorded motor directions, restricted raised-wheel movement, cancellation, Driver
   Station STOP, and `robot.stop()`. Ground driving outside a later supervised tuning/test plan has
   not been authorized.
-- Path following remains closed until later version-matched tuning records accepted velocities,
-  gains or predictive-braking values, constraints, repeatability, and safe stop behavior.
+- Path readiness is open after version-matched tuning recorded accepted velocities, heading PIDF,
+  Predictive Braking values, constraints, repeatability, and safe stop behavior. LP-11 still must
+  implement and cautiously validate the first pilot path.
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
 - Vision hardware integration is intentionally deferred until a future prompt defines camera and

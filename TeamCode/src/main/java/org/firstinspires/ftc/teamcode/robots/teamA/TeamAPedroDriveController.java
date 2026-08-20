@@ -15,6 +15,13 @@ public final class TeamAPedroDriveController implements DriveController {
         this.follower = follower;
     }
 
+    void startPilotPath() {
+        requireFollower();
+        follower.breakFollowing();
+        teleOpStarted = false;
+        follower.followPath(TeamAPedroPilotPath.build(follower));
+    }
+
     @Override public void updateManualDrive(double forward, double strafe, double rotate) {
         requireFollower();
         if (!teleOpStarted) {

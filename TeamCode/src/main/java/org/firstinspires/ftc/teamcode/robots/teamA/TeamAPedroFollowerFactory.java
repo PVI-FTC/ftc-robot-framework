@@ -13,6 +13,7 @@ public final class TeamAPedroFollowerFactory {
         Follower follower = new FollowerBuilder(configuration.getFollowerConstants(), hardwareMap)
                 .pinpointLocalizer(configuration.getPinpointConstants())
                 .mecanumDrivetrain(configuration.getMecanumConstants())
+                .pathConstraints(configuration.getPathConstraints())
                 .build();
         if (configuration.getStartingPose() != null) {
             follower.setStartingPose(configuration.getStartingPose());

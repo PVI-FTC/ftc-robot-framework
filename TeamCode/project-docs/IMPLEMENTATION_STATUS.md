@@ -171,6 +171,12 @@ PVI-FTC | Editable master guide
   the SDK's published built-in 640-by-480 calibration. The calibration identity/resolution check
   is therefore supported by recorded evidence. Metric observations remain closed until the
   existing frame-freshness prerequisite is corrected and metric output is separately validated.
+- Added the Stage 4 planning artifacts `APRILTAG_METRIC_OBSERVATION_STUDENT_GUIDE.md` and
+  `APRILTAG_METRIC_OBSERVATION_PROMPT_PROGRESS.md`. The sequential MV-01 through MV-06 workflow
+  covers SDK discovery, freshness semantics, explicit 640-by-480 configuration, tag 22 metadata,
+  experimental neutral metrics, software audit, and supervised stationary range/bearing checks.
+  This is planning only; no metric, localization, drivetrain, autonomous, or Limelight behavior
+  was added.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

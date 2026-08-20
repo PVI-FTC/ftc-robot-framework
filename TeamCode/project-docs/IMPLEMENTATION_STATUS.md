@@ -160,7 +160,10 @@ PVI-FTC | Editable master guide
   Logitech C920 reported a 640-by-480 stream, detected ID 22, cleared observations on loss,
   reacquired the tag, remained stable, closed its preview on stop, and reopened without a
   camera-in-use error. The one-loop `LostTarget` state was not visible at Driver Station refresh
-  speed. Metric validation remains closed until matching calibration is verified.
+  speed. A later architecture audit found that this timestamp/age telemetry does not establish
+  camera-frame freshness because the source timestamps each copied detection with `System.nanoTime()`
+  instead of preserving the FTC SDK acquisition timestamp. Metric validation remains closed until
+  matching calibration and observation freshness are verified.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do
@@ -300,6 +303,15 @@ PVI-FTC | Editable master guide
 ## Known limitations and TODO items
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
+- Before calibration, localization, or drivetrain behavior consumes AprilTag observations, correct
+  `VisionPortalAprilTagSource` to preserve `AprilTagDetection.frameAcquisitionNanoTime` rather than
+  assigning a new `System.nanoTime()` while copying results from `getDetections()`. The FTC SDK
+  documents that `getDetections()` may return stale results, so the current implementation can make
+  an old detection appear newly acquired on every Robot loop. Define deliberately whether the
+  source should use `getFreshDetections()` or retain the latest snapshot, and verify that observation
+  age increases when no fresh camera frame arrives. Until then, AV-08 timestamp/age results must not
+  be used as evidence of frame freshness, and vision observations must not drive localization or
+  robot motion.
 - Camera-source integration is intentionally deferred until a future prompt defines the Logitech
   camera name and VisionPortal setup. The neutral observation boundary exists, but its default
   source remains unavailable and does not create a camera.

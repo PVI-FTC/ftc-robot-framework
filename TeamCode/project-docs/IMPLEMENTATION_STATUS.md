@@ -164,6 +164,13 @@ PVI-FTC | Editable master guide
   camera-frame freshness because the source timestamps each copied detection with `System.nanoTime()`
   instead of preserving the FTC SDK acquisition timestamp. Metric validation remains closed until
   matching calibration and observation freshness are verified.
+- Calibration follow-up evidence on 2026-08-20: the Logitech C920 continued detecting tag IDs with
+  a reported 640-by-480 VisionPortal stream, and no camera-calibration warning was observed in the
+  Driver Station preview or filtered Android Studio Logcat. Windows reported hardware identity
+  `USB\VID_046D&PID_082D&MI_00`; VID `046D` and PID `082D` match the Logitech C920 identity used by
+  the SDK's published built-in 640-by-480 calibration. The calibration identity/resolution check
+  is therefore supported by recorded evidence. Metric observations remain closed until the
+  existing frame-freshness prerequisite is corrected and metric output is separately validated.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

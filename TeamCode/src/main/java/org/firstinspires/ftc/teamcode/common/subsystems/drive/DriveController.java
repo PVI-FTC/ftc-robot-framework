@@ -9,6 +9,22 @@ public interface DriveController {
     /** Updates manual robot-relative drive output for one FTC loop. */
     void updateManualDrive(double forward, double strafe, double rotate);
 
+    /**
+     * Updates driver translation while maintaining a captured heading when the controller supports
+     * localization.
+     *
+     * <p>Controllers without a heading source retain ordinary manual-drive behavior. This keeps
+     * the shared drivetrain usable on robots that do not have an IMU or localizer.</p>
+     */
+    default void updateHeadingHold(double forward, double strafe, double rotate) {
+        updateManualDrive(forward, strafe, rotate);
+    }
+
+    /** Captures the heading that a localization-capable controller should maintain. */
+    default void startHeadingHold() {
+        // Simple controllers have no heading source to capture.
+    }
+
     /** Updates an already-requested path-following operation for one FTC loop. */
     void updatePathFollowing();
 

@@ -3,10 +3,10 @@ package org.firstinspires.ftc.teamcode.common.subsystems.drive;
 import org.firstinspires.ftc.teamcode.core.fsm.State;
 
 /**
- * Placeholder for future IMU-based heading hold.
+ * Driver translation with heading held by the selected drive controller.
  *
- * <p>Until a future prompt defines IMU support, this state safely falls back to the requested
- * manual mecanum drive behavior and applies no heading correction.</p>
+ * <p>Controllers with localization capture a target in {@link #enter()} and correct rotation on
+ * each update. Simple controllers safely retain their ordinary manual-drive fallback.</p>
  */
 public class HeadingHoldState implements State {
     private final DriveSubsystem driveSubsystem;
@@ -17,12 +17,12 @@ public class HeadingHoldState implements State {
 
     @Override
     public void enter() {
-        // No heading target or correction exists yet.
+        driveSubsystem.beginHeadingHold();
     }
 
     @Override
     public void update() {
-        driveSubsystem.applyRequestedMecanumDrive();
+        driveSubsystem.applyHeadingHoldDrive();
     }
 
     @Override

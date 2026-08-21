@@ -105,7 +105,7 @@ public class DriveSubsystem implements Subsystem {
         requestedMode = RequestedMode.DISABLED;
     }
 
-    /** Requests the heading-hold placeholder behavior. */
+    /** Requests driver translation with a controller-provided locked heading. */
     public void enableHeadingHold() {
         requestedMode = RequestedMode.HEADING_HOLD;
     }
@@ -151,6 +151,14 @@ public class DriveSubsystem implements Subsystem {
 
     void applyRequestedMecanumDrive() {
         driveController.updateManualDrive(requestedForward, requestedStrafe, requestedRotate);
+    }
+
+    void beginHeadingHold() {
+        driveController.startHeadingHold();
+    }
+
+    void applyHeadingHoldDrive() {
+        driveController.updateHeadingHold(requestedForward, requestedStrafe, requestedRotate);
     }
 
     void updatePathFollowing() {

@@ -37,6 +37,12 @@ public class TeamAPedroRobot extends Robot {
         configuration.requireRestrictedManualDriveReady();
         driveSubsystem.enableManualDrive();
     }
+    /** Captures the current Pinpoint heading and maintains it while allowing translation. */
+    public void enableHeadingHold() {
+        driveSubsystem.disableDrive();
+        configuration.requireRestrictedManualDriveReady();
+        driveSubsystem.enableHeadingHold();
+    }
     /** Sets the localizer to the selected path's declared start while keeping drive disabled. */
     public void preparePath(TeamAPedroPathRoute route) {
         driveSubsystem.disableDrive();

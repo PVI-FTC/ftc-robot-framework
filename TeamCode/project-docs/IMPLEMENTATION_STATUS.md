@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Team A now has a separate `TeamAPedroTeleOp` that drives through `TeamAPedroRobot` and its
+  single Pedro follower/Pinpoint owner. Pressing gamepad 1 Y captures the current Pinpoint heading
+  and enters `HeadingHold`; left-stick translation continues while `TeamAPedroDriveController`
+  applies a capped correction from the recorded heading P gain. Pressing X returns to manual
+  rotation. The original simple `TeamATeleOp` remains unchanged because it owns the baseline
+  non-localized drivetrain.
 - Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
   Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
   Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,
@@ -362,8 +368,9 @@ PVI-FTC | Editable master guide
   manual, heading-hold, or path-following mode without exposing FSM state manipulation.
 - `DriveSubsystem` owns drive-mode selection. Its default `MecanumDriveController` applies the standard
   four-wheel equations, normalizes power when needed, and sends the results through `DriveHardware`.
-- Disabled drive continuously stops the motors. Heading hold is an explicit safe manual-drive
-  fallback with no IMU target or correction; IMU heading correction remains deferred.
+- Disabled drive continuously stops the motors. Shared simple-drive heading hold remains a safe
+  manual-drive fallback; Team A's separate Pedro controller now implements active Pinpoint heading
+  hold without exposing Pedro or hardware types to the shared drive FSM.
 - Drive requests made before initialization are stored safely. The FSM initializes in disabled
   mode, and transitions are registered in deterministic order.
 - Completed Prompt 6: added `TeamARobot` in `robots.teamA` as the Team A composition root.
@@ -523,7 +530,7 @@ PVI-FTC | Editable master guide
   - read-only readiness queries for safe initialization, restricted manual drive, and path following
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroRobot`
   - default recorded Team A configuration plus the existing injectable constructor
-  - `initialize(HardwareMap)`, drive mode requests, cancellation, pose/state diagnostics, and
+  - `initialize(HardwareMap)`, manual-drive and Pinpoint heading-hold requests, cancellation, pose/state diagnostics, and
     read-only readiness queries; manual drive and path following fail closed while their gates are
     unavailable
 - `org.firstinspires.ftc.teamcode.core.input.InputManager`
@@ -563,6 +570,9 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamBTeleOp` and
   `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamCTeleOp`
   - iterative drive-only TeleOp lifecycles using the corresponding robot public API
+- `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamAPedroTeleOp`
+  - iterative Pinpoint-backed Team A drive with Y to capture/hold heading and X to return to
+    manual rotation
 - `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAPedroDiagnostic`
   - disabled-by-default LP-09 pose telemetry and deadman-controlled raised-wheel requests at the
     configured restricted ceiling
@@ -591,8 +601,9 @@ PVI-FTC | Editable master guide
 - Consider adding compile-only GitHub Actions validation.
 - Vision hardware integration is intentionally deferred until a future prompt defines camera and
   processor requirements.
-- IMU heading correction remains intentionally deferred. `HeadingHoldState` currently provides a
-  safe manual-drive fallback.
+- The shared simple drivetrain has no IMU. Active heading hold is currently available only through
+  `TeamAPedroTeleOp`, using the recorded Team A Pinpoint/Pedro configuration. It requires a
+  supervised physical test before competition use.
 - Intake holding power remains zero until a future mechanism prompt defines the physical holding
   requirement.
 - Team B and Team C currently assume the shared hardware policy: required `frontLeft`,

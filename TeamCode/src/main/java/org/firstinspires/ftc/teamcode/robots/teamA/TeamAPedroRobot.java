@@ -37,10 +37,17 @@ public class TeamAPedroRobot extends Robot {
         configuration.requireRestrictedManualDriveReady();
         driveSubsystem.enableManualDrive();
     }
-    /** Starts the reviewed LP-11 pilot path through the existing drive-mode request seam. */
-    public void startPilotPath() {
+    /** Sets the localizer to the selected path's declared start while keeping drive disabled. */
+    public void preparePath(TeamAPedroPathRoute route) {
+        driveSubsystem.disableDrive();
         configuration.requirePathFollowingReady();
-        driveController.startPilotPath();
+        driveController.preparePath(route);
+    }
+
+    /** Starts a selected Team A path through the existing drive-mode request seam. */
+    public void startPath(TeamAPedroPathRoute route) {
+        configuration.requirePathFollowingReady();
+        driveController.startPath(route);
         driveSubsystem.enablePathFollowing();
     }
 

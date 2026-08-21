@@ -69,12 +69,14 @@ public final class TeamAPedroConfiguration {
         FollowerConstants follower = new FollowerConstants()
                 .mass(4.85)
                 .headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))
+                .forwardZeroPowerAcceleration(-42.4832745291992)
+                .lateralZeroPowerAcceleration(-50.60694780564594)
                 .predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(
                         0.15, 0.051792761842529726, 0.002367856854157051))
                 .centripetalScaling(0.0);
         MecanumConstants mecanum = new MecanumConstants()
-                .xVelocity(52.375)
-                .yVelocity(42.019)
+                .xVelocity(62.61374213751846)
+                .yVelocity(49.757958599901585)
                 .maxPower(APPLICATION_MAX_POWER)
                 .leftFrontMotorName("frontLeft")
                 .leftRearMotorName("rearLeft")

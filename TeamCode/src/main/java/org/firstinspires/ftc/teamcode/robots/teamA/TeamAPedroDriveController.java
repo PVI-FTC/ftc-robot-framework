@@ -15,11 +15,20 @@ public final class TeamAPedroDriveController implements DriveController {
         this.follower = follower;
     }
 
-    void startPilotPath() {
+    void preparePath(TeamAPedroPathRoute route) {
         requireFollower();
+        if (route == null) throw new IllegalArgumentException("Select a Team A Pedro route first.");
         follower.breakFollowing();
         teleOpStarted = false;
-        follower.followPath(TeamAPedroPilotPath.build(follower));
+        follower.setStartingPose(route.createStartPose());
+    }
+
+    void startPath(TeamAPedroPathRoute route) {
+        requireFollower();
+        if (route == null) throw new IllegalArgumentException("Select a Team A Pedro route first.");
+        follower.breakFollowing();
+        teleOpStarted = false;
+        follower.followPath(route.build(follower));
     }
 
     @Override public void updateManualDrive(double forward, double strafe, double rotate) {

@@ -2,21 +2,23 @@ package org.firstinspires.ftc.teamcode.robots.teamA;
 
 import org.firstinspires.ftc.teamcode.common.autonomous.AutoStep;
 
-/** Starts one Team A pilot path, observes completion on later loops, and cancels safely. */
-public final class TeamAPedroPilotPathStep implements AutoStep {
+/** Starts one selected Team A Pedro path, observes completion, and cancels safely. */
+public final class TeamAPedroPathStep implements AutoStep {
     private final TeamAPedroRobot robot;
+    private final TeamAPedroPathRoute route;
     private boolean started;
 
-    public TeamAPedroPilotPathStep(TeamAPedroRobot robot) {
-        if (robot == null) {
-            throw new IllegalArgumentException("The Team A pilot step needs a Pedro robot.");
+    public TeamAPedroPathStep(TeamAPedroRobot robot, TeamAPedroPathRoute route) {
+        if (robot == null || route == null) {
+            throw new IllegalArgumentException("A Team A Pedro path step needs a robot and route.");
         }
         this.robot = robot;
+        this.route = route;
     }
 
     @Override
     public void start() {
-        robot.startPilotPath();
+        robot.startPath(route);
         started = true;
     }
 
@@ -37,6 +39,6 @@ public final class TeamAPedroPilotPathStep implements AutoStep {
 
     @Override
     public String getName() {
-        return "TeamAPedroPilotPath";
+        return route.getDisplayName();
     }
 }

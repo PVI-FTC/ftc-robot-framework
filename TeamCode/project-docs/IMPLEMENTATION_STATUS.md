@@ -8,26 +8,58 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: LP-11 pilot implementation ready for pre-deployment review
+- Current sequential prompt: LP-11 four-path Pedro selector ready for deployment review
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
+  Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
+  Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,
+  localization/direction evidence, future-robot replacement map, and sign-off checklist. Unverified
+  physical dimensions are explicitly separated from inconsistent Visualizer-only footprints.
 - LP-11 preserves the student-created Pedro Visualizer `1.2.1` export as
   `TeamCode/project-docs/TeamA_LP11_Pilot.pp`. The reviewed chain contains one straight line from
   `(0, 0)` to `(24, 0)` inches, no control points or waits, and an effective `0` degree heading.
   The code adaptation uses explicit constant heading rather than copying unrelated Visualizer
   simulation settings or generated framework code.
-- Added `TeamAPedroPilotPath`, a Team A-owned Pedro `PathChain` definition, and
-  `TeamAPedroPilotPathStep`, a non-blocking `AutoStep` that requests the path once, checks completion
-  on later loops, and cancels through the Robot API. `TeamAPedroDriveController` remains the follower
-  owner and starts the path behind `TeamAPedroRobot.startPilotPath()`.
-- Added the thin testing-only `TeamAPedroPilotAutoOpMode`. It initializes `TeamAPedroRobot`, advances
-  one `AutoSequence`, calls `robot.update()` once per loop, records expected/observed poses and end
-  errors, and routes completion and FTC STOP through the existing cancel/stop paths. The application
-  power remains the single recorded `TeamAPedroConfiguration.APPLICATION_MAX_POWER = 0.20` value.
-- The LP-11 pre-deployment `TeamCode:assembleDebug` build passed. Static review found no direct
-  OpMode ownership of the follower, motors, or Pinpoint; no gamepad routing in autonomous; and no
-  blocking wait, loop, or extra scheduler. The first physical pilot run remains pending.
+- Added `TeamAPedroPilotPath`, a Team A-owned Pedro `PathChain` definition, and the reusable
+  `TeamAPedroPathStep`, a non-blocking `AutoStep` that requests the selected route once, checks
+  completion on later loops, and cancels through the Robot API. `TeamAPedroDriveController` remains
+  the follower owner and starts a selected route behind `TeamAPedroRobot.startPath(...)`.
+- `TeamAPedroPilotAutoOpMode` now provides a four-route autonomous menu through Pedro telemetry
+  `1.0.0`'s `SelectableOpMode`, exactly matching the tuning selector controls: D-pad moves the
+  cursor, right bumper selects, and left bumper returns. The choices are the existing 24-inch LP-11
+  pilot, the imported DECODE route, the imported Curving Test, and the imported Illegal Path. Only
+  the selected inner OpMode initializes `TeamAPedroRobot`, advances one `AutoSequence`, calls
+  `robot.update()` once per loop, and routes completion and FTC STOP through the existing
+  cancel/stop paths.
+- The imported DECODE route contains the Visualizer export's 11 straight segments and linear
+  heading interpolations in sequence, starts at `(56, 8, 90 deg)`, and ends at
+  `(48, 81, 135 deg)`. Route selection prepares the declared starting pose before START. Visualizer
+  simulation settings were not imported, and the application power remains the single recorded
+  `TeamAPedroConfiguration.APPLICATION_MAX_POWER = 0.20` value.
+- The imported Curving Test contains the Visualizer export's one 10-segment chain: six quadratic
+  curves and four straight lines. Its first segment uses linear heading interpolation from
+  `90 deg` to `180 deg`; the remaining nine use tangential heading. It starts at
+  `(56, 8, 90 deg)`, ends near `(24.307, 93.826, 179.848 deg)`, and contains no waits. Visualizer
+  field shapes and simulation settings were not imported. This route has not been physically run.
+- The imported Illegal Path contains the Visualizer export's one three-segment chain: one cubic
+  curve, one quadratic curve, and one straight line. Its linear heading interpolations are
+  `90 deg` to `180 deg`, constant `180 deg`, and `180 deg` to `90 deg`. It starts at
+  `(56, 8, 90 deg)`, ends near `(103.425, 32.682, 90 deg)`, and contains no waits. Visualizer field
+  shapes and simulation settings were not imported. This route has not been physically run.
+- The director reported that the original LP-11 pilot path worked. Exact observed pose/error and
+  stop telemetry were not supplied, so no values are inferred. The three imported routes have not
+  been physically run. The four-route implementation passes
+  `TeamCode:assembleDebug`; static review found no direct OpMode ownership of the follower, motors,
+  or Pinpoint, no autonomous drive routed through gamepad input, and no blocking wait, loop, or
+  extra scheduler.
+- The latest completed automatic tuner outputs supersede the earlier velocity values:
+  forward velocity is `62.61374213751846 in/s`, lateral velocity is `49.757958599901585 in/s`,
+  forward zero-power acceleration is `-42.4832745291992 in/s^2`, and lateral zero-power
+  acceleration is `-50.60694780564594 in/s^2`. `TeamAPedroConfiguration` stores the velocities in
+  `MecanumConstants` and the accelerations in `FollowerConstants`; Predictive Braking values remain
+  unchanged.
 - LP-10 approach A was authorized by the director. The testing-only `TeamAPedroTuning` selector is
   adapted from official Pedro Pathing Quickstart commit
   `d3aea9ca3c5b4c09eded8580229b86996480ee89`, whose dependency file pins Pedro FTC `2.1.2`, Pedro

@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.robots.teamA;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.teamcode.common.hardware.AprilTagCameraConfiguration;
 import org.firstinspires.ftc.teamcode.common.hardware.VisionHardware;
 import org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
@@ -12,13 +13,26 @@ import java.util.List;
 
 /** Separate, stationary Team A AprilTag pilot with no drivetrain or localization behavior. */
 public class TeamAAprilTagVisionRobot extends Robot {
+    private static final String ROBOT_FRAME_NAME =
+            "Team A robot frame: drivetrain center floor origin, +X right, +Y forward, +Z up";
+    private static final int STREAM_WIDTH = 640;
+    private static final int STREAM_HEIGHT = 480;
+    private static final double CAMERA_RIGHT_INCHES = 6.875;
+    private static final double CAMERA_FORWARD_INCHES = 4.875;
+    private static final double CAMERA_UP_INCHES = 19.0;
+
     private final VisionHardware visionHardware;
     private final VisionSubsystem visionSubsystem;
     private boolean hardwareInitialized;
 
     /** Creates the pilot for one configured Logitech/UVC webcam hardware name. */
     public TeamAAprilTagVisionRobot(String webcamHardwareName) {
-        visionHardware = new VisionHardware(webcamHardwareName);
+        AprilTagCameraConfiguration configuration = new AprilTagCameraConfiguration(
+                webcamHardwareName, STREAM_WIDTH, STREAM_HEIGHT,
+                true, true, ROBOT_FRAME_NAME,
+                CAMERA_RIGHT_INCHES, CAMERA_FORWARD_INCHES, CAMERA_UP_INCHES,
+                0, 0, 0);
+        visionHardware = new VisionHardware(configuration);
         visionSubsystem = new VisionSubsystem(visionHardware);
         registerSubsystem(visionSubsystem);
     }

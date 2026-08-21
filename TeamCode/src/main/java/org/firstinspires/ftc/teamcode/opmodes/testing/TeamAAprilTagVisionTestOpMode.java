@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagPose;
 import org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot;
 
 import java.util.Collections;
@@ -62,14 +63,16 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
         telemetry.addData("Frame Status", snapshot.getFrameStatus());
-        telemetry.addData("Fresh Frame", snapshot.isFreshFrame());
-        telemetry.addData("Retained Snapshot", snapshot.isRetained());
         telemetry.addData("Retained Timestamp Check", retainedTimestampResult);
-        telemetry.addData("Retained Timestamp Checks", retainedTimestampChecks);
-        telemetry.addData("Retained Timestamp Failures", retainedTimestampFailures);
+        telemetry.addData("Retained Checks / Failures", "%d / %d",
+                retainedTimestampChecks, retainedTimestampFailures);
         telemetry.addData("Detection Count", observations.size());
         for (AprilTagObservation observation : observations) {
             telemetry.addData("Tag " + observation.getTagId(), observation.getQualityStatus());
+            telemetry.addData("Tag " + observation.getTagId() + " Pose Available",
+                    observation.isPoseAvailable());
+            publishPose("Camera", observation.getCameraRelativePose());
+            publishPose("Robot", observation.getRobotRelativePose());
             telemetry.addData("Tag " + observation.getTagId() + " Acquisition Timestamp (ns)",
                     observation.getTimestampNanos());
             telemetry.addData("Tag " + observation.getTagId() + " Observation Age (ms)",
@@ -93,6 +96,18 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
             }
         }
         return true;
+    }
+
+    private void publishPose(String label, AprilTagPose pose) {
+        if (pose == null) {
+            telemetry.addData(label + " Pose", "Unavailable");
+            return;
+        }
+        telemetry.addData(label + " Frame", pose.getReferenceFrameName());
+        telemetry.addData(label + " XYZ (in)", "%.2f, %.2f, %.2f",
+                pose.getRightInches(), pose.getForwardInches(), pose.getUpInches());
+        telemetry.addData(label + " Range/Bearing/Elevation", "%.2f in, %.2f deg, %.2f deg",
+                pose.getRangeInches(), pose.getBearingDegrees(), pose.getElevationDegrees());
     }
 
     private double getObservationAgeMillis(AprilTagObservation observation) {

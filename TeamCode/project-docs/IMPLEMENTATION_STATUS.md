@@ -182,7 +182,7 @@ PVI-FTC | Editable master guide
   immutable snapshots distinguish `FRESH`, `RETAINED`, and `UNAVAILABLE`; retained observations
   keep their original acquisition timestamps, while a fresh empty frame clears observations.
   The Logitech VisionPortal now explicitly requests the recorded calibrated 640-by-480 stream.
-  The stationary diagnostic reports neutral frame status, fresh/retained flags, acquisition
+  The stationary diagnostic reports neutral fresh/retained/unavailable frame status, acquisition
   timestamp, increasing observation age, and Robot-loop retained-timestamp check/failure counts.
   Observations remain ID-only; no metric pose, localization, movement, camera-control tuning, or
   Limelight behavior was added.
@@ -191,6 +191,21 @@ PVI-FTC | Editable master guide
   timestamp checks ran, displayed `PASS`, and reported zero failures. After removing the tag,
   frame status continued changing between fresh and retained empty results, detection count stayed
   zero, and the vision FSM stayed in `Searching`.
+- AprilTag metric-observation prompt MV-04 explicitly selects the SDK 11.2.1 DECODE 36h11 library,
+  whose tag 22 entry is `Obelisk_PGP` with a 6.5-inch black-square size, and explicitly requests
+  inch/degree output. Fresh tag-22 detections must pass timestamp, metadata, C920 640-by-480
+  calibration, FTC pose, finite-value, and verified zero-rotation mount gates before metric pose is
+  available. One neutral observation can contain both the FTC camera-relative pose and an
+  experimental Team A robot-relative pose; retained or failed-gate observations remain ID-only.
+  The aligned camera-to-robot transform adds the measured +6.875-inch right, +4.875-inch forward,
+  and +19-inch up mount translation, then recomputes robot-frame range, bearing, and elevation.
+  No field pose, localization, movement, pathing, camera-control, or Limelight behavior was added.
+- MV-04 supervised display-only Control Hub validation confirmed that the code deployed without
+  error and fresh tag-22 results briefly reported pose available with visible camera-frame and
+  robot-frame names, XYZ, and range/bearing/elevation values that were all finite. No mechanism
+  moved. On retained results, tag 22 remained identified while pose availability was false and
+  both camera-relative and robot-relative pose displays were unavailable, as required. This was a
+  smoke test only; it did not establish physical range or bearing accuracy.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do
@@ -251,12 +266,20 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
   - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
-  - `VisionHardware()`, `VisionHardware(String)`, `initialize()`, `initialize(HardwareMap)`,
+  - `VisionHardware()`, `VisionHardware(String)`,
+    `VisionHardware(AprilTagCameraConfiguration)`, `initialize()`, `initialize(HardwareMap)`,
     `update()`, `stop()`, `isAvailable()`, and
     `getObservations()`; `getSnapshot()` exposes the neutral frame status with the immutable list
+- `org.firstinspires.ftc.teamcode.common.hardware.AprilTagCameraConfiguration`
+  - immutable neutral stream, calibration, robot-frame, and measured camera-mount facts; contains
+    no FTC camera or processor type
 - `org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation`
   - immutable neutral tag ID, timestamp, pose-availability, reference-frame, quality, position,
-    orientation, range, bearing, and elevation getters; unavailable metric values are `NaN`
+    orientation, range, bearing, and elevation getters; optional `getCameraRelativePose()` and
+    `getRobotRelativePose()` views; unavailable legacy robot metric values are `NaN`
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagPose`
+  - immutable finite position, orientation, range, bearing, and elevation values in one named
+    neutral reference frame
 - `org.firstinspires.ftc.teamcode.common.vision.AprilTagFrameStatus` and
   `AprilTagObservationSnapshot`
   - neutral `FRESH`, `RETAINED`, and `UNAVAILABLE` frame status; immutable observation list;
@@ -341,6 +364,9 @@ PVI-FTC | Editable master guide
   confirms retained timestamp checks pass with zero failures and fresh-empty results clear the
   detection count. Metric observations remain closed until MV-04, and vision observations must not
   drive localization or robot motion.
+- MV-04 metric values are experimental software output. Stationary measured range/bearing accuracy
+  and camera-to-robot transform behavior remain unverified on hardware until MV-06; these values
+  must not drive localization or movement.
 - Only the separate Team A diagnostic robot composes the Logitech VisionPortal camera source. The
   default `VisionHardware` used by simple Team A, Team B, and Team C robots remains safely
   unavailable and does not create a camera.

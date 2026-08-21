@@ -13,84 +13,95 @@ package org.firstinspires.ftc.teamcode.common.vision;
 public final class AprilTagObservation {
     private final int tagId;
     private final long timestampNanos;
-    private final boolean poseAvailable;
-    private final String referenceFrameName;
     private final String qualityStatus;
-    private final double rightInches;
-    private final double forwardInches;
-    private final double upInches;
-    private final double pitchDegrees;
-    private final double rollDegrees;
-    private final double yawDegrees;
-    private final double rangeInches;
-    private final double bearingDegrees;
-    private final double elevationDegrees;
+    private final AprilTagPose cameraRelativePose;
+    private final AprilTagPose robotRelativePose;
 
     /** Creates an ID-only observation with no metric pose. */
     public AprilTagObservation(int tagId, long timestampNanos, String qualityStatus) {
-        this(tagId, timestampNanos, false, "Unverified robot frame", qualityStatus,
-                Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN,
-                Double.NaN, Double.NaN, Double.NaN);
+        this(tagId, timestampNanos, qualityStatus, null, null);
     }
 
-    /** Creates an observation with a verified robot-relative pose. */
+    /** Creates an observation with camera-relative and robot-relative pose views. */
+    public AprilTagObservation(int tagId, long timestampNanos, String qualityStatus,
+                               AprilTagPose cameraRelativePose,
+                               AprilTagPose robotRelativePose) {
+        validateIdentity(tagId, timestampNanos, qualityStatus);
+
+        this.tagId = tagId;
+        this.timestampNanos = timestampNanos;
+        this.qualityStatus = qualityStatus;
+        this.cameraRelativePose = cameraRelativePose;
+        this.robotRelativePose = robotRelativePose;
+    }
+
+    /** Creates a legacy observation whose metric getters describe one robot-relative pose. */
     public AprilTagObservation(int tagId, long timestampNanos, String referenceFrameName,
                                String qualityStatus, double rightInches, double forwardInches,
                                double upInches, double pitchDegrees, double rollDegrees,
                                double yawDegrees, double rangeInches, double bearingDegrees,
                                double elevationDegrees) {
-        this(tagId, timestampNanos, true, referenceFrameName, qualityStatus, rightInches,
-                forwardInches, upInches, pitchDegrees, rollDegrees, yawDegrees, rangeInches,
-                bearingDegrees, elevationDegrees);
+        this(tagId, timestampNanos, qualityStatus,
+                null,
+                new AprilTagPose(referenceFrameName, rightInches, forwardInches, upInches,
+                        pitchDegrees, rollDegrees, yawDegrees, rangeInches, bearingDegrees,
+                        elevationDegrees));
     }
 
-    private AprilTagObservation(int tagId, long timestampNanos, boolean poseAvailable,
-                                String referenceFrameName, String qualityStatus,
-                                double rightInches, double forwardInches, double upInches,
-                                double pitchDegrees, double rollDegrees, double yawDegrees,
-                                double rangeInches, double bearingDegrees,
-                                double elevationDegrees) {
+    private static void validateIdentity(int tagId, long timestampNanos, String qualityStatus) {
         if (tagId < 0) {
             throw new IllegalArgumentException("AprilTag ID cannot be negative.");
         }
         if (timestampNanos < 0) {
             throw new IllegalArgumentException("Observation timestamp cannot be negative.");
         }
-        if (referenceFrameName == null || referenceFrameName.isEmpty()) {
-            throw new IllegalArgumentException("Observation needs a reference-frame name.");
-        }
         if (qualityStatus == null || qualityStatus.isEmpty()) {
             throw new IllegalArgumentException("Observation needs a quality status.");
         }
-
-        this.tagId = tagId;
-        this.timestampNanos = timestampNanos;
-        this.poseAvailable = poseAvailable;
-        this.referenceFrameName = referenceFrameName;
-        this.qualityStatus = qualityStatus;
-        this.rightInches = rightInches;
-        this.forwardInches = forwardInches;
-        this.upInches = upInches;
-        this.pitchDegrees = pitchDegrees;
-        this.rollDegrees = rollDegrees;
-        this.yawDegrees = yawDegrees;
-        this.rangeInches = rangeInches;
-        this.bearingDegrees = bearingDegrees;
-        this.elevationDegrees = elevationDegrees;
     }
 
     public int getTagId() { return tagId; }
     public long getTimestampNanos() { return timestampNanos; }
-    public boolean isPoseAvailable() { return poseAvailable; }
-    public String getReferenceFrameName() { return referenceFrameName; }
+    public boolean isPoseAvailable() { return robotRelativePose != null; }
+    public boolean isCameraRelativePoseAvailable() { return cameraRelativePose != null; }
+    public boolean isRobotRelativePoseAvailable() { return robotRelativePose != null; }
+    public AprilTagPose getCameraRelativePose() { return cameraRelativePose; }
+    public AprilTagPose getRobotRelativePose() { return robotRelativePose; }
+    public String getReferenceFrameName() {
+        return robotRelativePose == null
+                ? "Unverified robot frame"
+                : robotRelativePose.getReferenceFrameName();
+    }
     public String getQualityStatus() { return qualityStatus; }
-    public double getRightInches() { return rightInches; }
-    public double getForwardInches() { return forwardInches; }
-    public double getUpInches() { return upInches; }
-    public double getPitchDegrees() { return pitchDegrees; }
-    public double getRollDegrees() { return rollDegrees; }
-    public double getYawDegrees() { return yawDegrees; }
-    public double getRangeInches() { return rangeInches; }
-    public double getBearingDegrees() { return bearingDegrees; }
-    public double getElevationDegrees() { return elevationDegrees; }
+    public double getRightInches() { return robotValue(PoseValue.RIGHT); }
+    public double getForwardInches() { return robotValue(PoseValue.FORWARD); }
+    public double getUpInches() { return robotValue(PoseValue.UP); }
+    public double getPitchDegrees() { return robotValue(PoseValue.PITCH); }
+    public double getRollDegrees() { return robotValue(PoseValue.ROLL); }
+    public double getYawDegrees() { return robotValue(PoseValue.YAW); }
+    public double getRangeInches() { return robotValue(PoseValue.RANGE); }
+    public double getBearingDegrees() { return robotValue(PoseValue.BEARING); }
+    public double getElevationDegrees() { return robotValue(PoseValue.ELEVATION); }
+
+    private double robotValue(PoseValue value) {
+        if (robotRelativePose == null) {
+            return Double.NaN;
+        }
+        switch (value) {
+            case RIGHT: return robotRelativePose.getRightInches();
+            case FORWARD: return robotRelativePose.getForwardInches();
+            case UP: return robotRelativePose.getUpInches();
+            case PITCH: return robotRelativePose.getPitchDegrees();
+            case ROLL: return robotRelativePose.getRollDegrees();
+            case YAW: return robotRelativePose.getYawDegrees();
+            case RANGE: return robotRelativePose.getRangeInches();
+            case BEARING: return robotRelativePose.getBearingDegrees();
+            case ELEVATION: return robotRelativePose.getElevationDegrees();
+            default: throw new IllegalArgumentException("Unknown AprilTag pose value.");
+        }
+    }
+
+    private enum PoseValue {
+        RIGHT, FORWARD, UP, PITCH, ROLL, YAW, RANGE, BEARING, ELEVATION
+    }
 }

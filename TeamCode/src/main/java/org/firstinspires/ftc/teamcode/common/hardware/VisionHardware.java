@@ -25,7 +25,14 @@ public class VisionHardware {
 
     /** Creates Logitech/UVC AprilTag hardware for one configured webcam name. */
     public VisionHardware(String webcamHardwareName) {
-        this(new VisionPortalAprilTagSource(webcamHardwareName));
+        this(new VisionPortalAprilTagSource(new AprilTagCameraConfiguration(
+                webcamHardwareName, 640, 480, false, false, "Unverified robot frame",
+                0, 0, 0, 0, 0, 0)));
+    }
+
+    /** Creates VisionPortal AprilTag hardware from reviewed camera and mount facts. */
+    public VisionHardware(AprilTagCameraConfiguration configuration) {
+        this(new VisionPortalAprilTagSource(configuration));
     }
 
     /** Allows a hardware-layer source to be supplied by a later vision composition. */

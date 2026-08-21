@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.common.subsystems.vision;
 
 import org.firstinspires.ftc.teamcode.common.hardware.VisionHardware;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.core.fsm.FSM;
 import org.firstinspires.ftc.teamcode.core.fsm.Transition;
 import org.firstinspires.ftc.teamcode.core.robot.Subsystem;
@@ -28,7 +29,8 @@ public class VisionSubsystem implements Subsystem {
 
     private boolean visionRequested;
     private boolean targetDetected;
-    private List<AprilTagObservation> latestObservations = Collections.emptyList();
+    private AprilTagObservationSnapshot latestSnapshot =
+            AprilTagObservationSnapshot.unavailable();
 
     /** Creates a vision subsystem that uses the supplied lifecycle-only hardware wrapper. */
     public VisionSubsystem(VisionHardware visionHardware) {
@@ -62,7 +64,7 @@ public class VisionSubsystem implements Subsystem {
         visionRequested = false;
         targetDetected = false;
         visionHardware.stop();
-        latestObservations = Collections.emptyList();
+        latestSnapshot = AprilTagObservationSnapshot.unavailable();
     }
 
     @Override
@@ -109,7 +111,12 @@ public class VisionSubsystem implements Subsystem {
 
     /** Returns the latest neutral observations collected during an active vision update. */
     public List<AprilTagObservation> getLatestObservations() {
-        return latestObservations;
+        return latestSnapshot.getObservations();
+    }
+
+    /** Returns observations plus fresh, retained, or unavailable frame status. */
+    public AprilTagObservationSnapshot getLatestSnapshot() {
+        return latestSnapshot;
     }
 
     boolean isVisionRequested() {
@@ -122,12 +129,14 @@ public class VisionSubsystem implements Subsystem {
 
     void updateVisionHardware() {
         visionHardware.update();
-        latestObservations = visionHardware.getObservations();
-        targetDetected = !latestObservations.isEmpty();
+        latestSnapshot = visionHardware.getSnapshot();
+        targetDetected = !latestSnapshot.getObservations().isEmpty();
     }
 
     void clearVisionObservations() {
-        latestObservations = Collections.emptyList();
+        latestSnapshot = visionHardware.isAvailable()
+                ? AprilTagObservationSnapshot.retained(Collections.emptyList())
+                : AprilTagObservationSnapshot.unavailable();
         targetDetected = false;
     }
 

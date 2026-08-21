@@ -177,6 +177,20 @@ PVI-FTC | Editable master guide
   experimental neutral metrics, software audit, and supervised stationary range/bearing checks.
   This is planning only; no metric, localization, drivetrain, autonomous, or Limelight behavior
   was added.
+- AprilTag metric-observation prompt MV-03 replaced loop-time detection timestamps with the FTC
+  SDK's `AprilTagDetection.frameAcquisitionNanoTime` and uses `getFreshDetections()`. Neutral
+  immutable snapshots distinguish `FRESH`, `RETAINED`, and `UNAVAILABLE`; retained observations
+  keep their original acquisition timestamps, while a fresh empty frame clears observations.
+  The Logitech VisionPortal now explicitly requests the recorded calibrated 640-by-480 stream.
+  The stationary diagnostic reports neutral frame status, fresh/retained flags, acquisition
+  timestamp, increasing observation age, and Robot-loop retained-timestamp check/failure counts.
+  Observations remain ID-only; no metric pose, localization, movement, camera-control tuning, or
+  Limelight behavior was added.
+- MV-03 supervised Control Hub validation confirmed that the updated diagnostic deployed and the
+  preview streamed normally with no camera-calibration warning. With tag 22 visible, retained
+  timestamp checks ran, displayed `PASS`, and reported zero failures. After removing the tag,
+  frame status continued changing between fresh and retained empty results, detection count stayed
+  zero, and the vision FSM stayed in `Searching`.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do
@@ -239,10 +253,14 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
   - `VisionHardware()`, `VisionHardware(String)`, `initialize()`, `initialize(HardwareMap)`,
     `update()`, `stop()`, `isAvailable()`, and
-    `getObservations()`
+    `getObservations()`; `getSnapshot()` exposes the neutral frame status with the immutable list
 - `org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation`
   - immutable neutral tag ID, timestamp, pose-availability, reference-frame, quality, position,
     orientation, range, bearing, and elevation getters; unavailable metric values are `NaN`
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagFrameStatus` and
+  `AprilTagObservationSnapshot`
+  - neutral `FRESH`, `RETAINED`, and `UNAVAILABLE` frame status; immutable observation list;
+    `getFrameStatus()`, `isFreshFrame()`, `isRetained()`, and `getObservations()`
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
   - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
@@ -280,10 +298,11 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem`
   - `VisionSubsystem(VisionHardware)`, lifecycle methods, `enableVision()`, `disableVision()`,
     `reportTargetDetected(boolean)`, `getCurrentStateName()`, `isAvailable()`, and
-    `getLatestObservations()`
+    `getLatestObservations()`; `getLatestSnapshot()` adds neutral frame status
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot`
-  - `TeamAAprilTagVisionRobot()`, `initialize(HardwareMap)`, public vision enable/disable,
-    availability/state diagnostics, and `getAprilTagObservations()`
+  - `TeamAAprilTagVisionRobot(String)`, `initialize(HardwareMap)`, public vision enable/disable,
+    availability/state diagnostics, `getAprilTagObservations()`, and
+    `getAprilTagObservationSnapshot()`
 - `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAAprilTagVisionTestOpMode`
   - stationary diagnostic that uses only TeamAAprilTagVisionRobot public APIs
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionDisabledState`,
@@ -316,18 +335,15 @@ PVI-FTC | Editable master guide
 ## Known limitations and TODO items
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
-- Before calibration, localization, or drivetrain behavior consumes AprilTag observations, correct
-  `VisionPortalAprilTagSource` to preserve `AprilTagDetection.frameAcquisitionNanoTime` rather than
-  assigning a new `System.nanoTime()` while copying results from `getDetections()`. The FTC SDK
-  documents that `getDetections()` may return stale results, so the current implementation can make
-  an old detection appear newly acquired on every Robot loop. Define deliberately whether the
-  source should use `getFreshDetections()` or retain the latest snapshot, and verify that observation
-  age increases when no fresh camera frame arrives. Until then, AV-08 timestamp/age results must not
-  be used as evidence of frame freshness, and vision observations must not drive localization or
-  robot motion.
-- Camera-source integration is intentionally deferred until a future prompt defines the Logitech
-  camera name and VisionPortal setup. The neutral observation boundary exists, but its default
-  source remains unavailable and does not create a camera.
+- MV-03 software checks verify that `VisionPortalAprilTagSource` preserves
+  `AprilTagDetection.frameAcquisitionNanoTime`, uses `getFreshDetections()`, and retains immutable
+  observations without assigning a new Robot-loop timestamp. Supervised Control Hub evidence also
+  confirms retained timestamp checks pass with zero failures and fresh-empty results clear the
+  detection count. Metric observations remain closed until MV-04, and vision observations must not
+  drive localization or robot motion.
+- Only the separate Team A diagnostic robot composes the Logitech VisionPortal camera source. The
+  default `VisionHardware` used by simple Team A, Team B, and Team C robots remains safely
+  unavailable and does not create a camera.
 - IMU heading correction remains intentionally deferred. `HeadingHoldState` currently provides a
   safe manual-drive fallback.
 - Intake holding power remains zero until a future mechanism prompt defines the physical holding

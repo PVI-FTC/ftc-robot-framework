@@ -4,8 +4,10 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot;
 
+import java.util.Collections;
 import java.util.List;
 
 /** Stationary diagnostic for Team A's Logitech/UVC AprilTag pilot. */
@@ -14,6 +16,9 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
     private static final String WEBCAM_HARDWARE_NAME = "logitechVisionWebcam";
 
     private TeamAAprilTagVisionRobot robot;
+    private List<AprilTagObservation> previousObservations = Collections.emptyList();
+    private int retainedTimestampChecks;
+    private int retainedTimestampFailures;
 
     @Override
     public void init() {
@@ -31,7 +36,7 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
     @Override
     public void loop() {
         robot.update();
-        publishObservations(robot.getAprilTagObservations());
+        publishObservations(robot.getAprilTagObservationSnapshot());
     }
 
     @Override
@@ -41,21 +46,56 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
         }
     }
 
-    private void publishObservations(List<AprilTagObservation> observations) {
+    private void publishObservations(AprilTagObservationSnapshot snapshot) {
+        List<AprilTagObservation> observations = snapshot.getObservations();
+        String retainedTimestampResult = "Not checked this loop";
+        if (snapshot.isRetained() && !observations.isEmpty()) {
+            retainedTimestampChecks++;
+            boolean timestampsPreserved = haveSameIdsAndTimestamps(
+                    previousObservations, observations);
+            if (!timestampsPreserved) {
+                retainedTimestampFailures++;
+            }
+            retainedTimestampResult = timestampsPreserved ? "PASS" : "FAIL";
+        }
+
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
+        telemetry.addData("Frame Status", snapshot.getFrameStatus());
+        telemetry.addData("Fresh Frame", snapshot.isFreshFrame());
+        telemetry.addData("Retained Snapshot", snapshot.isRetained());
+        telemetry.addData("Retained Timestamp Check", retainedTimestampResult);
+        telemetry.addData("Retained Timestamp Checks", retainedTimestampChecks);
+        telemetry.addData("Retained Timestamp Failures", retainedTimestampFailures);
         telemetry.addData("Detection Count", observations.size());
         for (AprilTagObservation observation : observations) {
             telemetry.addData("Tag " + observation.getTagId(), observation.getQualityStatus());
-            telemetry.addData("Tag " + observation.getTagId() + " Processing Timestamp (ns)",
+            telemetry.addData("Tag " + observation.getTagId() + " Acquisition Timestamp (ns)",
                     observation.getTimestampNanos());
-            telemetry.addData("Tag " + observation.getTagId() + " Processing Age (ms)",
-                    getProcessingAgeMillis(observation));
+            telemetry.addData("Tag " + observation.getTagId() + " Observation Age (ms)",
+                    getObservationAgeMillis(observation));
         }
         telemetry.update();
+        previousObservations = observations;
     }
 
-    private double getProcessingAgeMillis(AprilTagObservation observation) {
+    private boolean haveSameIdsAndTimestamps(List<AprilTagObservation> previous,
+                                             List<AprilTagObservation> current) {
+        if (previous.size() != current.size()) {
+            return false;
+        }
+        for (int index = 0; index < current.size(); index++) {
+            AprilTagObservation oldObservation = previous.get(index);
+            AprilTagObservation newObservation = current.get(index);
+            if (oldObservation.getTagId() != newObservation.getTagId()
+                    || oldObservation.getTimestampNanos() != newObservation.getTimestampNanos()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private double getObservationAgeMillis(AprilTagObservation observation) {
         long ageNanos = Math.max(0, System.nanoTime() - observation.getTimestampNanos());
         return ageNanos / 1_000_000.0;
     }

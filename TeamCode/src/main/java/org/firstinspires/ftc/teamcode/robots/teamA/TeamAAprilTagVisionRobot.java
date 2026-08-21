@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.common.hardware.VisionHardware;
 import org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.core.robot.Robot;
 
 import java.util.List;
@@ -51,6 +52,11 @@ public class TeamAAprilTagVisionRobot extends Robot {
     /** Returns the latest immutable, library-neutral AprilTag observations. */
     public List<AprilTagObservation> getAprilTagObservations() {
         return visionSubsystem.getLatestObservations();
+    }
+
+    /** Returns observations plus their neutral fresh, retained, or unavailable status. */
+    public AprilTagObservationSnapshot getAprilTagObservationSnapshot() {
+        return visionSubsystem.getLatestSnapshot();
     }
 
     @Override

@@ -3,9 +3,8 @@ package org.firstinspires.ftc.teamcode.common.hardware;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -17,7 +16,7 @@ import java.util.List;
  */
 public class VisionHardware {
     private final AprilTagVisionSource source;
-    private List<AprilTagObservation> observations = Collections.emptyList();
+    private AprilTagObservationSnapshot snapshot = AprilTagObservationSnapshot.unavailable();
 
     /** Creates safe optional vision hardware with no configured camera source. */
     public VisionHardware() {
@@ -39,25 +38,25 @@ public class VisionHardware {
 
     /** Starts the safe no-camera lifecycle used by the existing simple robots. */
     public void initialize() {
-        observations = Collections.emptyList();
+        snapshot = AprilTagObservationSnapshot.unavailable();
     }
 
     /** Starts a selected hardware source during robot initialization. */
     public void initialize(HardwareMap hardwareMap) {
         source.initialize(hardwareMap);
-        observations = copyObservations(source.getObservations());
+        snapshot = copySnapshot(source.getSnapshot());
     }
 
     /** Updates the selected source once and saves its latest neutral observations. */
     public void update() {
         source.update();
-        observations = copyObservations(source.getObservations());
+        snapshot = copySnapshot(source.getSnapshot());
     }
 
     /** Releases any selected source resources and clears stale observations. */
     public void stop() {
         source.stop();
-        observations = Collections.emptyList();
+        snapshot = AprilTagObservationSnapshot.unavailable();
     }
 
     /** Returns whether the selected source is available. */
@@ -67,14 +66,20 @@ public class VisionHardware {
 
     /** Returns the latest immutable snapshot of neutral AprilTag observations. */
     public List<AprilTagObservation> getObservations() {
-        return observations;
+        return snapshot.getObservations();
     }
 
-    private List<AprilTagObservation> copyObservations(List<AprilTagObservation> sourceObservations) {
-        if (sourceObservations == null || sourceObservations.isEmpty()) {
-            return Collections.emptyList();
+    /** Returns the latest immutable result and its neutral frame status. */
+    public AprilTagObservationSnapshot getSnapshot() {
+        return snapshot;
+    }
+
+    private AprilTagObservationSnapshot copySnapshot(AprilTagObservationSnapshot sourceSnapshot) {
+        if (sourceSnapshot == null) {
+            return AprilTagObservationSnapshot.unavailable();
         }
-        return Collections.unmodifiableList(new ArrayList<>(sourceObservations));
+        return new AprilTagObservationSnapshot(
+                sourceSnapshot.getFrameStatus(), sourceSnapshot.getObservations());
     }
 
     /** Safe default source until a camera source is explicitly composed. */
@@ -83,8 +88,8 @@ public class VisionHardware {
         @Override public void update() { }
         @Override public void stop() { }
         @Override public boolean isAvailable() { return false; }
-        @Override public List<AprilTagObservation> getObservations() {
-            return Collections.emptyList();
+        @Override public AprilTagObservationSnapshot getSnapshot() {
+            return AprilTagObservationSnapshot.unavailable();
         }
     }
 }

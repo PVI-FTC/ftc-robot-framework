@@ -2,9 +2,7 @@ package org.firstinspires.ftc.teamcode.common.hardware;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
-
-import java.util.List;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 
 /**
  * Internal hardware-layer boundary for one AprilTag-capable camera source.
@@ -17,5 +15,5 @@ interface AprilTagVisionSource {
     void update();
     void stop();
     boolean isAvailable();
-    List<AprilTagObservation> getObservations();
+    AprilTagObservationSnapshot getSnapshot();
 }

@@ -79,6 +79,48 @@ robot-relative pose unavailable or unverified; it must not invent values.
 No field-tag metadata, robot field pose, confidence fusion, or localization correction is part of
 this contract.
 
+## Stage 4 metric-observation design
+
+Stage 4 must preserve the distinction provided by the FTC SDK's fresh-detection API:
+
+- No new processed frame is a retained-snapshot event. The last ID observation may remain visible
+  for diagnostics, but it keeps its original frame-acquisition timestamp, its age continues to
+  increase, and its metric pose is unavailable while retained.
+- A new processed frame with zero detections is a fresh empty result. It clears observations and
+  allows the existing vision FSM to report target loss.
+- A new processed frame with detections replaces the prior snapshot. Each observation preserves
+  `AprilTagDetection.frameAcquisitionNanoTime`; a Robot-loop timestamp must not replace it.
+- Unavailable hardware produces an unavailable empty result, which is distinct from a working
+  camera's fresh empty result.
+
+The neutral hardware boundary should expose a beginner-readable immutable snapshot containing a
+frame status and immutable observations. Suggested statuses are `FRESH`, `RETAINED`, and
+`UNAVAILABLE`. Existing list-returning public APIs may remain as convenience views so the smallest
+compatible change can be made. Source-specific FTC objects and status types remain below
+`VisionHardware`.
+
+For verified tag 22 observations, the source converts data in this order only:
+
+```
+FTC camera-relative pose
+  -> neutral camera frame (+X right, +Y forward, +Z up; origin at camera lens)
+    -> measured Team A robot frame (+X right, +Y forward, +Z up;
+       origin at drivetrain center of rotation projected to the mat)
+```
+
+The diagnostic may show both neutral camera-relative and experimental robot-relative pose so the
+transform can be checked. These are two named views of one detection, not two detections. The
+recorded Team A camera translation is +6.875 inches X, +4.875 inches Y, and +19 inches Z, with
+measured yaw, pitch, and roll of 0 degrees. Robot-relative range, bearing, and elevation are
+recomputed from the transformed robot-frame translation rather than copied from camera-relative
+values.
+
+Metric pose must be unavailable for an unrecognized or non-22 tag, missing or mismatched tag 22
+metadata, missing matching camera-calibration evidence, missing FTC pose, retained or otherwise
+stale data, a non-finite metric value, an invalid acquisition timestamp, or an unverified frame
+conversion. ID detection may remain available with a clear quality status. The Stage 4 diagnostic
+must never use these observations to write field pose, localize the robot, or command movement.
+
 ## Lifecycle and safety
 
 Create the selected camera source during Robot initialization, update it once through the active

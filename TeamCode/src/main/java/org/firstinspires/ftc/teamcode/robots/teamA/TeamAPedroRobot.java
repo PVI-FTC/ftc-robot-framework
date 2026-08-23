@@ -43,6 +43,17 @@ public class TeamAPedroRobot extends Robot {
         configuration.requireRestrictedManualDriveReady();
         driveSubsystem.enableHeadingHold();
     }
+    /** Holds a requested absolute Pinpoint/Pedro field heading while allowing translation. */
+    public void enableHeadingHold(double targetHeadingRadians) {
+        driveSubsystem.disableDrive();
+        configuration.requireRestrictedManualDriveReady();
+        driveSubsystem.enableHeadingHold(targetHeadingRadians);
+    }
+    /** Changes the active heading-hold target without creating a path. */
+    public void setHeadingTarget(double targetHeadingRadians) {
+        configuration.requireRestrictedManualDriveReady();
+        driveSubsystem.setHeadingTarget(targetHeadingRadians);
+    }
     /** Sets the localizer to the selected path's declared start while keeping drive disabled. */
     public void preparePath(TeamAPedroPathRoute route) {
         driveSubsystem.disableDrive();

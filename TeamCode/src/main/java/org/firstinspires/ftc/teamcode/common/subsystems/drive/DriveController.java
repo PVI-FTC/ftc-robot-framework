@@ -25,6 +25,16 @@ public interface DriveController {
         // Simple controllers have no heading source to capture.
     }
 
+    /** Starts heading hold toward a requested absolute heading when supported. */
+    default void startHeadingHold(double targetHeadingRadians) {
+        startHeadingHold();
+    }
+
+    /** Updates the active heading target without changing the drive mode. */
+    default void setHeadingTarget(double targetHeadingRadians) {
+        // Controllers without a heading source ignore preset targets.
+    }
+
     /** Updates an already-requested path-following operation for one FTC loop. */
     void updatePathFollowing();
 

@@ -1,473 +1,408 @@
-# Pedro Pathing Robot Setup Reference
+# Team A Pedro Pathing Reference
 
-This guide records the Pedro Pathing configuration and tuning evidence for the current Team A
-robot, then turns that evidence into a repeatable setup process for a future robot. It is written
-for the versions currently pinned in this repository: Pedro FTC `2.1.2`, Pedro telemetry `1.0.0`,
-and FullPanels `1.0.12`.
+This document describes the implementation currently in the repository. It is limited to the Team
+A Pedro composition and `TeamAPedroTeleOp`; it does not describe `TeamATeleOp`.
 
-Do not copy Team A's physical or tuned values into another robot without measuring and testing that
-robot. Motor directions, pod offsets, encoder directions, mass, velocities, gains, braking values,
-and path constraints are robot-specific.
+When this document disagrees with the code, the code and measured hardware are authoritative. The
+main implementation files are:
 
-## Sources of truth
+- [`TeamAPedroTeleOp.java`](../src/main/java/org/firstinspires/ftc/teamcode/opmodes/teleop/TeamAPedroTeleOp.java)
+- [`TeamAPedroRobot.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroRobot.java)
+- [`TeamAPedroDriveController.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroDriveController.java)
+- [`TeamAPedroConfiguration.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroConfiguration.java)
+- [`DriveSubsystem.java`](../src/main/java/org/firstinspires/ftc/teamcode/common/subsystems/drive/DriveSubsystem.java)
 
-Use these sources in this order when this document and the code disagree:
+## Current software and hardware scope
 
-1. The current checked-out code, especially
-   [`TeamAPedroConfiguration.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroConfiguration.java).
-2. Real measurements and repeatable tests on the robot being configured.
-3. The version-matched official Pedro and goBILDA documentation linked at the end of this guide.
-4. This reference document and `IMPLEMENTATION_STATUS.md` as historical evidence.
-
-The current follower is created by
-[`TeamAPedroFollowerFactory.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroFollowerFactory.java).
-It combines `FollowerConstants`, `MecanumConstants`, `PinpointConstants`, and `PathConstraints`.
-
-## Current Team A configuration at a glance
-
-| Category | Current value | Unit or meaning | Replace for a future robot? |
-| --- | --- | --- | --- |
-| Robot mass | `4.85` | kilograms | Yes; weigh the complete competition robot |
-| Application maximum power | `0.20` | fraction of full output | Yes; choose after testing |
-| Tuning maximum power | `1.0` | full output used by official tuners | Reassess before tuning |
-| Forward maximum velocity | `62.61374213751846` | inches/second | Yes; run Forward Velocity Tuner |
-| Lateral maximum velocity | `49.757958599901585` | inches/second | Yes; run Lateral Velocity Tuner |
-| Forward zero-power acceleration | `-42.4832745291992` | inches/second squared | Yes if using the PIDF route; currently also recorded in code |
-| Lateral zero-power acceleration | `-50.60694780564594` | inches/second squared | Yes if using the PIDF route; currently also recorded in code |
-| Heading PIDF | `P=2.2`, `I=0.2`, `D=0.189`, `F=0.02` | heading correction | Yes; run Heading Tuner |
-| Predictive Braking | `P=0.15`, `kLinear=0.051792761842529726`, `kQuadratic=0.002367856854157051` | braking controller | Yes; run Predictive Braking Tuner and Line test |
-| Centripetal scaling | `0.0` | disabled for Predictive Braking | Confirm for selected drive algorithm |
-| Parametric end constraint | `0.97` | path completion threshold | Validate with Line/path tests |
-| Path timeout | `100.0` | milliseconds | Validate for the new robot |
-| Default starting pose | `(0, 0, 0)` | inches, inches, radians | Set for the intended field start |
-| Distance unit | `INCH` | Pinpoint configuration | Usually keep, but be consistent |
-
-The current code values supersede earlier trial averages such as `52.375 in/s` forward and
-`42.019 in/s` lateral. Earlier `10.052 in/s` forward and `7.359 in/s` lateral observations were
-restricted `0.20`-power shakedowns and are not maximum-velocity constants.
-
-## Software and build configuration
-
-| Item | Current repository value |
+| Item | Current value |
 | --- | --- |
 | FTC SDK | `11.2.1` |
 | Pedro FTC | `com.pedropathing:ftc:2.1.2` |
-| Pedro telemetry | `com.pedropathing:telemetry:1.0.0` |
-| FullPanels | `com.bylazar:fullpanels:1.0.12` |
-| Maven repository | `https://mymaven.bylazar.com/releases` |
+| Pedro telemetry | `1.0.0` |
+| FullPanels | `1.0.12` |
 | Compile SDK | `34` |
 | Minimum SDK | `24` |
-| Target SDK | `28` |
-| Java | Microsoft OpenJDK 17.0.x |
-| Build command | `.\gradlew.bat TeamCode:assembleDebug` |
+| Java | Microsoft OpenJDK 17.0.x is the documented build environment |
+| Robot | Four-wheel mecanum drivetrain with goBILDA Pinpoint localization |
+| Pedro hardware-map name | `pinpoint` |
+| Application power ceiling | `APPLICATION_MAX_POWER = 0.20` |
+| Starting pose | `(0, 0, 0)` unless an autonomous route supplies another pose |
 
-The dependencies and repository are in `build.dependencies.gradle`. After changing dependencies,
-run Android Studio Gradle Sync and the command-line TeamCode build. A successful command-line build
-with red editor imports normally means Android Studio still needs to sync or re-index.
+The Team A Pedro robot is a separate composition. It is the sole owner of the Pedro follower,
+Pinpoint, and Pedro drivetrain motors for its OpModes. The ordinary Team A robot remains separate.
 
-## Coordinate and sign convention
+## TeleOp controls
 
-Pedro's robot coordinate convention used by this project is:
+`TeamAPedroTeleOp` uses gamepad 1 and calls the Robot API once per loop:
 
-- Positive X: forward.
-- Negative X: backward.
-- Positive Y: robot-left.
-- Negative Y: robot-right.
-- Positive heading: counterclockwise.
+| Input | Manual-drive behavior |
+| --- | --- |
+| Left stick Y | Forward/backward translation |
+| Left stick X | Strafe translation |
+| Right stick X | Rotation |
+| Y | Toggle heading hold on or off |
+| Right bumper + left stick direction | Select an eight-way preset heading |
 
-The forward pod measures X motion but its mounting location is a Y offset, so Pedro names its
-location `forwardPodY`. The strafe pod measures Y motion but its mounting location is an X offset,
-so Pedro names its location `strafePodX`.
+Y is the only button that toggles the heading-hold FSM. Pressing Y once enables heading hold and
+captures the current Pinpoint heading. Pressing Y again disables heading hold, clears the selected
+preset, and returns to manual drive. There is no X-based heading-control action in this TeleOp.
 
-For Team A:
+While heading hold is active, left-stick translation remains available, but right-stick rotation is
+not used as the rotation command. The controller replaces that rotation command with its heading
+correction. In manual mode, right-stick X directly controls rotation.
 
-- `forwardPodY = -6.25` means the forward pod is 6.25 inches to the robot-right of the center of
-  rotation.
-- `strafePodX = -10.0` means the strafe pod is 10 inches behind the center of rotation.
+## Preset headings
 
-Always measure from the robot's center of rotation, not from a frame edge, wheel, or Control Hub.
+Hold the right bumper and aim the left stick. The stick is quantized to the nearest 45-degree
+direction after its magnitude passes `PRESET_DIRECTION_DEADZONE` (`0.5`). The field-heading
+convention is:
 
-## Physical robot and drivetrain facts
+| Stick direction | Target heading |
+| --- | ---: |
+| Right / E | `0°` |
+| Up / N | `90°` |
+| Left / W | `180°` (equivalent to `-180°`) |
+| Down / S | `-90°` |
+| Up-right / NE | `45°` |
+| Up-left / NW | `135°` |
+| Down-right / SE | `-45°` |
+| Down-left / SW | `-135°` |
 
-### Verified Team A facts
+Selecting a preset automatically enables heading hold. Releasing the right bumper does not cancel
+the selected target; the robot continues holding it. Moving to another sector replaces the target
+immediately. Targets are not queued, so rapid movement through several directions does not make the
+robot attempt each direction in sequence.
 
-| Item | Team A value | Evidence |
-| --- | --- | --- |
-| Drivetrain | Four-wheel mecanum | Physical configuration and raised-wheel tests |
-| Front-left motor name | `frontLeft` | Driver Station configuration |
-| Front-right motor name | `frontRight` | Driver Station configuration |
-| Rear-left motor name | `rearLeft` | Driver Station configuration |
-| Rear-right motor name | `rearRight` | Driver Station configuration |
-| Control Hub motor ports | `0=frontLeft`, `1=frontRight`, `2=rearLeft`, `3=rearRight` | Director-verified wiring |
-| Left motor directions | `REVERSE` | Raised-wheel direction checks |
-| Right motor directions | `FORWARD` | Raised-wheel direction checks |
-| Robot mass | `4.85 kg` | Current recorded physical measurement |
-| Normal path power ceiling | `0.20` | Director-approved application limit |
+`PRESET_DIRECTION_HYSTERESIS_RADIANS` is currently 5 degrees. It is added to the normal 22.5-degree
+sector boundary so the selector does not chatter near a boundary. The selected sector must be left
+by more than 27.5 degrees before a new sector is accepted.
 
-### Dimensions and visual footprint
+## Heading-hold implementation
 
-The physical chassis width, chassis length, wheelbase, track width, wheel diameter, and gear ratio
-are not recorded as verified Team A runtime constants. The Pinpoint localizer used here does not
-require wheelbase dimensions in `PinpointConstants`, and empirically measured velocities avoid a
-wheel-diameter calculation.
+Heading hold is not a Pedro path. It is a TeleOp drive mode that uses the current Pinpoint/Pedro
+pose and sends a normal TeleOp drive command every FTC loop:
 
-The Visualizer files contain display/collision footprints, not verified on-robot dimensions:
+1. `TeamAPedroTeleOp` requests manual drive, heading hold, or a new heading target.
+2. `DriveSubsystem` selects the requested drive mode and dispatches it through the drive FSM.
+3. `TeamAPedroDriveController` starts Pedro TeleOp drive with `startTeleOpDrive()`.
+4. The controller computes the signed shortest-angle error: target heading minus current heading.
+5. The correction is `active Pedro heading P × heading error`, clamped to
+   `MAX_HEADING_HOLD_ROTATION` (`1.0`).
+6. The correction is sent as the rotation component of Pedro's TeleOp command, then
+   `follower.update()` applies the command.
 
-| Visualizer project | Width | Height | Status |
-| --- | ---: | ---: | --- |
-| LP-11 Pilot | `16 in` | `16 in` | Visualizer-only |
-| DECODE Route | `16 in` | `16 in` | Visualizer-only |
-| Curving Test | `16 in` | `16 in` | Visualizer-only |
-| Illegal Path | `19.5 in` | `15 in` | Visualizer-only |
+The actual P value is read from the active follower through
+`follower.getConstants().getCoefficientsHeadingPIDF().P`. Therefore, changing the follower's
+heading P value changes the custom TeleOp correction when that follower is used. The controller does
+not contain a second hard-coded heading P value.
 
-Because those values disagree, no physical size should be inferred from them. For a future robot,
-measure the full bumper-to-bumper length and width and update every Visualizer project consistently.
-If another localizer such as drive encoders requires wheelbase dimensions, also measure the distance
-between front/rear wheel centers and left/right wheel centers.
+The custom TeleOp correction is P-only. Pedro's configured I, D, and F values remain part of the
+Pedro follower configuration for Pedro-controlled path behavior; they are not used by this custom
+TeleOp correction.
 
-Panels draws the robot as a circle with `ROBOT_RADIUS = 9` inches in `TeamAPedroTuning.Drawing`.
-That is a display value, not a verified physical dimension. Change it if an accurate dashboard
-footprint matters.
+## Tolerance and safety limits
 
-## Pinpoint and odometry configuration
+| Setting | Current value | Purpose |
+| --- | ---: | --- |
+| `HEADING_HOLD_TOLERANCE_RADIANS` | `2°` | Stops correction inside the target deadband |
+| `HEADING_HOLD_TOLERANCE_HYSTERESIS_RADIANS` | `0.5°` | Requires more than `2.5°` error before correction resumes |
+| `MAX_HEADING_HOLD_ROTATION` | `1.0` | Limits custom rotation correction before Pedro's power limit |
+| `APPLICATION_MAX_POWER` | `0.20` | Limits configured drivetrain output |
 
-| Item | Team A value | Replace or verify on a future robot |
-| --- | --- | --- |
-| Hardware-map name | `pinpoint` | Match the Driver Station configuration exactly |
-| Hub connection | Control Hub I2C port 3 | Verify the physical cable; avoid the built-in IMU port 0 |
-| Mounting orientation | No explicit software override recorded | Verify sticker/ports face up and record the actual mount |
-| Forward pod connection | Pinpoint X port | Trace the cable |
-| Strafe pod connection | Pinpoint Y port | Trace the cable |
-| Pod model | goBILDA 4-Bar Odometry Pod, 32 mm wheel | Select the actual pod or custom resolution |
-| Encoder resolution | `goBILDA_4_BAR_POD` | Replace for another pod type |
-| Forward pod offset | `forwardPodY(-6.25)` | Measure or run Offsets Tuner |
-| Strafe pod offset | `strafePodX(-10.0)` | Measure or run Offsets Tuner |
-| Forward encoder direction | `REVERSED` | Verify by pushing forward; X must increase |
-| Strafe encoder direction | `REVERSED` | Verify by pushing left; Y must increase |
-| Distance unit | `INCH` | Keep units consistent with offsets and paths |
-| Yaw scalar | No override | Leave Pinpoint calibration unless testing proves a need |
+The tolerance is a deadband with hysteresis. It prevents continuous micro-adjustments near the
+target and prevents rapid toggling at the boundary. These values are independent of the P gain and
+must be retuned separately if the robot's behavior changes.
 
-Team A used manual offset measurements. The Offsets Tuner was not used to produce the accepted
-`-6.25` and `-10.0` values. If a future robot uses Offsets Tuner, temporarily set both offsets to
-zero only for that test, then store the reported final offsets in source code.
+## Drive-mode ownership and conflicts
 
-## Exact current runtime constants
+The TeleOp loop issues one high-level drive request and then calls `robot.update()`. The drive
+subsystem owns the active mode; the OpMode does not write motors or call Pedro directly.
 
-The active values in `recordedTeamAConfiguration()` are equivalent to:
+- Manual drive uses Pedro `startTeleOpDrive()`, `setTeleOpDrive(...)`, and `update()`.
+- Heading hold uses the same Pedro TeleOp interface with a computed rotation correction.
+- Autonomous path following uses Pedro's path follower through a separate requested mode.
+- Starting TeleOp drive breaks any active Pedro path before manual or heading commands are sent.
+- Stopping breaks following, clears heading state, and leaves the drivetrain disabled.
 
-```java
-FollowerConstants follower = new FollowerConstants()
-        .mass(4.85)
-        .headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))
-        .forwardZeroPowerAcceleration(-42.4832745291992)
-        .lateralZeroPowerAcceleration(-50.60694780564594)
-        .predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(
-                0.15, 0.051792761842529726, 0.002367856854157051))
-        .centripetalScaling(0.0);
+Heading hold therefore does not run a path at the same time as manual translation, and preset
+selection does not create a path. The left stick can continue translating while the heading target
+is being changed.
 
-MecanumConstants mecanum = new MecanumConstants()
-        .xVelocity(62.61374213751846)
-        .yVelocity(49.757958599901585)
-        .maxPower(0.20)
-        .leftFrontMotorName("frontLeft")
-        .leftRearMotorName("rearLeft")
-        .rightFrontMotorName("frontRight")
-        .rightRearMotorName("rearRight")
-        .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
-        .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
-        .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-        .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
+One edge case is that a preset selected in the same loop as a Y press is processed first and the Y
+toggle is processed second. The final request in that loop is determined by the Y toggle. This is
+deterministic and does not create two simultaneous drive modes.
 
-PinpointConstants pinpoint = new PinpointConstants()
-        .forwardPodY(-6.25)
-        .strafePodX(-10.0)
-        .distanceUnit(DistanceUnit.INCH)
-        .hardwareMapName("pinpoint")
-        .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD)
-        .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
-        .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);
+## Recorded Team A Pedro configuration
 
-PathConstraints constraints = new PathConstraints(0.97, 100.0);
-Pose startingPose = new Pose(0.0, 0.0, 0.0);
+The following values are currently constructed in `recordedTeamAConfiguration()`:
+
+```text
+mass = 4.85 kg
+heading PIDF = P 2.2, I 0.2, D 0.189, F 0.02
+forward zero-power acceleration = -42.4832745291992 in/s^2
+lateral zero-power acceleration = -50.60694780564594 in/s^2
+Predictive Braking = P 0.15, kLinear 0.051792761842529726,
+                    kQuadratic 0.002367856854157051
+centripetal scaling = 0.0
+forward velocity = 62.61374213751846 in/s
+lateral velocity = 49.757958599901585 in/s
+Pinpoint forward pod offset = -6.25 in
+Pinpoint strafe pod offset = -10.0 in
+distance unit = INCH
+forward encoder direction = REVERSED
+strafe encoder direction = REVERSED
+path constraints = parametric end 0.97, timeout 100 ms
 ```
 
-Only the selected path may replace the default starting pose at initialization. Route start poses
-belong in `TeamAPedroPathRoute`, not in the robot-wide constants.
+These are Team A measurements and configuration records, not universal Pedro defaults. Physical
+dimensions, pod offsets, encoder directions, gains, velocities, and path constraints must be
+measured again for another robot.
 
-## Values not explicitly tuned or overridden
+## Retuning procedure
 
-The following are not custom Team A runtime values and should not be presented as measured facts:
+1. Verify the installed Pedro version and inspect the actual API for that version.
+2. Change the relevant values in `TeamAPedroConfiguration` or use the approved Pedro tuning
+   workflow. The heading PIDF and TeleOp behavior limits are named constants; several measured
+   velocity, acceleration, braking, and localization values are written directly in
+   `recordedTeamAConfiguration()` and must be updated there.
+3. If Panels or another live tool changes follower constants, copy accepted values back into the
+   recorded configuration when final code is prepared.
+4. Search the repository for the old value and the constant name. Confirm that no stale duplicate
+   literal remains in an OpMode, controller, diagnostic, tuner, or document.
+5. Rebuild with `./gradlew.bat TeamCode:assembleDebug` on Unix-like shells or
+   `.\gradlew.bat TeamCode:assembleDebug` in PowerShell.
+6. Repeat supervised localization, heading, manual-drive, and path validation as applicable.
 
-- Physical chassis length and width.
-- Wheelbase and track width.
-- Drive wheel diameter and drivetrain gear ratio.
-- A Pinpoint yaw scalar.
-- A custom odometry encoder resolution.
-- Translational PIDF coefficients.
-- Drive PIDF coefficients.
-- Secondary translational, heading, or drive PIDFs and switch thresholds.
-- Global deceleration/braking strength for every route.
-- Kalman filter covariance overrides.
+The P term used by custom TeleOp heading correction is linked to the active follower value. The
+custom tolerance, hysteresis, correction cap, preset deadzone, and preset hysteresis are separate
+named settings. The application power ceiling is also separate and must not change implicitly when
+tuning heading behavior.
 
-Team A selected Predictive Braking instead of the alternative translational/drive PIDF tuning
-route. Values not shown in `TeamAPedroConfiguration` remain Pedro `2.1.2` library defaults and may
-change when Pedro is upgraded. Re-run the version-matched workflow after an upgrade.
+## Alignment with Pedro's official tuning workflow
 
-## Completed physical localization and direction tests
+The repository configuration follows Pedro's documented high-level order:
 
-These checks used `Team A Pedro Diagnostic`, not the path menu. During the unpowered portion the
-drive state remained disabled. The diagnostic's restricted raised-wheel controls are right bumper
-plus exactly one of A (forward), B (left), or Y (counterclockwise); releasing right bumper or
-holding X disables drive.
+1. Configure follower, drivetrain, localizer, and path-constraint constants.
+2. Verify localization and coordinate/sign behavior.
+3. Run the forward and lateral velocity tuners.
+4. Run the heading tuner and record the heading PIDF values.
+5. Select one drive algorithm:
+   - Predictive Braking: tune Predictive Braking, choose its `P`, disable centripetal scaling when
+     appropriate, and validate with LineTest.
+   - Traditional PIDF: tune zero-power acceleration, translational PIDF, drive PIDF, and
+     centripetal behavior.
+6. Copy accepted live Panels values into the source configuration and validate the resulting paths.
 
-| Test | Final observation | Result or change |
-| --- | --- | --- |
-| Initial Pinpoint connection | `(-0.0, -0.0019, 0.0002 deg)` | Pose available and near zero |
-| First 24-inch forward push | `(-23.8, 0.1891, -0.2 deg)` | Wrong X sign; reverse forward encoder |
-| Forward retest | `(23.9, 0.1, 0.5 deg)` | Passed |
-| First 24-inch left push | delta `(0.3, -24.2, -1.5 deg)` | Wrong Y sign; reverse strafe encoder |
-| Left retest | `(0.6906, 23.9803, 0.5484 deg)` | Passed |
-| 90-degree counterclockwise rotation | `(0.1209, 0.2142, 91.38 deg)` | Passed; protractor measurement |
-| 24 inches forward and return | forward `(23.9, 0.6, -0.2 deg)`; return `(-0.3, 0.1, -0.5 deg)` | Passed; about 0.32-inch final position error |
-| Raised-wheel forward pattern | Left and right wheels produced forward robot motion | Passed |
-| Raised-wheel left-strafe pattern | FL/RR backward and FR/RL forward after sign correction | Passed |
-| Raised-wheel counterclockwise pattern | Left wheels backward and right wheels forward after sign correction | Passed |
-| Stop behavior | Control release, X, Driver Station STOP, and `robot.stop()` removed output | Passed |
+The current Team A configuration selected Predictive Braking. Its recorded values correspond to
+the official Predictive Braking setup: tuned `kLinear` and `kQuadratic`, a selected braking `P`,
+`centripetalScaling(0.0)`, and a `0.97` parametric-end constraint.
 
-For a future robot, change one sign or direction at a time, rebuild, and repeat the same observation.
-Do not correct several unknown directions simultaneously.
+There is one deliberate implementation distinction: Pedro's online Heading Tuner tunes the
+follower's heading PIDF for Pedro path following. `TeamAPedroTeleOp` does not call that PIDF
+controller directly. Its custom heading hold uses the active follower P value in a separate P-only
+correction, with its own tolerance, hysteresis, and correction cap. Therefore, after changing
+heading values, both path behavior and supervised TeleOp heading behavior must be checked.
 
-## Tuning programs and recorded results
+## Predictive Braking tuning guide
 
-All Pedro tuners are selected from the Driver Station OpMode `Team A Pedro Tuning`.
+Use this procedure when the selected Pedro drive algorithm is Predictive Braking. Predictive
+Braking and the traditional translational/drive/centripetal PIDF route are alternatives. Do not run
+the traditional PIDF tuners just because their values appear in an older configuration or test
+record.
 
-### Current tuning-program parameters
+### Step 1: Confirm the prerequisites
 
-These values control the tests themselves. They are not all robot constants, but they may need to
-change when another robot has different speed, available floor space, or stopping distance.
+Before applying powered tuning:
 
-| Program | Current source parameter | Purpose |
-| --- | --- | --- |
-| All selected tuners | `OFFICIAL_TUNING_MAX_POWER = 1.0` | Overrides the normal `0.20` application ceiling during official tuning |
-| Forward Tuner | `DISTANCE = 48 in` | Manual localization distance |
-| Lateral Tuner | `DISTANCE = 48 in` | Manual localization distance |
-| Turn Tuner | `ANGLE = 2π rad` | Manual localization rotation target |
-| Forward Velocity Tuner | `DISTANCE = 48 in`, `RECORD_NUMBER = 10` | Full-power travel and number of final velocity samples averaged |
-| Lateral Velocity Tuner | `DISTANCE = 48 in`, `RECORD_NUMBER = 10` | Full-power travel and number of final velocity samples averaged |
-| Forward Zero Power Acceleration Tuner | `VELOCITY = 30 in/s` | Speed reached before cutting power |
-| Lateral Zero Power Acceleration Tuner | `VELOCITY = 30 in/s` | Speed reached before cutting power |
-| Predictive Braking Tuner | 12 test powers, `BRAKING_POWER = -0.2`, `DRIVE_TIME_MS = 1000` | Generates the measured braking curve |
-| Translational Tuner | `DISTANCE = 40 in` | Continuous alternative-PIDF test path |
-| Heading Tuner | `DISTANCE = 40 in` | Continuous heading test path |
-| Drive Tuner | `DISTANCE = 40 in` | Continuous alternative drive-PIDF test path |
-| Line | `DISTANCE = 40 in` | Combined validation path |
-| Centripetal Tuner | `DISTANCE = 20 in` | Curved alternative-PIDF test path |
-| Circle | `RADIUS = 10 in` | Test-only circle radius |
-| Panels Drawing | `ROBOT_RADIUS = 9 in` | Display circle only; not robot geometry |
+1. Confirm the Pedro FTC version and the actual APIs available in that version.
+2. Configure the follower, mecanum drivetrain, Pinpoint localizer, and path constraints.
+3. Verify motor names, motor directions, pod offsets, encoder directions, distance units, and the
+   starting pose.
+4. Verify localization with the robot unpowered and confirm the X, Y, and heading signs.
+5. Run the restricted manual-drive safety checks before using full tuning power.
 
-Most tuners use a field pose around `(72, 72)` so their test geometry is visible in Panels. That is
-a tuner display/test origin, not the autonomous starting pose.
+Predictive Braking depends on reliable localization and velocity measurements. Do not tune braking
+to compensate for an incorrect pod direction, pod offset, motor direction, or field coordinate
+convention.
 
-### Completed and used for the current configuration
+### Step 2: Tune forward and lateral velocity
 
-| Menu path | Program or test | How it was used | Recorded result |
-| --- | --- | --- | --- |
-| Automatic | Forward Velocity Tuner | Full-power 48-inch run; averages the latest velocity samples | Current `xVelocity=62.61374213751846 in/s` |
-| Automatic | Lateral Velocity Tuner | Full-power 48-inch left run | Current `yVelocity=49.757958599901585 in/s` |
-| Automatic | Forward Zero Power Acceleration Tuner | Accelerate to 30 in/s, cut power, average deceleration | `-42.4832745291992 in/s^2` |
-| Automatic | Lateral Zero Power Acceleration Tuner | Accelerate left to 30 in/s, cut power, average deceleration | `-50.60694780564594 in/s^2` |
-| Manual | Heading Tuner | Alternating 40-inch line; heading PIDF adjusted through Panels | `P=2.2`, `I=0.2`, `D=0.189`, `F=0.02`; returned to original heading |
-| Automatic | Predictive Braking Tuner | Twelve alternating one-second drive/brake samples | `kLinear=0.051792761842529726`, `kQuadratic=0.002367856854157051` |
-| Tests | Line | Continuous 40-inch forward/back validation with all corrections active | Accepted Predictive Braking `P=0.15`, parametric end `0.97`; almost no jitter, no overshoot, endpoint reversal passed, no lateral/heading drift |
-| Autonomous path menu | LP-11 Pilot | 24-inch restricted-power path | Director reported the pilot worked; detailed final telemetry was not recorded |
+Run Pedro's velocity tuners and record separate forward and lateral maximum velocities. These values
+belong in the drivetrain constants, such as `xVelocity(...)` and `yVelocity(...)`.
 
-The Predictive Braking Tuner's 12 power samples are
-`1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2`. Each drive sample lasts
-`1000 ms`; braking uses `-0.2` times the current travel direction.
+The current Team A recorded values are:
 
-The Line test tried Predictive Braking P values `0.4`, `0.3`, `0.2`, and `0.15`. At `0.4`, one
-validation produced heavy holding jitter. Panels did not apply the attempted change to `0.3`, so
-the remaining values were changed in code and re-uploaded. The accepted `0.15` test had only very
-slight jitter and no overshoot or drift.
+```text
+xVelocity = 62.61374213751846 in/s
+yVelocity = 49.757958599901585 in/s
+```
 
-### Earlier evidence retained for comparison
+These are not Predictive Braking coefficients. They describe the drivetrain's measured ability to
+move forward and laterally and are required before path-following results can be interpreted.
 
-| Test | Observations | Why it is not the current constant |
-| --- | --- | --- |
-| Restricted forward shakedowns | `8.62`, `10.107`, `9.997 in/s`; accepted low-power average `10.052 in/s` | Measured at application power `0.20`, not full tuning power |
-| Restricted lateral shakedowns | `7.394` and `7.324 in/s`; average `7.359 in/s` | Measured at application power `0.20`, not full tuning power |
-| First full-power forward pair | `52.741` and `52.008 in/s`; average `52.3745` | Superseded by current recorded tuner output |
-| First full-power lateral pair | `41.477` and `42.560 in/s`; average `42.0185` | Superseded by current recorded tuner output |
+### Step 3: Tune heading PIDF
 
-### Available but not completed or not adopted
+Run Pedro's `HeadingTuner` and tune `coefficientsHeadingPIDF` in Panels. The robot should return to
+its starting heading with minimal oscillation. Adjust P, I, D, and F as appropriate for the robot,
+then press Enter in Panels so the live value is applied.
 
-| Menu path | Program | Team A status |
-| --- | --- | --- |
-| Localization | Offsets Tuner | Not used; accepted offsets were manually measured |
-| Localization | Forward Tuner | Not used to change Pinpoint resolution; 24-inch diagnostic checks were used instead |
-| Localization | Lateral Tuner | Not used to change Pinpoint resolution; 24-inch diagnostic checks were used instead |
-| Localization | Turn Tuner | Not used to change a multiplier; 90-degree diagnostic check passed |
-| Manual | Translational Tuner | Not adopted because Team A selected Predictive Braking |
-| Manual | Drive Tuner | Not adopted because Team A selected Predictive Braking |
-| Manual | Centripetal Tuner | Not adopted; centripetal scaling is `0.0` for Predictive Braking |
-| Tests | Triangle | No accepted run recorded |
-| Tests | Circle | No accepted run recorded |
-| Path menu | DECODE Route | Added to code; no accepted physical run recorded |
-| Path menu | Curving Test | Added to code; no accepted physical run recorded |
-| Path menu | Illegal Path | Added to code; no accepted physical run recorded |
+When the result is accepted, copy the values into the follower construction in
+`TeamAPedroConfiguration` in the order `P, I, D, F`:
 
-`Localization Test` behavior was covered by the narrower LP-09 diagnostic and its recorded tests.
-Do not infer that every item visible in the tuning menu was completed.
+```java
+.headingPIDFCoefficients(new PIDFCoefficients(P, I, D, F))
+```
 
-## Panels usage in this project
+For the current Team A record:
 
-Panels is integrated into `TeamAPedroTuning` for telemetry, field drawing, pose history, and live
-configuration. The tuning selector uses the same controls as the path selector:
+```text
+P = 2.2
+I = 0.2
+D = 0.189
+F = 0.02
+```
 
-- D-pad: move the menu cursor.
-- Right bumper: select.
-- Left bumper: return to the previous menu.
+Heading tuning remains required when using Predictive Braking. Predictive Braking replaces the
+translational/drive braking algorithm; it does not replace heading control.
 
-When connected to the robot Wi-Fi, Panels is normally available at `192.168.43.1:8001`.
+### Step 4: Choose Predictive Braking instead of traditional PIDFs
 
-### Tests that used Panels
+At this point choose one drive algorithm. For Predictive Braking, do not continue into the
+traditional branch. The following are not required Predictive Braking tuners:
 
-- Automatic velocity and zero-power-acceleration tuners displayed their results through Panels
-  telemetry and drew the robot/pose history.
-- Heading Tuner used Panels live configuration under `Tuning -> Follower -> Constants` to reach
-  `2.2, 0.2, 0.189, 0.02`.
-- Predictive Braking Tuner displayed all sample and fitted coefficient results through Panels.
-- Line displayed the field and pose history while validating Predictive Braking and path end
-  behavior. A live Predictive Braking P edit was attempted, but did not apply; later trials used
-  source-code changes and re-uploading.
+- Forward or lateral zero-power acceleration tuners for the traditional braking model
+- Translational PIDF tuner
+- Drive PIDF tuner
+- Centripetal Force tuner
 
-After editing a value in Panels, press Enter to apply it to the running Robot Controller. Panels
-changes are temporary and are not saved into Java source. Record the accepted result, stop the
-OpMode, copy it into `TeamAPedroConfiguration`, rebuild, upload, and repeat the validation test.
+The repository may retain zero-power acceleration or older PIDF values as historical records, but
+they are not evidence that the Predictive Braking branch must be tuned as well.
 
-## Recommended setup process for another robot
+### Step 5: Run PredictiveBrakingTuner
 
-### 1. Create a fresh hardware record
+From the Pedro tuning OpMode, select:
 
-Record, photograph, or diagram all of the following before editing constants:
+```text
+Tuning -> Automatic -> PredictiveBrakingTuner
+```
 
-- Robot name and build date.
-- Complete competition mass in kilograms, including battery and bumpers.
-- Bumper-to-bumper width and length.
-- Wheelbase length and track width if the chosen localizer requires them.
-- Drive wheel type/diameter, motor/gearbox type, and external gear ratio.
-- Four motor hardware names, hub, and port numbers.
-- Required motor directions determined from wheel observations.
-- Localizer type and hardware-map name.
-- Pinpoint hub and I2C port, mounting orientation, pod model, pod connections, and cable routing.
-- Pod offsets measured from the center of rotation using Pedro's coordinate diagram.
-- Initial intended application power limit and field starting pose.
+Run the tuner with the robot secured and the approved test area, power, and Driver Station STOP
+procedure. The tuner determines the braking-distance coefficients:
 
-### 2. Install and verify the pinned software
+- `kLinear`: the velocity-proportional part of braking distance.
+- `kQuadratic`: the velocity-squared part of braking distance.
 
-1. Add the byLazar Maven repository and the three pinned dependencies.
-2. Set compile SDK 34 and use Java 17 for this repository version.
-3. Gradle Sync in Android Studio.
-4. Run `.\gradlew.bat TeamCode:assembleDebug`.
-5. Inspect the actual Pedro API for the pinned version before copying code from a different
-   Quickstart or documentation version.
+Use a starting braking `P` near `0.1` if the tuner or the current Pedro workflow requests one. The
+tuner may show heading rotation or slight lift during braking; these observations do not by
+themselves invalidate the braking-distance result, provided localization remains accurate and the
+test is safe.
 
-### 3. Enter only measured initialization constants
+Copy the accepted tuner results into:
 
-Create new team-specific `FollowerConstants`, `MecanumConstants`, and localizer constants. Enter
-mass, names, measured offsets, pod model/resolution, and an intentionally conservative maximum
-power. Keep manual and path-following permissions closed until their tests pass.
+```java
+.predictiveBrakingCoefficients(
+        new PredictiveBrakingCoefficients(kP, kLinear, kQuadratic))
+```
 
-### 4. Verify localization with motors disabled
+The parameter order is `kP, kLinear, kQuadratic`, not the order in which the tuner may display the
+two distance coefficients.
 
-1. Confirm the pose is available and stable near the approved start pose.
-2. Push the unpowered robot forward a measured distance; X must increase by approximately that
-   distance.
-3. Push it left; Y must increase.
-4. Rotate counterclockwise by a measured angle; heading must increase.
-5. Push forward and return to the start to check accumulated error.
-6. If one sign is wrong, change only that encoder direction and repeat.
+### Step 6: Tune Predictive Braking P with LineTest
 
-### 5. Verify motor directions and stopping
+Run Pedro's `LineTest` after inserting `kLinear` and `kQuadratic`. Adjust the Predictive Braking
+`kP` to maximize holding strength and endpoint accuracy without introducing jitter. Pedro's guide
+identifies a typical range around `0.05` to `0.3`, but the robot's measured behavior is the deciding
+criterion.
 
-Use an approved raised-wheel test with a low command limit. Verify forward, strafe, and rotation
-wheel patterns one at a time. Confirm control release, explicit cancel, Driver Station STOP, and
-the OpMode `stop()` callback all remove output before ground tuning.
+- If the robot jitters or holds too aggressively, reduce `kP`.
+- If it stops too softly or leaves excessive endpoint error, increase `kP` carefully.
+- If deceleration needs to be smoother or begin earlier, evaluate the braking coefficients as well;
+  do not use an excessive `kP` to hide an incorrect braking curve.
 
-### 6. Run the version-matched tuning workflow
+The current Team A recorded Predictive Braking values are:
 
-For the Predictive Braking route used by Team A:
+```text
+kP = 0.15
+kLinear = 0.051792761842529726
+kQuadratic = 0.002367856854157051
+```
 
-1. Forward Velocity Tuner; repeat and check consistency.
-2. Lateral Velocity Tuner; repeat and check consistency.
-3. Heading Tuner; adjust PIDF in Panels and copy accepted values to code.
-4. Predictive Braking Tuner; record `kLinear` and `kQuadratic`.
-5. Start Predictive Braking P near `0.1` and set centripetal scaling to zero.
-6. Line test; increase or decrease P to obtain accurate settling without holding jitter.
-7. Validate the parametric end constraint and timeout.
-8. Rebuild and re-run Line after every final source-code update.
+### Step 7: Set Predictive Braking-specific constants
 
-If the team selects the traditional PIDF route instead, follow the version-matched Pedro sequence
-for zero-power acceleration, translational PIDF, drive PIDF, and centripetal tuning. Do not combine
-parts of both algorithms without understanding the version's controller behavior.
+Predictive Braking naturally accounts for centripetal effects, so the official workflow recommends
+turning centripetal scaling off for this branch:
 
-### 7. Validate a simple path before competition routes
+```java
+.centripetalScaling(0.0)
+```
 
-Start with one short straight path at the approved application power. Record expected and observed
-start/end pose, position and heading error, completion behavior, and every stop path. Only then add
-longer curves, sharp heading changes, and competition paths.
+Set the parametric-end constraint to a value such as `0.97` or `0.95` after validation. Do not set
+it below `0.90`; ending the path too early can prevent Predictive Braking from completing its
+braking behavior. The current Team A path constraint uses `0.97`.
 
-## Future-robot replacement checklist
+### Step 8: Copy values from live tuning into source code
 
-| What changes | Where to update in this repository | Required validation |
-| --- | --- | --- |
-| Dependency versions | `build.dependencies.gradle` and matching tuning adaptation | Sync, API inspection, full rebuild, repeat all tuning |
-| Robot mass | `FollowerConstants.mass(...)` | Reweigh complete robot |
-| Motor names | `MecanumConstants.*MotorName(...)` | Driver Station configuration and initialization |
-| Motor directions | `MecanumConstants.*MotorDirection(...)` | Raised-wheel forward/strafe/turn checks |
-| Application power | `APPLICATION_MAX_POWER` and `MecanumConstants.maxPower(...)` | Controlled path and stop tests |
-| Maximum velocities | `MecanumConstants.xVelocity/yVelocity` | Repeat automatic velocity tuners |
-| Zero-power accelerations | `FollowerConstants.forward/lateralZeroPowerAcceleration` | Repeat automatic deceleration tuners if used |
-| Heading PIDF | `FollowerConstants.headingPIDFCoefficients` | Heading Tuner and Line |
-| Drive algorithm | Predictive Braking or PIDF fields in `FollowerConstants` | Run the complete selected branch |
-| Predictive coefficients | `PredictiveBrakingCoefficients(P, linear, quadratic)` | Predictive Braking Tuner and Line |
-| Centripetal scaling | `FollowerConstants.centripetalScaling` | Follow selected algorithm guidance and curve test |
-| Pinpoint name | `PinpointConstants.hardwareMapName` | Hardware-map lookup and stable pose |
-| Pod model/resolution | `encoderResolution` or custom resolution | Physical pod inspection and distance checks |
-| Pod offsets | `forwardPodY/strafePodX` | Manual measurement or Offsets Tuner, then pose tests |
-| Encoder directions | `forward/strafeEncoderDirection` | Unpowered forward and left checks |
-| Yaw scalar | `PinpointConstants.yawScalar`, only if deliberately enabled | Measured rotation tests |
-| Starting pose | `TeamAPedroConfiguration` and each `TeamAPedroPathRoute` | Confirm field placement and telemetry before START |
-| Path end values | `PathConstraints` | Line and real path completion tests |
-| Robot dimensions | Every `.pp` Visualizer project and optional Panels `ROBOT_RADIUS` | Physical measurement and collision review |
-| Routes | Team-specific path classes and `TeamAPedroPathRoute` | Visual review, build, then physical validation |
+Panels changes are live tuning changes and are not automatically saved to the project. After every
+accepted tuning session:
 
-## Sign-off record for a new robot
+1. Copy heading PIDF values into the heading PIDF construction.
+2. Copy `kP`, `kLinear`, and `kQuadratic` into `predictiveBrakingCoefficients(...)` in the correct
+   order.
+3. Confirm `.centripetalScaling(0.0)` and the selected parametric-end constraint.
+4. Search the repository for the old numeric values and duplicate literals.
+5. Rebuild and upload the source-controlled configuration.
 
-Copy this table into the new robot's implementation record and fill it with evidence rather than
-sample values.
+For this project, the custom TeleOp heading controller reads the active follower P value at runtime,
+but its tolerance, hysteresis, correction cap, preset thresholds, and application power ceiling are
+separate settings. Recheck TeleOp heading hold after changing heading P.
 
-| Gate | Evidence required | Accepted by/date |
-| --- | --- | --- |
-| Hardware facts recorded | Names, ports, directions, mass, dimensions, localizer, pods, offsets | |
-| Safe initialization | Successful build/upload; stable pose; drive disabled | |
-| Localization | Forward/left/rotation signs, distances, and return error | |
-| Raised-wheel drive | Forward/strafe/rotation patterns and all stop paths | |
-| Velocity tuning | Repeated forward/lateral full-power results | |
-| Heading tuning | Accepted PIDF and settling behavior | |
-| Drive algorithm | Complete Predictive Braking or PIDF evidence | |
-| Line validation | Endpoint behavior, jitter, overshoot, and drift | |
-| Application limit | Approved normal maximum power | |
-| Pilot path | Start/end pose, error, completion, cancel, and STOP evidence | |
+### Step 9: Validate the complete autonomous behavior
+
+Run a short path and then the intended path chain under supervised conditions. Record:
+
+- Start and end pose.
+- Position and heading error.
+- Overshoot, undershoot, jitter, or drift.
+- Whether the robot stops when an individual path ends.
+- Whether path-chain transitions preserve the desired momentum.
+- Cancellation, Driver Station STOP, and `robot.stop()` behavior.
+
+Predictive Braking may fully stop at individual path boundaries. Use path chains when continuous
+motion is desired and the route does not require a full stop. Do not accept a tuning result from a
+software build alone; physical validation is required.
+
+### Predictive Braking decision checklist
+
+- [ ] Localization and signs were verified before tuning.
+- [ ] Forward and lateral velocities were measured.
+- [ ] Heading PIDF was tuned and copied into source.
+- [ ] `PredictiveBrakingTuner` produced `kLinear` and `kQuadratic`.
+- [ ] `LineTest` was used to select Predictive Braking `kP`.
+- [ ] Centripetal scaling is disabled for the Predictive Braking branch unless a documented test
+      justifies otherwise.
+- [ ] Parametric end is validated and remains at or above `0.90`.
+- [ ] Traditional translational, drive, and centripetal PIDF tuners were not mixed into this branch
+      without a deliberate algorithm change.
+- [ ] Panels values were copied into source code.
+- [ ] The source was rebuilt and the physical path, stop, cancel, and TeleOp behavior were tested.
+
+## Validation status and limitations
+
+Recorded checks include Pinpoint pose availability, forward and lateral sign checks, a measured
+counterclockwise rotation, return-to-start behavior, and restricted raised-wheel drivetrain checks.
+The TeamCode build has been verified with `TeamCode:assembleDebug`.
+
+Physical TeleOp heading-hold and preset-heading behavior still require supervised on-robot testing
+after hardware or tuning changes. A software build does not prove heading accuracy, settling time,
+overshoot, or field safety.
 
 ## Official references
 
-- [Pedro Pathing installation](https://pedropathing.com/docs/pathing/installation)
+- [Pedro installation](https://pedropathing.com/docs/pathing/installation)
 - [Pedro constants](https://pedropathing.com/docs/pathing/constants)
-- [Pedro mecanum setup and mass](https://pedropathing.com/docs/pathing/tuning/setup)
+- [Pedro TeleOp example](https://pedropathing.com/docs/pathing/examples/teleop)
+- [Pedro heading tuning](https://pedropathing.com/docs/pathing/tuning/heading)
 - [Pedro Pinpoint setup](https://pedropathing.com/docs/pathing/tuning/localization/pinpoint)
 - [Pedro localization testing](https://pedropathing.com/docs/pathing/tuning/localization)
-- [Pedro automatic tuners](https://pedropathing.com/docs/pathing/tuning/automatic)
 - [Pedro Predictive Braking configuration](https://pedropathing.com/docs/pathing/tuning/drive-algorithm/predictive/configuration)
-- [Pedro Predictive Braking reference](https://pedropathing.com/docs/pathing/reference/predictive)
-- [goBILDA Pinpoint Odometry Computer user guide](https://www.gobilda.com/content/user_manuals/3110-0002-0001_user-guide.pdf)
+- [goBILDA Pinpoint user guide](https://www.gobilda.com/content/user_manuals/3110-0002-0001_user-guide.pdf)

@@ -7,14 +7,11 @@ import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveController;
 
 /** Team A adapter that keeps Pedro types out of the shared drive API. */
 public final class TeamAPedroDriveController implements DriveController {
-    /** Recorded Team A Pedro heading P gain, limited by the application's 0.20 power ceiling. */
-    private static final double HEADING_HOLD_P_GAIN = 2.2;
-    private static final double MAX_HEADING_HOLD_ROTATION = 1.0;
-
     private Follower follower;
     private boolean teleOpStarted;
     private double heldHeadingRadians;
     private boolean headingHoldActive;
+    private boolean headingCorrectionActive;
 
     void setFollower(Follower follower) {
         if (follower == null) throw new IllegalArgumentException("Pedro drive controller needs a follower.");
@@ -41,8 +38,8 @@ public final class TeamAPedroDriveController implements DriveController {
         requireFollower();
         headingHoldActive = false;
         if (!teleOpStarted) {
-            // Pedro initializes its internal teleop pose during startup. Starting before setting
-            // field-oriented input avoids reading that pose while it is still null.
+            // Pedro initializes its internal TeleOp pose during startup. Start before setting
+            // robot-centric input so the pose is valid before the first command is applied.
             follower.startTeleOpDrive();
             teleOpStarted = true;
             follower.setTeleOpDrive(forward, strafe, rotate, true);
@@ -58,11 +55,25 @@ public final class TeamAPedroDriveController implements DriveController {
         teleOpStarted = true;
 
         Pose pose = follower.getPose();
-        if (isFinite(pose.getHeading())) {
-            heldHeadingRadians = pose.getHeading();
+        setHeadingTarget(pose.getHeading());
+    }
+
+    @Override public void startHeadingHold(double targetHeadingRadians) {
+        requireFollower();
+        follower.startTeleOpDrive();
+        teleOpStarted = true;
+
+        setHeadingTarget(targetHeadingRadians);
+    }
+
+    @Override public void setHeadingTarget(double targetHeadingRadians) {
+        if (isFinite(targetHeadingRadians)) {
+            heldHeadingRadians = normalizeSignedAngle(targetHeadingRadians);
             headingHoldActive = true;
+            headingCorrectionActive = true;
         } else {
             headingHoldActive = false;
+            headingCorrectionActive = false;
         }
     }
 
@@ -81,8 +92,22 @@ public final class TeamAPedroDriveController implements DriveController {
         }
 
         double headingError = normalizeSignedAngle(heldHeadingRadians - pose.getHeading());
-        double correction = clamp(HEADING_HOLD_P_GAIN * headingError,
-                -MAX_HEADING_HOLD_ROTATION, MAX_HEADING_HOLD_ROTATION);
+        double absoluteHeadingError = Math.abs(headingError);
+        if (headingCorrectionActive
+                && absoluteHeadingError <= TeamAPedroConfiguration.HEADING_HOLD_TOLERANCE_RADIANS) {
+            headingCorrectionActive = false;
+        } else if (!headingCorrectionActive
+                && absoluteHeadingError > TeamAPedroConfiguration.HEADING_HOLD_TOLERANCE_RADIANS
+                        + TeamAPedroConfiguration.HEADING_HOLD_TOLERANCE_HYSTERESIS_RADIANS) {
+            headingCorrectionActive = true;
+        }
+
+        double correction = 0.0;
+        if (headingCorrectionActive) {
+            correction = clamp(getHeadingHoldPGain() * headingError,
+                    -TeamAPedroConfiguration.MAX_HEADING_HOLD_ROTATION,
+                    TeamAPedroConfiguration.MAX_HEADING_HOLD_ROTATION);
+        }
         follower.setTeleOpDrive(forward, strafe, correction, true);
         follower.update();
     }
@@ -95,6 +120,7 @@ public final class TeamAPedroDriveController implements DriveController {
         }
         teleOpStarted = false;
         headingHoldActive = false;
+        headingCorrectionActive = false;
     }
     @Override public PoseEstimate getPoseEstimate() {
         if (follower == null) return PoseEstimate.unavailable();
@@ -103,6 +129,10 @@ public final class TeamAPedroDriveController implements DriveController {
     }
     @Override public boolean isPathFollowingActive() { return follower != null && follower.isBusy(); }
     private void requireFollower() { if (follower == null) throw new IllegalStateException("Initialize Team A Pedro robot before driving."); }
+
+    private double getHeadingHoldPGain() {
+        return follower.getConstants().getCoefficientsHeadingPIDF().P;
+    }
 
     private double normalizeSignedAngle(double angleRadians) {
         return Math.atan2(Math.sin(angleRadians), Math.cos(angleRadians));

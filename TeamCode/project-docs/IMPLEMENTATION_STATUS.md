@@ -8,15 +8,28 @@ PVI-FTC | Editable master guide
 
 ## Repository baseline
 - Source repository: PVI-FTC fork of FtcRobotController
-- Current sequential prompt: LP-11 four-path Pedro selector ready for deployment review
-- Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
-- Last verified commit: d7b9014 (LP-09 reviewed implementation)
+- Current implementation focus: Team A Pedro TeleOp heading hold and eight-way preset headings
+- Last completed sequential prompt: LP-11 four-path Pedro selector ready for deployment review
+- Current verification: TeamCode debug build passes on the working tree; no commit is implied
 ## Completed work
+- Team A Pedro TeleOp heading hold now reads the active P term from Pedro's
+  `FollowerConstants.coefficientsHeadingPIDF`, so custom configurations and live follower tuning
+  use the actual Pedro P value. Named configuration constants now hold the recorded heading PIDF
+  values, heading tolerance/hysteresis, preset selector thresholds, and maximum correction.
+- Added a Pedro reference-document warning to search for stale duplicate tuning literals across
+  controller, OpMode, diagnostic, tuning, and documentation code after every retune.
+- Added eight-way preset heading selection to `TeamAPedroTeleOp`: right bumper plus left-stick
+  direction selects the nearest 45-degree field heading, which is held through the existing
+  TeleOp heading controller without creating a Pedro path.
+- Added a configurable 2-degree `HEADING_HOLD_TOLERANCE_RADIANS` deadband so heading hold stops
+  issuing micro-corrections near the target.
 - Team A now has a separate `TeamAPedroTeleOp` that drives through `TeamAPedroRobot` and its
   single Pedro follower/Pinpoint owner. Pressing gamepad 1 Y captures the current Pinpoint heading
   and enters `HeadingHold`; left-stick translation continues while `TeamAPedroDriveController`
-  applies a capped correction from the recorded heading P gain. Pressing X returns to manual
-  rotation. The original simple `TeamATeleOp` remains unchanged because it owns the baseline
+  applies a capped correction from Pedro's active heading P gain. Pressing Y again returns to
+  manual drive. Holding right bumper and aiming the left stick selects an eight-way preset heading;
+  selecting a preset automatically enables heading hold. The original simple `TeamATeleOp` remains
+  unchanged because it owns the baseline
   non-localized drivetrain.
 - Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
   Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
@@ -257,8 +270,8 @@ PVI-FTC | Editable master guide
   | 90° counterclockwise rotation | Heading near `+90°` | `(0.1209, 0.2142, 91.38°)` | Passed; angle measured with protractor |
   | 24 in forward and return | Return near zero | Forward `(23.9, 0.6, -0.2°)`; return `(-0.3, 0.1, -0.5°)` | Passed; about `0.32 in` final position error |
 - The first restricted forward request stopped with a Pedro 2.1.2 null-pose exception before motor
-  output. Version-matched bytecode showed that field-oriented `setTeleOpDrive(...)` reads Pedro's
-  internal pose, which is initialized by `startTeleOpDrive()`. `TeamAPedroDriveController` now
+  output. Version-matched bytecode showed that Pedro's `setTeleOpDrive(...)` reads its internal
+  pose, which is initialized by `startTeleOpDrive()`. `TeamAPedroDriveController` now
   starts Pedro at zero output before storing the first requested command, adding a safe one-loop
   delay; the rebuilt retest had no exception.
 - Raised-wheel tests at the director-approved `0.20` ceiling verified forward, left-strafe, and
@@ -571,8 +584,8 @@ PVI-FTC | Editable master guide
   `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamCTeleOp`
   - iterative drive-only TeleOp lifecycles using the corresponding robot public API
 - `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamAPedroTeleOp`
-  - iterative Pinpoint-backed Team A drive with Y to capture/hold heading and X to return to
-    manual rotation
+  - iterative Pinpoint-backed Team A drive with Y to toggle heading hold and right-bumper plus
+    left-stick direction selection for preset headings
 - `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAPedroDiagnostic`
   - disabled-by-default LP-09 pose telemetry and deadman-controlled raised-wheel requests at the
     configured restricted ceiling

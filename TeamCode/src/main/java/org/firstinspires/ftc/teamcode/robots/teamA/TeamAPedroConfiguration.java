@@ -14,6 +14,20 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 /** Team A-only Pedro configuration. Real hardware values must be supplied before follower creation. */
 public final class TeamAPedroConfiguration {
     public static final double APPLICATION_MAX_POWER = 0.20;
+    public static final double HEADING_PID_P = 2.2;
+    public static final double HEADING_PID_I = 0.2;
+    public static final double HEADING_PID_D = 0.189;
+    public static final double HEADING_PID_F = 0.02;
+    /** Heading error below which TeleOp heading hold stops making correction commands. */
+    public static final double HEADING_HOLD_TOLERANCE_RADIANS = Math.toRadians(2.0);
+    /** Additional error required before correction resumes after entering the tolerance band. */
+    public static final double HEADING_HOLD_TOLERANCE_HYSTERESIS_RADIANS = Math.toRadians(0.5);
+    /** Maximum custom TeleOp rotation correction before Pedro applies its power ceiling. */
+    public static final double MAX_HEADING_HOLD_ROTATION = 1.0;
+    /** Minimum left-stick magnitude required to select a preset heading. */
+    public static final double PRESET_DIRECTION_DEADZONE = 0.5;
+    /** Angular hysteresis that prevents preset changes from chattering at sector boundaries. */
+    public static final double PRESET_DIRECTION_HYSTERESIS_RADIANS = Math.toRadians(5.0);
 
     private final String missingConfigurationReason;
     private final FollowerConstants followerConstants;
@@ -68,7 +82,8 @@ public final class TeamAPedroConfiguration {
             boolean restrictedManualDriveReady, boolean pathFollowingReady) {
         FollowerConstants follower = new FollowerConstants()
                 .mass(4.85)
-                .headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))
+                .headingPIDFCoefficients(new PIDFCoefficients(
+                        HEADING_PID_P, HEADING_PID_I, HEADING_PID_D, HEADING_PID_F))
                 .forwardZeroPowerAcceleration(-42.4832745291992)
                 .lateralZeroPowerAcceleration(-50.60694780564594)
                 .predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(

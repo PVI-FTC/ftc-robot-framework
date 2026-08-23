@@ -32,6 +32,7 @@ public class DriveSubsystem implements Subsystem {
     private double requestedForward;
     private double requestedStrafe;
     private double requestedRotate;
+    private Double requestedHeadingRadians;
 
     /** Creates the existing simple mecanum drivetrain composition. */
     public DriveSubsystem(DriveHardware driveHardware) {
@@ -107,7 +108,24 @@ public class DriveSubsystem implements Subsystem {
 
     /** Requests driver translation with a controller-provided locked heading. */
     public void enableHeadingHold() {
+        requestedHeadingRadians = null;
         requestedMode = RequestedMode.HEADING_HOLD;
+    }
+
+    /** Requests heading hold toward an absolute field heading. */
+    public void enableHeadingHold(double targetHeadingRadians) {
+        requestedHeadingRadians = safeInput(targetHeadingRadians);
+        requestedMode = RequestedMode.HEADING_HOLD;
+    }
+
+    /** Updates the active heading target, or requests heading hold if it is not active. */
+    public void setHeadingTarget(double targetHeadingRadians) {
+        requestedHeadingRadians = safeInput(targetHeadingRadians);
+        if (requestedMode == RequestedMode.HEADING_HOLD) {
+            driveController.setHeadingTarget(requestedHeadingRadians);
+        } else {
+            requestedMode = RequestedMode.HEADING_HOLD;
+        }
     }
 
     /** Requests the controller to update an already-requested path on each loop. */
@@ -154,7 +172,11 @@ public class DriveSubsystem implements Subsystem {
     }
 
     void beginHeadingHold() {
-        driveController.startHeadingHold();
+        if (requestedHeadingRadians == null) {
+            driveController.startHeadingHold();
+        } else {
+            driveController.startHeadingHold(requestedHeadingRadians);
+        }
     }
 
     void applyHeadingHoldDrive() {

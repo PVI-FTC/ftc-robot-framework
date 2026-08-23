@@ -12,8 +12,6 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroRobot;
 /** Narrow LP-09 diagnostic for unpowered localization and restricted raised-wheel checks. */
 @TeleOp(name = "Team A Pedro Diagnostic", group = "Testing")
 public final class TeamAPedroDiagnostic extends OpMode {
-    private static final double RESTRICTED_COMMAND = 0.20;
-
     private TeamAPedroRobot robot;
     private InputManager input;
 
@@ -67,13 +65,13 @@ public final class TeamAPedroDiagnostic extends OpMode {
 
         robot.enableManualDrive();
         if (forward) {
-            robot.drive(RESTRICTED_COMMAND, 0.0, 0.0);
+            robot.drive(TeamAPedroConfiguration.APPLICATION_MAX_POWER, 0.0, 0.0);
         } else if (left) {
             // Pedro's TeleOp strafe input is negative for robot-left movement.
-            robot.drive(0.0, -RESTRICTED_COMMAND, 0.0);
+            robot.drive(0.0, -TeamAPedroConfiguration.APPLICATION_MAX_POWER, 0.0);
         } else {
             // LP-09 raised-wheel observation verified positive input as counterclockwise.
-            robot.drive(0.0, 0.0, RESTRICTED_COMMAND);
+            robot.drive(0.0, 0.0, TeamAPedroConfiguration.APPLICATION_MAX_POWER);
         }
     }
 

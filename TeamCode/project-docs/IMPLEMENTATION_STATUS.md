@@ -206,6 +206,13 @@ PVI-FTC | Editable master guide
   moved. On retained results, tag 22 remained identified while pose availability was false and
   both camera-relative and robot-relative pose displays were unavailable, as required. This was a
   smoke test only; it did not establish physical range or bearing accuracy.
+- MV-05 software-only audit confirmed that the selected source is updated once per active vision
+  FSM loop, preserves acquisition timestamps across retained snapshots, clears fresh-empty frames,
+  closes and clears on stop, and keeps all FTC types below the neutral public API. No localization,
+  movement, autonomous decision, Pedro, Limelight implementation, blocking wait, or direct OpMode
+  camera access was found. The physical evidence record now distinguishes its original 2026-08-19
+  calibration-unknown entry from the later recorded C920 640-by-480 calibration evidence; MV-06
+  must re-confirm all physical prerequisites and validate stationary metric accuracy.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

@@ -23,6 +23,22 @@ official source is named below.
 - Calibration source and status: unknown; no calibration has been matched to the actual capture
   resolution.
 
+## Calibration follow-up evidence — 2026-08-20
+
+This addendum supersedes the calibration-unknown statement above for the later Stage 4
+software gate; it does not establish physical metric accuracy.
+
+- The Logitech C920 continued detecting tag IDs with a reported 640-by-480 VisionPortal stream.
+- No camera-calibration warning was observed in the Driver Station preview or filtered Android
+  Studio Logcat.
+- Windows reported camera hardware identity `USB\VID_046D&PID_082D&MI_00`. VID `046D` and PID
+  `082D` match the Logitech C920 identity used by the SDK's published built-in 640-by-480
+  calibration.
+- The calibration identity/resolution check is supported by this recorded evidence. MV-06 must
+  still reconfirm the camera identity, name, configured stream, warning-free preview, tag
+  metadata, mount facts, safety controls, and physical range/bearing accuracy before any physical
+  validation result is accepted.
+
 ## AprilTag
 
 - Family: 36h11.
@@ -80,6 +96,22 @@ must continue reporting ID-only observations and must not invent metric values.
 - Approved runtime: Microsoft OpenJDK 17.0.20.
 - Command: `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug`.
 - Result on 2026-08-19: `BUILD SUCCESSFUL`.
+
+## MV-06 interrupted-session handoff — 2026-08-26
+
+- The supervised stationary setup was reconfirmed: drive motors physically disconnected; reviewed
+  C920/configured name; 640-by-480 preview with no calibration warning; official flat DECODE 36h11
+  tag 22 with 6.5-inch black square; recorded mount; clear/lighted area; measurement tools; adult
+  supervision; and a Driver Station STOP operator.
+- Accepted validation tolerances: range error no greater than 2 inches or 10% of measured distance,
+  whichever is larger; bearing error no greater than 5 degrees; and three-reading spreads no greater
+  than 1 inch range and 2 degrees bearing.
+- The first centered placement was set to 36 inches forward and 0 lateral. The diagnostic changed
+  between `FRESH` and `RETAINED` frame statuses as expected. No fresh Robot range/bearing values
+  were recorded before the supervised session ended.
+- Resume only after reconfirming every MV-06 STOP prerequisite. Start by recording three `FRESH`,
+  pose-available Robot range/bearing readings at the same centered placement; retained rows are not
+  physical measurements.
 
 ## AV-08 stationary validation results
 

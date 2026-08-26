@@ -12,6 +12,18 @@ PVI-FTC | Editable master guide
 - Last completed sequential prompt: LP-11 four-path Pedro selector ready for deployment review
 - Current verification: TeamCode debug build passes on the working tree; no commit is implied
 ## Completed work
+- Team A Pedro TeleOp now requests full follower output (`maxPower = 1.0`) when entering manual or
+  heading-hold control; the recorded `0.20` cap remains unchanged for tuning and autonomous path
+  configuration. Pedro TeleOp commands are robot-centric to match the proven Team A mecanum
+  mapping; Pedro strafe and rotation inputs are sign-adjusted accordingly. Heading correction uses
+  the recorded P and D terms so angular motion is damped instead of repeatedly overshooting.
+  Absolute preset headings and displayed telemetry compensate for the Pinpoint frame being mounted
+  90 degrees left of the driver-field frame.
+- Pedro TeleOp presets are now relative to the heading captured at TeleOp start: stick-forward is
+  the startup heading and stick-right is 90 degrees clockwise from it. X recaptures the current
+  Pinpoint heading as the new forward reference and retargets an active hold immediately.
+- Heading presets use the right stick while holding right bumper; the left stick remains reserved
+  for robot-centric translation.
 - Team A Pedro TeleOp heading hold now reads the active P term from Pedro's
   `FollowerConstants.coefficientsHeadingPIDF`, so custom configurations and live follower tuning
   use the actual Pedro P value. Named configuration constants now hold the recorded heading PIDF

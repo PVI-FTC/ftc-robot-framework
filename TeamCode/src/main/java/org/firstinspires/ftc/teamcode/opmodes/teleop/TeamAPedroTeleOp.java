@@ -16,6 +16,7 @@ public final class TeamAPedroTeleOp extends OpMode {
     private TeamAPedroRobot robot;
     private InputManager driverInput;
     private boolean headingHoldEnabled;
+    private double startHeadingRadians;
     private Double selectedPresetHeadingRadians;
     private int selectedPresetSector = Integer.MIN_VALUE;
 
@@ -25,7 +26,7 @@ public final class TeamAPedroTeleOp extends OpMode {
         robot.initialize(hardwareMap);
         driverInput = new InputManager(gamepad1);
         telemetry.addData("Status", "Team A Pedro robot initialized");
-        telemetry.addLine("Y: toggle heading hold; hold RB + aim left stick for preset heading");
+        telemetry.addLine("Y: toggle heading hold; X: reset forward; hold RB + aim right stick for preset");
         telemetry.update();
     }
 
@@ -35,12 +36,21 @@ public final class TeamAPedroTeleOp extends OpMode {
         headingHoldEnabled = false;
         selectedPresetHeadingRadians = null;
         selectedPresetSector = Integer.MIN_VALUE;
+        captureStartHeading();
         robot.enableManualDrive();
     }
 
     @Override
     public void loop() {
         driverInput.update();
+        if (driverInput.wasXJustPressed()) {
+            captureStartHeading();
+            selectedPresetHeadingRadians = null;
+            selectedPresetSector = Integer.MIN_VALUE;
+            if (headingHoldEnabled) {
+                robot.setHeadingTarget(startHeadingRadians);
+            }
+        }
         applyPresetHeadingSelection();
         if (driverInput.wasYJustPressed()) {
             headingHoldEnabled = !headingHoldEnabled;
@@ -71,8 +81,11 @@ public final class TeamAPedroTeleOp extends OpMode {
     private void publishTelemetry() {
         PoseEstimate pose = robot.getPoseEstimate();
         telemetry.addData("Drive State", robot.getDriveStateName());
-        telemetry.addData("Pinpoint Heading (deg)", Math.toDegrees(pose.getHeadingRadians()));
+        telemetry.addData("Pinpoint Heading (deg)", Math.toDegrees(
+                pose.getHeadingRadians() - TeamAPedroConfiguration.HEADING_FRAME_OFFSET_RADIANS));
         telemetry.addData("Heading Hold", headingHoldEnabled ? "ON" : "OFF");
+        telemetry.addData("Start Heading (deg)", Math.toDegrees(
+                startHeadingRadians - TeamAPedroConfiguration.HEADING_FRAME_OFFSET_RADIANS));
         telemetry.addData("Preset Heading (deg)", selectedPresetHeadingRadians == null
                 ? "none" : Math.toDegrees(selectedPresetHeadingRadians));
         telemetry.update();
@@ -83,8 +96,8 @@ public final class TeamAPedroTeleOp extends OpMode {
             return;
         }
 
-        double stickX = driverInput.getLeftStickX();
-        double stickY = -driverInput.getLeftStickY();
+        double stickX = driverInput.getRightStickX();
+        double stickY = -driverInput.getRightStickY();
         if (Math.hypot(stickX, stickY) < TeamAPedroConfiguration.PRESET_DIRECTION_DEADZONE) {
             return;
         }
@@ -94,7 +107,9 @@ public final class TeamAPedroTeleOp extends OpMode {
         if (presetSector == Integer.MIN_VALUE) {
             return;
         }
-        double selectedHeading = normalizeAngle(presetSector * (Math.PI / 4.0));
+        // Stick-forward is zero offset from startup; stick-right is 90 degrees clockwise.
+        double headingOffset = presetSector * (Math.PI / 4.0) - Math.PI / 2.0;
+        double selectedHeading = normalizeAngle(startHeadingRadians + headingOffset);
         if (selectedPresetHeadingRadians == null
                 || Math.abs(normalizeAngle(selectedHeading - selectedPresetHeadingRadians)) > 1e-9) {
             boolean wasHeadingHoldEnabled = headingHoldEnabled;
@@ -128,5 +143,12 @@ public final class TeamAPedroTeleOp extends OpMode {
         if (normalized <= -Math.PI) normalized += TWO_PI;
         if (normalized > Math.PI) normalized -= TWO_PI;
         return normalized;
+    }
+
+    private void captureStartHeading() {
+        PoseEstimate pose = robot.getPoseEstimate();
+        if (pose.isAvailable() && Double.isFinite(pose.getHeadingRadians())) {
+            startHeadingRadians = pose.getHeadingRadians();
+        }
     }
 }

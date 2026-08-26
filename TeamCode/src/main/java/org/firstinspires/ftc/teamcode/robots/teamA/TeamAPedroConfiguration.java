@@ -24,6 +24,8 @@ public final class TeamAPedroConfiguration {
     public static final double HEADING_HOLD_TOLERANCE_HYSTERESIS_RADIANS = Math.toRadians(0.5);
     /** Maximum custom TeleOp rotation correction before Pedro applies its power ceiling. */
     public static final double MAX_HEADING_HOLD_ROTATION = 1.0;
+    /** Pinpoint frame is mounted 90 degrees left of the driver-field heading frame. */
+    public static final double HEADING_FRAME_OFFSET_RADIANS = -Math.PI / 2.0;
     /** Minimum left-stick magnitude required to select a preset heading. */
     public static final double PRESET_DIRECTION_DEADZONE = 0.5;
     /** Angular hysteresis that prevents preset changes from chattering at sector boundaries. */

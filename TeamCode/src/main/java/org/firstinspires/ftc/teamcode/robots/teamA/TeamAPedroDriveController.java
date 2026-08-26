@@ -7,6 +7,12 @@ import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveController;
 
 /** Team A adapter that keeps Pedro types out of the shared drive API. */
 public final class TeamAPedroDriveController implements DriveController {
+    /** Pedro rotation input is opposite the proven Team A mecanum mapping. */
+    private static final double PEDRO_ROTATION_SIGN = -1.0;
+    /** Pedro strafe input is opposite the proven Team A mecanum mapping. */
+    private static final double PEDRO_STRAFE_SIGN = -1.0;
+    /** TeleOp intentionally bypasses the tuning/path application cap. */
+    private static final double TELEOP_MAX_POWER = 1.0;
     private Follower follower;
     private boolean teleOpStarted;
     private double heldHeadingRadians;
@@ -40,18 +46,20 @@ public final class TeamAPedroDriveController implements DriveController {
         if (!teleOpStarted) {
             // Pedro initializes its internal TeleOp pose during startup. Start before setting
             // robot-centric input so the pose is valid before the first command is applied.
-            follower.startTeleOpDrive();
+            startUnrestrictedTeleOpDrive();
             teleOpStarted = true;
-            follower.setTeleOpDrive(forward, strafe, rotate, true);
+            setRobotCentricDrive(forward, PEDRO_STRAFE_SIGN * strafe,
+                    PEDRO_ROTATION_SIGN * rotate);
             return;
         }
-        follower.setTeleOpDrive(forward, strafe, rotate, true);
+        setRobotCentricDrive(forward, PEDRO_STRAFE_SIGN * strafe,
+                PEDRO_ROTATION_SIGN * rotate);
         follower.update();
     }
 
     @Override public void startHeadingHold() {
         requireFollower();
-        follower.startTeleOpDrive();
+        startUnrestrictedTeleOpDrive();
         teleOpStarted = true;
 
         Pose pose = follower.getPose();
@@ -60,7 +68,7 @@ public final class TeamAPedroDriveController implements DriveController {
 
     @Override public void startHeadingHold(double targetHeadingRadians) {
         requireFollower();
-        follower.startTeleOpDrive();
+        startUnrestrictedTeleOpDrive();
         teleOpStarted = true;
 
         setHeadingTarget(targetHeadingRadians);
@@ -86,7 +94,7 @@ public final class TeamAPedroDriveController implements DriveController {
         Pose pose = follower.getPose();
         if (!headingHoldActive || !isFinite(pose.getHeading())) {
             // A missing or invalid heading must not leave a previous rotation command active.
-            follower.setTeleOpDrive(0.0, 0.0, 0.0, true);
+            setRobotCentricDrive(0.0, 0.0, 0.0);
             follower.update();
             return;
         }
@@ -104,11 +112,16 @@ public final class TeamAPedroDriveController implements DriveController {
 
         double correction = 0.0;
         if (headingCorrectionActive) {
-            correction = clamp(getHeadingHoldPGain() * headingError,
+            // Pinpoint heading increases in the same positive direction as the desired
+            // correction. Manual driver rotation uses a separate Pedro input sign above.
+            double angularVelocity = follower.getAngularVelocity();
+            double damping = isFinite(angularVelocity)
+                    ? TeamAPedroConfiguration.HEADING_PID_D * angularVelocity : 0.0;
+            correction = clamp(getHeadingHoldPGain() * headingError - damping,
                     -TeamAPedroConfiguration.MAX_HEADING_HOLD_ROTATION,
                     TeamAPedroConfiguration.MAX_HEADING_HOLD_ROTATION);
         }
-        follower.setTeleOpDrive(forward, strafe, correction, true);
+        setRobotCentricDrive(forward, PEDRO_STRAFE_SIGN * strafe, correction);
         follower.update();
     }
     @Override public void updatePathFollowing() { requireFollower(); teleOpStarted = false; follower.update(); }
@@ -144,5 +157,17 @@ public final class TeamAPedroDriveController implements DriveController {
 
     private boolean isFinite(double value) {
         return !Double.isNaN(value) && !Double.isInfinite(value);
+    }
+
+    private void startUnrestrictedTeleOpDrive() {
+        follower.setMaxPower(TELEOP_MAX_POWER);
+        follower.startTeleOpDrive();
+    }
+
+    /** Sends robot-relative driver input through Pedro's required coordinate conversion. */
+    private void setRobotCentricDrive(double forward, double strafe, double rotate) {
+        // Pedro's drivetrain consumes a field-frame vector. Passing true converts this
+        // robot-relative driver input using the current Pinpoint heading before motor mixing.
+        follower.setTeleOpDrive(forward, strafe, rotate, true);
     }
 }

@@ -60,26 +60,43 @@ public class TeamAAprilTagVisionTestOpMode extends OpMode {
             retainedTimestampResult = timestampsPreserved ? "PASS" : "FAIL";
         }
 
+        telemetry.addData("Frame Status", snapshot.getFrameStatus());
+        telemetry.addData("Detection Count", observations.size());
+        for (AprilTagObservation observation : observations) {
+            telemetry.addData("Tag ID", observation.getTagId());
+            telemetry.addData("Pose Available", observation.isPoseAvailable());
+            publishPrimaryPose("Camera", observation.getCameraRelativePose());
+            publishPrimaryPose("Robot", observation.getRobotRelativePose());
+            telemetry.addData("Quality", observation.getQualityStatus());
+            telemetry.addData("Acquisition Timestamp (ns)",
+                    observation.getTimestampNanos());
+            telemetry.addData("Observation Age (ms)",
+                    getObservationAgeMillis(observation));
+        }
+
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
-        telemetry.addData("Frame Status", snapshot.getFrameStatus());
         telemetry.addData("Retained Timestamp Check", retainedTimestampResult);
         telemetry.addData("Retained Checks / Failures", "%d / %d",
                 retainedTimestampChecks, retainedTimestampFailures);
-        telemetry.addData("Detection Count", observations.size());
         for (AprilTagObservation observation : observations) {
-            telemetry.addData("Tag " + observation.getTagId(), observation.getQualityStatus());
-            telemetry.addData("Tag " + observation.getTagId() + " Pose Available",
-                    observation.isPoseAvailable());
             publishPose("Camera", observation.getCameraRelativePose());
             publishPose("Robot", observation.getRobotRelativePose());
-            telemetry.addData("Tag " + observation.getTagId() + " Acquisition Timestamp (ns)",
-                    observation.getTimestampNanos());
-            telemetry.addData("Tag " + observation.getTagId() + " Observation Age (ms)",
-                    getObservationAgeMillis(observation));
         }
         telemetry.update();
         previousObservations = observations;
+    }
+
+    private void publishPrimaryPose(String label, AprilTagPose pose) {
+        if (pose == null) {
+            telemetry.addData(label + " XYZ", "Unavailable");
+            telemetry.addData(label + " Range / Bearing", "Unavailable");
+            return;
+        }
+        telemetry.addData(label + " XYZ", "%.2f, %.2f, %.2f in",
+                pose.getRightInches(), pose.getForwardInches(), pose.getUpInches());
+        telemetry.addData(label + " Range / Bearing", "%.2f in / %.2f deg",
+                pose.getRangeInches(), pose.getBearingDegrees());
     }
 
     private boolean haveSameIdsAndTimestamps(List<AprilTagObservation> previous,

@@ -213,6 +213,19 @@ PVI-FTC | Editable master guide
   camera access was found. The physical evidence record now distinguishes its original 2026-08-19
   calibration-unknown entry from the later recorded C920 640-by-480 calibration evidence; MV-06
   must re-confirm all physical prerequisites and validate stationary metric accuracy.
+- MV-06 supervised stationary validation on 2026-09-02 recorded three fresh measurements at each
+  usable centered and left/right placement. All robot-relative results were finite, repeatable,
+  sign-correct, and within the team's preselected range, bearing, and spread tolerances. A centered
+  24-inch placement could not keep the entire offset-camera tag in frame and was recorded as a
+  visibility limit. At 36, 48, and 60 inches the robot range was consistently about 2.9 to 3.4
+  inches low; a direct 55.33-inch lens-plane check showed that the physical reference and
+  camera-to-robot translation do not explain the low estimate. Camera-left bearing also showed
+  more error than camera-right bearing. Fresh-empty loss cleared stale data, reacquisition used a
+  newer timestamp, STOP closed the preview, and a second INIT/STOP cycle reopened and released the
+  camera cleanly. The narrow diagnostic now places camera- and robot-frame pose telemetry at the
+  top of the Driver Station list. The observations remain experimental; localization and
+  alignment remain unauthorized while the range bias and position sensitivity are unresolved or
+  unaccepted.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do

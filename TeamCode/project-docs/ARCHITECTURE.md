@@ -25,6 +25,8 @@ core.fsm
 - Robot
   core.input
 - InputManager
+  core.util
+- RumbleManager
   common.hardware
 - DriveHardware
 - IntakeHardware
@@ -50,32 +52,36 @@ core.fsm
 - FTC SDK entry points only
 ## Dependency direction
 OpMode
--&gt; Robot public API
--&gt; Subsystem
--&gt; FSM
--&gt; State
--&gt; Hardware wrapper
--&gt; FTC SDK hardware
+-> Robot public API
+-> Subsystem
+-> FSM
+-> State
+-> Hardware wrapper
+-> FTC SDK hardware
 Dependencies should point downward. Lower layers must not depend on higher layers.
 ## TeleOp control path
 Gamepad
--&gt; InputManager
--&gt; OpMode maps controls to public Robot methods
--&gt; Subsystem request methods
--&gt; FSM transition
--&gt; active State behavior
--&gt; Hardware wrapper
--&gt; FTC SDK hardware
+-> InputManager
+-> OpMode maps controls to public Robot methods
+-> Subsystem request methods
+-> FSM transition
+-> active State behavior
+-> Hardware wrapper
+-> FTC SDK hardware
 InputManager detects held, pressed, and released controls and exposes axis values. It does not know
 TeamARobot and does not manipulate FSMs.
+
+### Gamepad input versus feedback output
+- **Control Input (Read-only)**: Reading driver inputs (buttons, sticks, triggers) to command the robot must strictly flow through `InputManager` in TeleOp OpModes (`Gamepad -> InputManager -> OpMode -> Robot public API`). Robots, subsystems, FSMs, states, and hardware wrappers must **never** read gamepad input directly.
+- **Feedback Output (Write-only)**: Sending haptic rumble or feedback effects to the gamepad (such as match timer alerts or action confirmation pulses via `RumbleManager` or OpModes calling FTC SDK Gamepad rumble methods) is an **output** to the human driver. Direct gamepad access for haptic/feedback output is permitted and does not violate control input flow boundaries.
 ## Autonomous control path
 AutoSequence
--&gt; active AutoStep
--&gt; public Robot methods
--&gt; Subsystem request methods
--&gt; FSM transition
--&gt; active State behavior
--&gt; Hardware wrapper
+-> active AutoStep
+-> public Robot methods
+-> Subsystem request methods
+-> FSM transition
+-> active State behavior
+-> Hardware wrapper
 Autonomous does not use InputManager. Autonomous must be non-blocking so robot.update() continues
 every loop.
 ## Lifecycle

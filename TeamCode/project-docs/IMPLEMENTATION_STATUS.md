@@ -12,6 +12,17 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
+  `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
+  rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /
+  115 s defaults. `rumbleNow(int durationMs)` fires an immediate rumble on the gamepad at the
+  moment it is called, usable anywhere in a TeleOp `loop()`. Both methods are documented with
+  Javadoc and usage examples. Updated `ARCHITECTURE.md` to document `core.util.RumbleManager` and
+  clarify that direct gamepad access is permitted for feedback/haptic outputs while control input
+  must strictly flow through `InputManager`.
+  `TeamCode:assembleDebug` passed with `BUILD SUCCESSFUL` (52 tasks, 0 errors). Architecture
+  boundaries are preserved: `RumbleManager` still holds only a `Gamepad` reference and contains
+  no hardware map, FSM, subsystem, or autonomous logic.
 - Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
   Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
   Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,

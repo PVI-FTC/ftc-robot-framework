@@ -12,6 +12,15 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- (branch: feature/team-3-setup) Created complete robot-specific codebase, Pedro Pathing
+  integration, and OpModes for Team 3 under `robots.team3` and `opmodes.*`:
+  - `robots.team3`: `Team3Robot`, `Team3PedroRobot`, `Team3PedroConfiguration`, `Team3PedroFollowerFactory`,
+    `Team3PedroDriveController`, `Team3PedroPathRoute`, `Team3PedroPathStep`, `Team3PedroPilotPath`,
+    `Team3PedroCurvingTestPath`, `Team3PedroDecodePath`, `Team3PedroIllegalPath`, and `package-info.java`.
+  - `opmodes`: `Team3TeleOp` (TeleOp mecanum drive with InputManager), `Team3AutoOpMode` (timed/FSM AutoSequence demo),
+    `Team3PedroPilotAutoOpMode` (Pedro autonomous path selector), `Team3PedroDiagnostic` (raised-wheel/push localization diagnostics),
+    and `Team3PedroTuning` (Pedro interactive follower tuner with Panels dashboard integration).
+  - All architecture boundaries and dependency directions preserved without modifying shared baseline classes or Team A files.
 - (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
   `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
   rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /

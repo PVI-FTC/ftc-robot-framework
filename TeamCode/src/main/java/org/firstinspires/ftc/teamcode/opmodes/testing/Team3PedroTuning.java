@@ -143,10 +143,9 @@ public class Team3PedroTuning extends SelectableOpMode {
         stopRobot();
         if (activeSelector != null) activeSelector.requestOpModeStop();
     }
-}
 
 /** Ensures the selector's final STOP callback always zeros Team 3's drivetrain. */
-abstract class Team3PedroTuningOpMode extends OpMode {
+    public static abstract class Team3PedroTuningOpMode extends OpMode {
     @Override
     public void stop() {
         Team3PedroTuning.stopRobot();
@@ -163,7 +162,7 @@ abstract class Team3PedroTuningOpMode extends OpMode {
  * @author Kabir Goyal
  * @version 1.0, 5/6/2024
  */
-class LocalizationTest extends Team3PedroTuningOpMode {
+    public static class LocalizationTest extends Team3PedroTuningOpMode {
     boolean debugStringEnabled = false;
 
     @Override
@@ -234,7 +233,7 @@ class LocalizationTest extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 1.0, 5/6/2024
  */
-class ForwardTuner extends Team3PedroTuningOpMode {
+    public static class ForwardTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 48;
 
     @Override
@@ -282,7 +281,7 @@ class ForwardTuner extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 2.0, 6/26/2025
  */
-class LateralTuner extends Team3PedroTuningOpMode {
+    public static class LateralTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 48;
 
     @Override
@@ -330,7 +329,7 @@ class LateralTuner extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 1.0, 5/6/2024
  */
-class TurnTuner extends Team3PedroTuningOpMode {
+    public static class TurnTuner extends Team3PedroTuningOpMode {
     public static double ANGLE = 2 * Math.PI;
 
     @Override
@@ -381,7 +380,7 @@ class TurnTuner extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 1.0, 3/13/2024
  */
-class ForwardVelocityTuner extends Team3PedroTuningOpMode {
+    public static class ForwardVelocityTuner extends Team3PedroTuningOpMode {
     private final ArrayList<Double> velocities = new ArrayList<>();
     public static double DISTANCE = 48;
     public static double RECORD_NUMBER = 10;
@@ -487,7 +486,7 @@ class ForwardVelocityTuner extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 1.0, 3/13/2024
  */
-class LateralVelocityTuner extends Team3PedroTuningOpMode {
+    public static class LateralVelocityTuner extends Team3PedroTuningOpMode {
     private final ArrayList<Double> velocities = new ArrayList<>();
 
     public static double DISTANCE = 48;
@@ -591,7 +590,7 @@ class LateralVelocityTuner extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/13/2024
  */
-class ForwardZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
+    public static class ForwardZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
     private final ArrayList<Double> accelerations = new ArrayList<>();
     public static double VELOCITY = 30;
 
@@ -698,7 +697,7 @@ class ForwardZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
  * @author Baron Henderson - 20077 The Indubitables
  * @version 1.0, 3/13/2024
  */
-class LateralZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
+    public static class LateralZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
     private final ArrayList<Double> accelerations = new ArrayList<>();
     public static double VELOCITY = 30;
     private double previousVelocity;
@@ -800,7 +799,7 @@ class LateralZeroPowerAccelerationTuner extends Team3PedroTuningOpMode {
  * @author Jacob Ophoven - 18535 Frozen Code
  * @version 1.0, 12/26/2025
  */
-class PredictiveBrakingTuner extends Team3PedroTuningOpMode {
+    public static class PredictiveBrakingTuner extends Team3PedroTuningOpMode {
     private static final double[] TEST_POWERS =
             {1, 1, 1, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2};
     private static final double BRAKING_POWER = -0.2;
@@ -977,7 +976,7 @@ class PredictiveBrakingTuner extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/12/2024
  */
-class TranslationalTuner extends Team3PedroTuningOpMode {
+    public static class TranslationalTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 40;
     private boolean forward = true;
 
@@ -1046,7 +1045,7 @@ class TranslationalTuner extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/12/2024
  */
-class HeadingTuner extends Team3PedroTuningOpMode {
+    public static class HeadingTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 40;
     private boolean forward = true;
 
@@ -1118,7 +1117,7 @@ class HeadingTuner extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/12/2024
  */
-class DriveTuner extends Team3PedroTuningOpMode {
+    public static class DriveTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 40;
     private boolean forward = true;
 
@@ -1200,7 +1199,7 @@ class DriveTuner extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/12/2024
  */
-class Line extends Team3PedroTuningOpMode {
+    public static class Line extends Team3PedroTuningOpMode {
     public static double DISTANCE = 40;
     private boolean forward = true;
 
@@ -1267,7 +1266,7 @@ class Line extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/13/2024
  */
-class CentripetalTuner extends Team3PedroTuningOpMode {
+    public static class CentripetalTuner extends Team3PedroTuningOpMode {
     public static double DISTANCE = 20;
     private boolean forward = true;
 
@@ -1336,7 +1335,7 @@ class CentripetalTuner extends Team3PedroTuningOpMode {
  * @author Samarth Mahapatra - 1002 CircuitRunners Robotics Surge
  * @version 1.0, 12/30/2024
  */
-class Triangle extends Team3PedroTuningOpMode {
+    public static class Triangle extends Team3PedroTuningOpMode {
 
     private final Pose startPose = new Pose(72, 72, Math.toRadians(0));
     private final Pose interPose = new Pose(24 + 72, -24 + 72, Math.toRadians(90));
@@ -1401,7 +1400,7 @@ class Triangle extends Team3PedroTuningOpMode {
  * @author Harrison Womack - 10158 Scott's Bots
  * @version 1.0, 3/12/2024
  */
-class Circle extends Team3PedroTuningOpMode {
+    public static class Circle extends Team3PedroTuningOpMode {
     public static double RADIUS = 10;
     private PathChain circle;
 
@@ -1457,7 +1456,7 @@ class Circle extends Team3PedroTuningOpMode {
  * @author Havish Sripada - 12808 RevAmped Robotics
  * @author Baron Henderson
  */
-class OffsetsTuner extends Team3PedroTuningOpMode {
+    public static class OffsetsTuner extends Team3PedroTuningOpMode {
     @Override
     public void init() {
         follower.setStartingPose(new Pose(72,72));
@@ -1501,7 +1500,7 @@ class OffsetsTuner extends Team3PedroTuningOpMode {
  * @author Lazar - 19234
  * @version 1.1, 5/19/2025
  */
-class Drawing {
+    public static class Drawing {
     public static final double ROBOT_RADIUS = 9; // woah
     private static final FieldManager panelsField = PanelsField.INSTANCE.getField();
 
@@ -1641,3 +1640,4 @@ class Drawing {
     }
 }
 
+}

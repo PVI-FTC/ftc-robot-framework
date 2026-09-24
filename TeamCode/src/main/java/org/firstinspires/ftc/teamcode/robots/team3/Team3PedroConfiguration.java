@@ -91,7 +91,7 @@ public final class Team3PedroConfiguration {
                 .strafePodX(-1.5)
                 .distanceUnit(DistanceUnit.INCH)
                 .hardwareMapName("pinpoint")
-                .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD)
+                .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)
                 .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
                 .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);
         PathConstraints constraints = new PathConstraints(0.97, 100.0);

@@ -82,7 +82,7 @@ public final class Team3PedroConfiguration {
                 .leftRearMotorName("rearLeft")
                 .rightFrontMotorName("frontRight")
                 .rightRearMotorName("rearRight")
-                .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
+                .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
                 .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
                 .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
                 .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);

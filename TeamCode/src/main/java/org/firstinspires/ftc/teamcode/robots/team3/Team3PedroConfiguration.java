@@ -87,8 +87,8 @@ public final class Team3PedroConfiguration {
                 .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
                 .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
         PinpointConstants pinpoint = new PinpointConstants()
-                .forwardPodY(-8.0)
-                .strafePodX(-1.5)
+                .forwardPodY(2.33)   // measured: Offsets Tuner, 10 CCW rotations
+                .strafePodX(9.65)    // measured: Offsets Tuner, 10 CCW rotations
                 .distanceUnit(DistanceUnit.INCH)
                 .hardwareMapName("pinpoint")
                 .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)

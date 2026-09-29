@@ -9,8 +9,19 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
 /**
  * Team 3's iterative TeleOp for four-wheel mecanum drive.
  *
- * <p>This OpMode maps gamepad input to Team 3's public robot API. The robot and drivetrain
- * subsystem own the drive behavior and hardware access.</p>
+ * <p>This OpMode maps gamepad input to Team 3's public robot API. The robot and subsystem
+ * layers own all behavior and hardware access.</p>
+ *
+ * <p><b>Driver (Gamepad 1):</b><br>
+ * Left Stick Y/X = forward / strafe.<br>
+ * Right Stick X = rotate.<br>
+ * A (hold) = Green Machine Roller forward.<br>
+ * B (hold) = Green Machine Roller reverse (eject).<br>
+ * Neither A nor B = roller stops.<br>
+ * X = manual drive mode. Y = heading-hold mode.</p>
+ *
+ * <p><b>Operator (Gamepad 2):</b><br>
+ * Vision: Left Bumper = off, Right Bumper = on.</p>
  */
 @TeleOp(name = "Team 3 Mecanum Drive", group = "Team 3")
 public class Team3TeleOp extends OpMode {
@@ -41,26 +52,27 @@ public class Team3TeleOp extends OpMode {
         driverInput.update();
         operatorInput.update();
 
+        // Drive mode selection.
         if (driverInput.wasYJustPressed()) {
             robot.enableHeadingHold();
         } else if (driverInput.wasXJustPressed()) {
             robot.enableManualDrive();
         }
 
-        if (driverInput.wasLeftBumperJustPressed()) {
+        // Operator vision controls.
+        if (operatorInput.wasLeftBumperJustPressed()) {
             robot.disableVision();
-        } else if (driverInput.wasRightBumperJustPressed()) {
+        } else if (operatorInput.wasRightBumperJustPressed()) {
             robot.enableVision();
         }
 
-        if (operatorInput.wasAJustPressed()) {
+        // Driver Green Machine Roller: hold A = forward, hold B = eject, neither = stop.
+        if (driverInput.isAHeld()) {
             robot.startIntake();
-        } else if (operatorInput.wasBJustPressed()) {
-            robot.stopIntake();
-        } else if (operatorInput.wasXJustPressed()) {
+        } else if (driverInput.isBHeld()) {
             robot.ejectIntake();
-        } else if (operatorInput.wasYJustPressed()) {
-            robot.holdIntake();
+        } else {
+            robot.stopIntake();
         }
 
         robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),
@@ -85,8 +97,8 @@ public class Team3TeleOp extends OpMode {
         telemetry.addData("Front Right Power", robot.getFrontRightMotorPower());
         telemetry.addData("Rear Left Power", robot.getRearLeftMotorPower());
         telemetry.addData("Rear Right Power", robot.getRearRightMotorPower());
-        telemetry.addData("Intake State", robot.getIntakeStateName());
-        telemetry.addData("Intake Available", robot.isIntakeAvailable());
+        telemetry.addData("Green Machine Roller", robot.getIntakeStateName());
+        telemetry.addData("Green Machine Roller Available", robot.isIntakeAvailable());
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
         telemetry.update();

@@ -14,6 +14,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 /** Team 3-only Pedro configuration. Real hardware values must be supplied before follower creation. */
 public final class Team3PedroConfiguration {
     public static final double APPLICATION_MAX_POWER = 0.20;
+    /** Hardware map name for the goBILDA Pinpoint odometry computer on Team 3's robot. */
+    public static final String PINPOINT_HARDWARE_MAP_NAME = "pinpoint";
 
     private final String missingConfigurationReason;
     private final FollowerConstants followerConstants;
@@ -90,7 +92,7 @@ public final class Team3PedroConfiguration {
                 .forwardPodY(-8.0)
                 .strafePodX(-1.5)
                 .distanceUnit(DistanceUnit.INCH)
-                .hardwareMapName("pinpoint")
+                .hardwareMapName(PINPOINT_HARDWARE_MAP_NAME)
                 .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)
                 .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
                 .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);

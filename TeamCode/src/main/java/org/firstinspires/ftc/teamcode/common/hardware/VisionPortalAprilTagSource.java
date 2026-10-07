@@ -17,6 +17,7 @@ import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagPose;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagMetadata;
 import org.firstinspires.ftc.vision.apriltag.AprilTagPoseFtc;
@@ -111,12 +112,15 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
 
         List<AprilTagObservation> latest = new ArrayList<>();
         for (AprilTagDetection detection : freshDetections) {
-            latest.add(createFreshObservation(detection));
+            // This source verifies individual tags only; SDK 12 cluster detections are skipped.
+            if (detection instanceof AprilTagSingleDetection) {
+                latest.add(createFreshObservation((AprilTagSingleDetection) detection));
+            }
         }
         snapshot = AprilTagObservationSnapshot.fresh(latest);
     }
 
-    private AprilTagObservation createFreshObservation(AprilTagDetection detection) {
+    private AprilTagObservation createFreshObservation(AprilTagSingleDetection detection) {
         AprilTagObservation relativeObservation = createRelativeObservation(detection);
         FieldPoseCandidateResult fieldResult = createFieldPoseCandidate(detection);
         return new AprilTagObservation(relativeObservation.getTagId(),
@@ -127,7 +131,7 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 fieldResult.candidate, fieldResult.status);
     }
 
-    private AprilTagObservation createRelativeObservation(AprilTagDetection detection) {
+    private AprilTagObservation createRelativeObservation(AprilTagSingleDetection detection) {
         String unavailableReason = getPoseUnavailableReason(detection);
         if (unavailableReason != null) {
             return new AprilTagObservation(detection.id, detection.frameAcquisitionNanoTime,
@@ -160,7 +164,7 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 METRIC_QUALITY, cameraPose, robotPose);
     }
 
-    private FieldPoseCandidateResult createFieldPoseCandidate(AprilTagDetection detection) {
+    private FieldPoseCandidateResult createFieldPoseCandidate(AprilTagSingleDetection detection) {
         String rejectionReason = getFieldPoseRejectionReason(detection);
         if (rejectionReason != null) {
             return FieldPoseCandidateResult.rejected(rejectionReason);
@@ -176,7 +180,7 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 detection.id, detection.frameAcquisitionNanoTime, fieldPose));
     }
 
-    private String getFieldPoseRejectionReason(AprilTagDetection detection) {
+    private String getFieldPoseRejectionReason(AprilTagSingleDetection detection) {
         if (localizationConfiguration == null) {
             return "Rejected: no fixed-tag localization configuration is selected.";
         }
@@ -215,7 +219,7 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         return null;
     }
 
-    private boolean hasVerifiedFixedTagMetadata(AprilTagDetection detection) {
+    private boolean hasVerifiedFixedTagMetadata(AprilTagSingleDetection detection) {
         AprilTagMetadata metadata = detection.metadata;
         if (metadata == null || metadata.id != detection.id || metadata.distanceUnit == null
                 || metadata.fieldPosition == null || metadata.fieldOrientation == null) {
@@ -236,7 +240,7 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 && isZero(configuration.getMountRollDegrees());
     }
 
-    private String getPoseUnavailableReason(AprilTagDetection detection) {
+    private String getPoseUnavailableReason(AprilTagSingleDetection detection) {
         if (detection.frameAcquisitionNanoTime <= 0) {
             return "the frame acquisition timestamp is invalid.";
         }

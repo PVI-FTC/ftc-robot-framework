@@ -43,6 +43,29 @@ PVI-FTC | Editable master guide
   selecting a preset automatically enables heading hold. The original simple `TeamATeleOp` remains
   unchanged because it owns the baseline
   non-localized drivetrain.
+- SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
+  SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in
+  `VisionPortalAprilTagSource` because individual-tag `id` and `metadata` fields are no longer
+  exposed by the base `AprilTagDetection` type. The source now checks for
+  `AprilTagSingleDetection` before conversion and uses that type in its private helpers.
+  Cluster detections are skipped because this source verifies individual tags only; a fresh
+  frame containing only clusters produces an empty fresh snapshot, clearing previous observations.
+  Existing frame timestamps, retained-snapshot handling, metadata verification, and pose gates
+  are preserved. No public API, FTC SDK source, dependency, or drivetrain behavior changed.
+  JDK 17 `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug` passed
+  (52 tasks, 0 errors), and `git diff --check` passed. Hardware vision validation and rollout
+  through PVI master to active team branches remain pending review; no deployment occurred.
+- (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
+  `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
+  rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /
+  115 s defaults. `rumbleNow(int durationMs)` fires an immediate rumble on the gamepad at the
+  moment it is called, usable anywhere in a TeleOp `loop()`. Both methods are documented with
+  Javadoc and usage examples. Updated `ARCHITECTURE.md` to document `core.util.RumbleManager` and
+  clarify that direct gamepad access is permitted for feedback/haptic outputs while control input
+  must strictly flow through `InputManager`.
+  `TeamCode:assembleDebug` passed with `BUILD SUCCESSFUL` (52 tasks, 0 errors). Architecture
+  boundaries are preserved: `RumbleManager` still holds only a `Gamepad` reference and contains
+  no hardware map, FSM, subsystem, or autonomous logic.
 - Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
   Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
   Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,
@@ -349,6 +372,10 @@ PVI-FTC | Editable master guide
 
 - Added repository instructions and architecture documentation.
 - Added sequential student workflow documentation.
+- Added AprilTag vision-pilot planning artifacts: a student guide, teacher guide, branch-local
+  progress record, and separate architecture decision record. These documents define an
+  observation-only, Logitech-first and Limelight-ready learning path; no AprilTag, VisionPortal,
+  Limelight, localization-fusion, or drivetrain-control implementation has been added.
 - Completed Prompt 1: confirmed the TeamCode Java source root is
   `TeamCode/src/main/java` and its root package is `org.firstinspires.ftc.teamcode`.
 - Added documented package-level structure under that root: `core.fsm`, `core.robot`,
@@ -463,6 +490,188 @@ PVI-FTC | Editable master guide
   it. No TeleOp target reports are generated. Vision state and availability are now telemetry
   items; drive and intake controls remain unchanged.
 - Missing vision hardware remains safe and does not prevent Team A drive or intake initialization.
+- AprilTag vision prompt AV-04 added the library-neutral immutable `AprilTagObservation` model
+  and the internal `AprilTagVisionSource` seam. Observations document tag ID, timestamp,
+  robot-relative right/forward/up position, pitch/roll/yaw, range/bearing/elevation,
+  reference-frame name, and quality status without exposing FTC or Limelight types.
+- `VisionHardware` now updates one internal source once per active vision lifecycle update and
+  returns an immutable observation snapshot. Its default source remains unavailable and empty, so
+  existing simple robots retain safe no-camera behavior. `VisionSubsystem` remains the sole FSM
+  owner and derives detection from that snapshot only after its active states update hardware.
+  No camera, VisionPortal, Limelight, calibration, mount value, field pose, localization, Pedro,
+  drivetrain, or autonomous behavior was added.
+- AprilTag vision prompt AV-05 added the separate `TeamAAprilTagVisionRobot` and the narrow
+  `TeamAAprilTagVisionTestOpMode`. Only this robot composes the Logitech/UVC
+  `VisionPortalAprilTagSource`, using the student-selected configured name
+  `logitechVisionWebcam`. Missing or unavailable camera hardware is caught as an unavailable
+  result. The source reports IDs only; metric robot-relative pose remains unavailable until the
+  later calibration and mount evidence gate.
+- AprilTag vision prompt AV-06 corrected the pilot lifecycle so entering the disabled FSM state
+  clears stale observations without closing the initialized optional camera. Active vision states
+  remain the only states that update the source, and `robot.stop()` still closes VisionPortal and
+  clears observations. This allows a later OpMode `start()` enable request to succeed.
+- AprilTag vision prompt AV-07 recorded the supervised stationary-test equipment and safety facts
+  in `APRILTAG_VISION_PHYSICAL_TEST_EVIDENCE.md`. The Logitech C920, configured name, official
+  DECODE tag 22, physical mount, robot frame, measurement setup, supervision, and STOP operator
+  open the later ID-only stationary gate. Metric robot-relative validation remains closed because
+  the actual VisionPortal resolution and matching calibration are unknown.
+- AprilTag vision prompt AV-08 added processing timestamp/age telemetry to the narrow diagnostic
+  and completed supervised ID-only stationary validation with drive motors disconnected. The
+  Logitech C920 reported a 640-by-480 stream, detected ID 22, cleared observations on loss,
+  reacquired the tag, remained stable, closed its preview on stop, and reopened without a
+  camera-in-use error. The one-loop `LostTarget` state was not visible at Driver Station refresh
+  speed. A later architecture audit found that this timestamp/age telemetry does not establish
+  camera-frame freshness because the source timestamps each copied detection with `System.nanoTime()`
+  instead of preserving the FTC SDK acquisition timestamp. Metric validation remains closed until
+  matching calibration and observation freshness are verified.
+- Calibration follow-up evidence on 2026-08-20: the Logitech C920 continued detecting tag IDs with
+  a reported 640-by-480 VisionPortal stream, and no camera-calibration warning was observed in the
+  Driver Station preview or filtered Android Studio Logcat. Windows reported hardware identity
+  `USB\VID_046D&PID_082D&MI_00`; VID `046D` and PID `082D` match the Logitech C920 identity used by
+  the SDK's published built-in 640-by-480 calibration. The calibration identity/resolution check
+  is therefore supported by recorded evidence. Metric observations remain closed until the
+  existing frame-freshness prerequisite is corrected and metric output is separately validated.
+- Added the Stage 4 planning artifacts `APRILTAG_METRIC_OBSERVATION_STUDENT_GUIDE.md` and
+  `APRILTAG_METRIC_OBSERVATION_PROMPT_PROGRESS.md`. The sequential MV-01 through MV-06 workflow
+  covers SDK discovery, freshness semantics, explicit 640-by-480 configuration, tag 22 metadata,
+  experimental neutral metrics, software audit, and supervised stationary range/bearing checks.
+  This is planning only; no metric, localization, drivetrain, autonomous, or Limelight behavior
+  was added.
+- AprilTag metric-observation prompt MV-03 replaced loop-time detection timestamps with the FTC
+  SDK's `AprilTagDetection.frameAcquisitionNanoTime` and uses `getFreshDetections()`. Neutral
+  immutable snapshots distinguish `FRESH`, `RETAINED`, and `UNAVAILABLE`; retained observations
+  keep their original acquisition timestamps, while a fresh empty frame clears observations.
+  The Logitech VisionPortal now explicitly requests the recorded calibrated 640-by-480 stream.
+  The stationary diagnostic reports neutral fresh/retained/unavailable frame status, acquisition
+  timestamp, increasing observation age, and Robot-loop retained-timestamp check/failure counts.
+  Observations remain ID-only; no metric pose, localization, movement, camera-control tuning, or
+  Limelight behavior was added.
+- MV-03 supervised Control Hub validation confirmed that the updated diagnostic deployed and the
+  preview streamed normally with no camera-calibration warning. With tag 22 visible, retained
+  timestamp checks ran, displayed `PASS`, and reported zero failures. After removing the tag,
+  frame status continued changing between fresh and retained empty results, detection count stayed
+  zero, and the vision FSM stayed in `Searching`.
+- AprilTag metric-observation prompt MV-04 explicitly selects the SDK 11.2.1 DECODE 36h11 library,
+  whose tag 22 entry is `Obelisk_PGP` with a 6.5-inch black-square size, and explicitly requests
+  inch/degree output. Fresh tag-22 detections must pass timestamp, metadata, C920 640-by-480
+  calibration, FTC pose, finite-value, and verified zero-rotation mount gates before metric pose is
+  available. One neutral observation can contain both the FTC camera-relative pose and an
+  experimental Team A robot-relative pose; retained or failed-gate observations remain ID-only.
+  The aligned camera-to-robot transform adds the measured +6.875-inch right, +4.875-inch forward,
+  and +19-inch up mount translation, then recomputes robot-frame range, bearing, and elevation.
+  No field pose, localization, movement, pathing, camera-control, or Limelight behavior was added.
+- MV-04 supervised display-only Control Hub validation confirmed that the code deployed without
+  error and fresh tag-22 results briefly reported pose available with visible camera-frame and
+  robot-frame names, XYZ, and range/bearing/elevation values that were all finite. No mechanism
+  moved. On retained results, tag 22 remained identified while pose availability was false and
+  both camera-relative and robot-relative pose displays were unavailable, as required. This was a
+  smoke test only; it did not establish physical range or bearing accuracy.
+- MV-05 software-only audit confirmed that the selected source is updated once per active vision
+  FSM loop, preserves acquisition timestamps across retained snapshots, clears fresh-empty frames,
+  closes and clears on stop, and keeps all FTC types below the neutral public API. No localization,
+  movement, autonomous decision, Pedro, Limelight implementation, blocking wait, or direct OpMode
+  camera access was found. The physical evidence record now distinguishes its original 2026-08-19
+  calibration-unknown entry from the later recorded C920 640-by-480 calibration evidence; MV-06
+  must re-confirm all physical prerequisites and validate stationary metric accuracy.
+- MV-06 supervised stationary validation on 2026-09-02 recorded three fresh measurements at each
+  usable centered and left/right placement. All robot-relative results were finite, repeatable,
+  sign-correct, and within the team's preselected range, bearing, and spread tolerances. A centered
+  24-inch placement could not keep the entire offset-camera tag in frame and was recorded as a
+  visibility limit. At 36, 48, and 60 inches the robot range was consistently about 2.9 to 3.4
+  inches low; a direct 55.33-inch lens-plane check showed that the physical reference and
+  camera-to-robot translation do not explain the low estimate. Camera-left bearing also showed
+  more error than camera-right bearing. Fresh-empty loss cleared stale data, reacquisition used a
+  newer timestamp, STOP closed the preview, and a second INIT/STOP cycle reopened and released the
+  camera cleanly. The narrow diagnostic now places camera- and robot-frame pose telemetry at the
+  top of the Driver Station list. The observations remain experimental; localization and
+  alignment remain unauthorized while the range bias and position sensitivity are unresolved or
+  unaccepted.
+- C920 calibration investigation on 2026-09-18 added a separate
+  `Team A Camera Calibration Capture` testing OpMode, `TeamACameraCalibrationRobot`, and
+  `CameraFrameCaptureHardware`.
+  The capture-only hardware wrapper requests the configured `logitechVisionWebcam` at 640 by 480,
+  accepts one raw-frame save request on each gamepad X press only while streaming, and closes the
+  VisionPortal on STOP. INIT telemetry refreshes camera state as it opens; telemetry labels
+  requests rather than claiming that files were saved.
+  The TeamCode Java 17 build passed. No AprilTag processor, camera calibration, mount value,
+  localization, alignment, or motor behavior changed. Ten 640-by-480 images were subsequently
+  captured and processed with 3DF Zephyr. Its 0.207046-pixel mean square reprojection error was
+  internally encouraging, but the exported camera metadata was incomplete and its focal length
+  differed materially from the FTC SDK's built-in C920 calibration. The Zephyr calibration was
+  therefore not adopted.
+- The stationary AprilTag diagnostic now latches the first fresh camera and robot range/bearing
+  after each START and displays that one sample until STOP. It is labeled `Latched First Fresh`,
+  `display only`, and shows increasing age so it cannot be mistaken for live data. This OpMode-only
+  display latch does not change neutral snapshot freshness, restore retained metric pose, correct
+  measurements, or feed localization or movement. Each new measurement requires a new OpMode run.
+- Corrected stationary validation on 2026-09-22 and 2026-09-23 found that the laser distance meter
+  used for the earlier MV-06 measurements reported 36.95 inches over a tape-measured 33.00-inch
+  span. The earlier approximately 3-inch low-bias conclusion is retained above as historical MV-06
+  evidence but is not a valid camera-calibration conclusion. New camera-centered tests measured
+  lens-plane-to-tag-plane distance with a tape measure and recorded three independent latched runs
+  at 33, 48, and 66 inches. Mean camera ranges were 33.46, 48.41, and 66.19 inches, for errors of
+  +0.46, +0.41, and +0.19 inches. Mean transformed robot ranges were 38.86, 53.84, and 71.57 inches,
+  compared with expected values of 38.49, 53.32, and 71.21 inches from the recorded camera mount.
+  The results were repeatable and do not justify the Zephyr calibration, a constant range offset,
+  or another software correction. Bearing was repeatable but reflected small physical centering
+  offsets, so these measurements remain experimental. Localization, automatic alignment, and
+  motor behavior remain unauthorized and unimplemented.
+- Stage 5 planning on 2026-09-24 added
+  `APRILTAG_LOCALIZATION_ALIGNMENT_STUDENT_GUIDE.md` and its branch-local prompt progress record.
+  LA-01 through LA-10 separate field-pose candidates from target-relative alignment, require pure
+  transform and rejection checks before physical validation, and place distinct STOP gates before
+  stationary localization, raised-wheel alignment, and low-speed floor alignment. This is planning
+  only; no field-pose, localization, alignment, drivetrain, autonomous, Limelight, or motor behavior
+  was added.
+- LA-03 verified the checked-out SDK 11.2.1 DECODE library directly: fixed `BlueTarget` tag 20 and
+  fixed `RedTarget` tag 24 are 6.5-inch tags with field position and orientation metadata, while
+  OBELISK tags 21 through 23 have no field position or orientation. Added neutral immutable
+  `FieldPose`, `AprilTagFieldPoseCandidate`, and `AprilTagLocalizationConfiguration` value types.
+  The reviewed DECODE configuration allows only tags 20 and 24 in the named official FTC field
+  frame and defensively stores its tag IDs with a 250-millisecond maximum candidate age. Constructor
+  validation rejects missing names/poses, non-finite pose values, invalid or duplicate IDs, invalid
+  timestamps, and non-positive age limits. These types do not yet connect to VisionPortal or create
+  live candidates; no localization estimate, fusion, alignment, autonomous, or motor behavior was
+  added.
+- LA-04 connects the reviewed DECODE configuration to the separate Team A stationary diagnostic.
+  The hardware source supplies the verified +6.875-inch right, +4.875-inch forward, +19-inch up
+  camera position and the SDK's forward-camera yaw 0, pitch -90, roll 0 orientation through
+  `AprilTagProcessor.Builder.setCameraPose(...)`. Fresh tag 20/24 detections can expose one
+  immutable neutral field-pose candidate copied from SDK `robotPose` only when the acquisition age
+  is at most 250 milliseconds and fixed-tag metadata, C920 640-by-480 calibration, mount, SDK pose,
+  and finite-value gates pass. Every failure has an explicit status; retained snapshots strip the
+  candidate and report that the frame is retained. The stationary diagnostic displays candidate
+  availability, status, field frame, XYZ, pitch/roll/yaw, and age. Existing tag-22 experimental
+  camera/robot-relative behavior remains separate and unchanged. No estimator, stored robot pose,
+  odometry/Pedro write, fusion, alignment, autonomous, drivetrain, Limelight, or motor behavior was
+  added.
+- LA-05 completed the software-only field-pose candidate audit without changing production code.
+  The checked-out FTC SDK localization sample confirms the current robot axes (+X right, +Y
+  forward, +Z up), measured camera-position signs, forward horizontal camera orientation (yaw 0,
+  pitch -90, roll 0), and use of SDK `robotPose` as the robot pose relative to the official field
+  origin. Focused checks passed for fresh-frame input, original acquisition timestamps, the
+  250-millisecond age gate, configured fixed IDs, metadata and finite-value gates, retained-frame
+  candidate removal, configuration immutability, and absence of FTC types in neutral localization
+  classes. Lifecycle and complete-diff review found no stale candidate acceptance, localization
+  provider write, drive/FSM request, autonomous decision, Limelight behavior, blocking wait, or
+  motor command. The JDK 17 TeamCode build and `git diff --check` passed.
+- LA-06 remains a physical STOP gate. Before it can begin, the team must currently reconfirm the
+  reviewed C920 and secure measured mount; configured `logitechVisionWebcam`; explicit 640-by-480
+  stream and matching calibration evidence; an official flat 6.5-inch fixed DECODE tag 20 or 24
+  with verified field identity/pose; powered Control Hub and Driver Station; deployment access; a
+  flat measured test area with marked official field axes; tape measure and angle tool; secure
+  stationary robot and tag; good lighting and complete tag visibility; adult supervision; a named
+  Driver Station STOP operator; and physically disconnected drive motors or an equivalently
+  reviewed movement-prevention method. Expected stationary field poses and acceptance tolerances
+  must be selected before results are viewed. This audit does not authorize deployment, physical
+  testing, localization-provider writes, alignment, or movement.
+- LA-06 preparation added `APRILTAG_LOCALIZATION_FIELD_POSE_TEST_WORKSHEET.md`. Checked-out SDK
+  11.2.1 bytecode supplies tag 20 at (-58.3727, -55.6425, 29.5) inches with its official
+  orientation. The worksheet translates that entry into a marked-axis setup, the three preselected
+  expected robot poses, blank three-reading tables, error/spread calculations, freshness and
+  loss/reacquisition checks, and the complete prerequisite and STOP checklists. No physical result
+  is recorded: the team does not currently have access to a space that can reproduce the official
+  tag pose and field axes. Production code and prompt status remain unchanged.
 - Completed Prompt 13: added non-blocking autonomous sequencing in `common.autonomous`:
   `AutoStep`, `AutoSequence`, `WaitStep`, `TimedDriveStep`, and `TimedIntakeStep`.
 - `AutoSequence` runs one step at a time. Empty sequences finish immediately; repeated starts do
@@ -523,7 +732,35 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
   - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
-  - `initialize()`, `update()`, `stop()`, and `isAvailable()`
+  - `VisionHardware()`, `VisionHardware(String)`,
+    `VisionHardware(AprilTagCameraConfiguration)`,
+    `VisionHardware(AprilTagCameraConfiguration, AprilTagLocalizationConfiguration)`,
+    `initialize()`, `initialize(HardwareMap)`,
+    `update()`, `stop()`, `isAvailable()`, and
+    `getObservations()`; `getSnapshot()` exposes the neutral frame status with the immutable list
+- `org.firstinspires.ftc.teamcode.common.hardware.AprilTagCameraConfiguration`
+  - immutable neutral stream, calibration, robot-frame, and measured camera-mount facts; contains
+    no FTC camera or processor type
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation`
+  - immutable neutral tag ID, timestamp, pose-availability, reference-frame, quality, position,
+    orientation, range, bearing, and elevation getters; optional `getCameraRelativePose()` and
+    `getRobotRelativePose()` views; optional `getFieldPoseCandidate()`,
+    `isFieldPoseCandidateAvailable()`, and explicit `getFieldPoseStatus()`; unavailable legacy
+    robot metric values are `NaN`
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagPose`
+  - immutable finite position, orientation, range, bearing, and elevation values in one named
+    neutral reference frame
+- `org.firstinspires.ftc.teamcode.common.localization.FieldPose`
+  - immutable finite X/Y/Z and pitch/roll/yaw values in one named field reference frame
+- `org.firstinspires.ftc.teamcode.common.localization.AprilTagFieldPoseCandidate`
+  - one immutable accepted tag ID, positive acquisition timestamp, and neutral `FieldPose`
+- `org.firstinspires.ftc.teamcode.common.localization.AprilTagLocalizationConfiguration`
+  - immutable configuration name, defensive fixed-tag ID list, field-frame name, maximum candidate
+    age, `allowsTagId(int)`, and the reviewed `decodeGoalTags()` factory
+- `org.firstinspires.ftc.teamcode.common.vision.AprilTagFrameStatus` and
+  `AprilTagObservationSnapshot`
+  - neutral `FRESH`, `RETAINED`, and `UNAVAILABLE` frame status; immutable observation list;
+    `getFrameStatus()`, `isFreshFrame()`, `isRetained()`, and `getObservations()`
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
   - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
@@ -572,7 +809,14 @@ PVI-FTC | Editable master guide
   - public `State` implementations with `IntakeSubsystem` constructors
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem`
   - `VisionSubsystem(VisionHardware)`, lifecycle methods, `enableVision()`, `disableVision()`,
-    `reportTargetDetected(boolean)`, `getCurrentStateName()`, and `isAvailable()`
+    `reportTargetDetected(boolean)`, `getCurrentStateName()`, `isAvailable()`, and
+    `getLatestObservations()`; `getLatestSnapshot()` adds neutral frame status
+- `org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot`
+  - `TeamAAprilTagVisionRobot(String)`, `initialize(HardwareMap)`, public vision enable/disable,
+    availability/state diagnostics, `getAprilTagObservations()`, and
+    `getAprilTagObservationSnapshot()`
+- `org.firstinspires.ftc.teamcode.opmodes.testing.TeamAAprilTagVisionTestOpMode`
+  - stationary diagnostic that uses only TeamAAprilTagVisionRobot public APIs
 - `org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionDisabledState`,
   `SearchingState`, `TargetAcquiredState`, `TrackingState`, and `LostTargetState`
   - public `State` implementations with `VisionSubsystem` constructors
@@ -624,11 +868,21 @@ PVI-FTC | Editable master guide
   implement and cautiously validate the first pilot path.
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
-- Vision hardware integration is intentionally deferred until a future prompt defines camera and
-  processor requirements.
 - The shared simple drivetrain has no IMU. Active heading hold is currently available only through
   `TeamAPedroTeleOp`, using the recorded Team A Pinpoint/Pedro configuration. It requires a
   supervised physical test before competition use.
+- MV-03 software checks verify that `VisionPortalAprilTagSource` preserves
+  `AprilTagDetection.frameAcquisitionNanoTime`, uses `getFreshDetections()`, and retains immutable
+  observations without assigning a new Robot-loop timestamp. Supervised Control Hub evidence also
+  confirms retained timestamp checks pass with zero failures and fresh-empty results clear the
+  detection count. Metric observations remain closed until MV-04, and vision observations must not
+  drive localization or robot motion.
+- MV-04 metric values are experimental software output. Stationary measured range/bearing accuracy
+  and camera-to-robot transform behavior remain unverified on hardware until MV-06; these values
+  must not drive localization or movement.
+- Only the separate Team A diagnostic robot composes the Logitech VisionPortal camera source. The
+  default `VisionHardware` used by simple Team A, Team B, and Team C robots remains safely
+  unavailable and does not create a camera.
 - Intake holding power remains zero until a future mechanism prompt defines the physical holding
   requirement.
 - Team B and Team C currently assume the shared hardware policy: required `frontLeft`,

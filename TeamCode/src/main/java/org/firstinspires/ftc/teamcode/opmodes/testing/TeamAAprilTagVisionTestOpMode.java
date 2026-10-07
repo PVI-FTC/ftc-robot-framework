@@ -1,0 +1,200 @@
+package org.firstinspires.ftc.teamcode.opmodes.testing;
+
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+import org.firstinspires.ftc.teamcode.common.localization.AprilTagFieldPoseCandidate;
+import org.firstinspires.ftc.teamcode.common.localization.FieldPose;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagPose;
+import org.firstinspires.ftc.teamcode.robots.teamA.TeamAAprilTagVisionRobot;
+
+import java.util.Collections;
+import java.util.List;
+
+/** Stationary diagnostic for Team A's Logitech/UVC AprilTag pilot. */
+@TeleOp(name = "Team A AprilTag Vision Test", group = "Testing")
+public class TeamAAprilTagVisionTestOpMode extends OpMode {
+    private static final String WEBCAM_HARDWARE_NAME = "logitechVisionWebcam";
+
+    private TeamAAprilTagVisionRobot robot;
+    private List<AprilTagObservation> previousObservations = Collections.emptyList();
+    private int retainedTimestampChecks;
+    private int retainedTimestampFailures;
+    private int latchedTagId = -1;
+    private long latchedTimestampNanos;
+    private AprilTagPose latchedCameraPose;
+    private AprilTagPose latchedRobotPose;
+
+    @Override
+    public void init() {
+        latchedTagId = -1;
+        latchedTimestampNanos = 0;
+        latchedCameraPose = null;
+        latchedRobotPose = null;
+        robot = new TeamAAprilTagVisionRobot(WEBCAM_HARDWARE_NAME);
+        robot.initialize(hardwareMap);
+        telemetry.addData("Status", "AprilTag pilot initialized");
+        telemetry.update();
+    }
+
+    @Override
+    public void start() {
+        robot.enableVision();
+    }
+
+    @Override
+    public void loop() {
+        robot.update();
+        publishObservations(robot.getAprilTagObservationSnapshot());
+    }
+
+    @Override
+    public void stop() {
+        if (robot != null) {
+            robot.stop();
+        }
+    }
+
+    private void publishObservations(AprilTagObservationSnapshot snapshot) {
+        List<AprilTagObservation> observations = snapshot.getObservations();
+        latchFirstFreshPose(snapshot, observations);
+        String retainedTimestampResult = "Not checked this loop";
+        if (snapshot.isRetained() && !observations.isEmpty()) {
+            retainedTimestampChecks++;
+            boolean timestampsPreserved = haveSameIdsAndTimestamps(
+                    previousObservations, observations);
+            if (!timestampsPreserved) {
+                retainedTimestampFailures++;
+            }
+            retainedTimestampResult = timestampsPreserved ? "PASS" : "FAIL";
+        }
+
+        telemetry.addData("Frame Status", snapshot.getFrameStatus());
+        telemetry.addData("Detection Count", observations.size());
+        publishLatchedPose();
+        for (AprilTagObservation observation : observations) {
+            telemetry.addData("Tag ID", observation.getTagId());
+            publishFieldPoseCandidate(observation);
+            telemetry.addData("Pose Available", observation.isPoseAvailable());
+            publishPrimaryPose("Camera", observation.getCameraRelativePose());
+            publishPrimaryPose("Robot", observation.getRobotRelativePose());
+            telemetry.addData("Quality", observation.getQualityStatus());
+            telemetry.addData("Acquisition Timestamp (ns)",
+                    observation.getTimestampNanos());
+            telemetry.addData("Observation Age (ms)",
+                    getObservationAgeMillis(observation));
+        }
+
+        telemetry.addData("Vision State", robot.getVisionStateName());
+        telemetry.addData("Vision Available", robot.isVisionAvailable());
+        telemetry.addData("Retained Timestamp Check", retainedTimestampResult);
+        telemetry.addData("Retained Checks / Failures", "%d / %d",
+                retainedTimestampChecks, retainedTimestampFailures);
+        for (AprilTagObservation observation : observations) {
+            publishPose("Camera", observation.getCameraRelativePose());
+            publishPose("Robot", observation.getRobotRelativePose());
+        }
+        telemetry.update();
+        previousObservations = observations;
+    }
+
+    private void publishFieldPoseCandidate(AprilTagObservation observation) {
+        telemetry.addData("Field Candidate Available",
+                observation.isFieldPoseCandidateAvailable());
+        telemetry.addData("Field Candidate Status", observation.getFieldPoseStatus());
+        AprilTagFieldPoseCandidate candidate = observation.getFieldPoseCandidate();
+        if (candidate == null) {
+            telemetry.addData("Field Candidate XYZ", "Unavailable");
+            telemetry.addData("Field Candidate PRY", "Unavailable");
+            return;
+        }
+        FieldPose pose = candidate.getFieldPose();
+        telemetry.addData("Field Candidate Frame", pose.getReferenceFrameName());
+        telemetry.addData("Field Candidate XYZ", "%.2f, %.2f, %.2f in",
+                pose.getXInches(), pose.getYInches(), pose.getZInches());
+        telemetry.addData("Field Candidate PRY", "%.2f, %.2f, %.2f deg",
+                pose.getPitchDegrees(), pose.getRollDegrees(), pose.getYawDegrees());
+        telemetry.addData("Field Candidate Age", "%.0f ms",
+                Math.max(0, System.nanoTime() - candidate.getAcquisitionTimestampNanos())
+                        / 1_000_000.0);
+    }
+
+    private void latchFirstFreshPose(AprilTagObservationSnapshot snapshot,
+                                     List<AprilTagObservation> observations) {
+        if (latchedTimestampNanos != 0 || !snapshot.isFreshFrame()) {
+            return;
+        }
+        for (AprilTagObservation observation : observations) {
+            if (observation.isCameraRelativePoseAvailable()
+                    && observation.isRobotRelativePoseAvailable()) {
+                latchedTagId = observation.getTagId();
+                latchedTimestampNanos = observation.getTimestampNanos();
+                latchedCameraPose = observation.getCameraRelativePose();
+                latchedRobotPose = observation.getRobotRelativePose();
+                return;
+            }
+        }
+    }
+
+    private void publishLatchedPose() {
+        if (latchedTimestampNanos == 0) {
+            telemetry.addData("Latched First Fresh", "Waiting");
+            return;
+        }
+        double ageMillis = Math.max(0,
+                System.nanoTime() - latchedTimestampNanos) / 1_000_000.0;
+        telemetry.addData("Latched First Fresh", "Tag %d; display only", latchedTagId);
+        telemetry.addData("Latched Camera", "%.2f in / %.2f deg",
+                latchedCameraPose.getRangeInches(), latchedCameraPose.getBearingDegrees());
+        telemetry.addData("Latched Robot", "%.2f in / %.2f deg",
+                latchedRobotPose.getRangeInches(), latchedRobotPose.getBearingDegrees());
+        telemetry.addData("Latched Age", "%.0f ms", ageMillis);
+    }
+
+    private void publishPrimaryPose(String label, AprilTagPose pose) {
+        if (pose == null) {
+            telemetry.addData(label + " XYZ", "Unavailable");
+            telemetry.addData(label + " Range / Bearing", "Unavailable");
+            return;
+        }
+        telemetry.addData(label + " XYZ", "%.2f, %.2f, %.2f in",
+                pose.getRightInches(), pose.getForwardInches(), pose.getUpInches());
+        telemetry.addData(label + " Range / Bearing", "%.2f in / %.2f deg",
+                pose.getRangeInches(), pose.getBearingDegrees());
+    }
+
+    private boolean haveSameIdsAndTimestamps(List<AprilTagObservation> previous,
+                                             List<AprilTagObservation> current) {
+        if (previous.size() != current.size()) {
+            return false;
+        }
+        for (int index = 0; index < current.size(); index++) {
+            AprilTagObservation oldObservation = previous.get(index);
+            AprilTagObservation newObservation = current.get(index);
+            if (oldObservation.getTagId() != newObservation.getTagId()
+                    || oldObservation.getTimestampNanos() != newObservation.getTimestampNanos()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void publishPose(String label, AprilTagPose pose) {
+        if (pose == null) {
+            telemetry.addData(label + " Pose", "Unavailable");
+            return;
+        }
+        telemetry.addData(label + " Frame", pose.getReferenceFrameName());
+        telemetry.addData(label + " XYZ (in)", "%.2f, %.2f, %.2f",
+                pose.getRightInches(), pose.getForwardInches(), pose.getUpInches());
+        telemetry.addData(label + " Range/Bearing/Elevation", "%.2f in, %.2f deg, %.2f deg",
+                pose.getRangeInches(), pose.getBearingDegrees(), pose.getElevationDegrees());
+    }
+
+    private double getObservationAgeMillis(AprilTagObservation observation) {
+        long ageNanos = Math.max(0, System.nanoTime() - observation.getTimestampNanos());
+        return ageNanos / 1_000_000.0;
+    }
+}

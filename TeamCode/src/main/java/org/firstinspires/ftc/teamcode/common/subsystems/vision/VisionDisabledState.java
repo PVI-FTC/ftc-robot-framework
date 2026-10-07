@@ -12,7 +12,8 @@ public class VisionDisabledState implements State {
 
     @Override
     public void enter() {
-        visionSubsystem.stopVisionHardware();
+        // Keep the optional source initialized so a later enable request can use it.
+        visionSubsystem.clearVisionObservations();
     }
 
     @Override

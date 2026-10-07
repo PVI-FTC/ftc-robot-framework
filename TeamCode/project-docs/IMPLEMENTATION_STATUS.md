@@ -12,6 +12,18 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
+  SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in
+  `VisionPortalAprilTagSource` because individual-tag `id` and `metadata` fields are no longer
+  exposed by the base `AprilTagDetection` type. The source now checks for
+  `AprilTagSingleDetection` before conversion and uses that type in its private helpers.
+  Cluster detections are skipped because this source verifies individual tags only; a fresh
+  frame containing only clusters produces an empty fresh snapshot, clearing previous observations.
+  Existing frame timestamps, retained-snapshot handling, metadata verification, and pose gates
+  are preserved. No public API, FTC SDK source, dependency, or drivetrain behavior changed.
+  JDK 17 `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug` passed
+  (52 tasks, 0 errors), and `git diff --check` passed. Hardware vision validation and rollout
+  through PVI master to active team branches remain pending review; no deployment occurred.
 - (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
   `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
   rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /

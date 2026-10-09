@@ -77,25 +77,25 @@ public final class Team3PedroConfiguration {
                         0.15, 0.051792761842529726, 0.002367856854157051))
                 .centripetalScaling(0.0);
         MecanumConstants mecanum = new MecanumConstants()
-                .xVelocity(62.61374213751846)
-                .yVelocity(49.757958599901585)
+                .xVelocity(57.666) // 5-run average: 56.67, 57.76, 58.01, 58.28, 57.61
+                .yVelocity(58.178) // 5-run average: 56.12, 55.9, 59.67, 59.2, 60
                 .maxPower(APPLICATION_MAX_POWER)
                 .leftFrontMotorName("frontLeft")
                 .leftRearMotorName("rearLeft")
                 .rightFrontMotorName("frontRight")
                 .rightRearMotorName("rearRight")
-                .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+                .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
                 .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
                 .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
                 .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
         PinpointConstants pinpoint = new PinpointConstants()
                 .forwardPodY(-8.0)
-                .strafePodX(-1.5)
+                .strafePodX(-5.75) // measured: 5.75 inches behind center of rotation
                 .distanceUnit(DistanceUnit.INCH)
                 .hardwareMapName(PINPOINT_HARDWARE_MAP_NAME)
                 .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)
                 .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
-                .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);
+                .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD);
         PathConstraints constraints = new PathConstraints(0.97, 100.0);
         return new Team3PedroConfiguration(null, follower, mecanum, pinpoint, constraints,
                 new Pose(0.0, 0.0, 0.0), restrictedManualDriveReady, pathFollowingReady);

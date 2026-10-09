@@ -21,6 +21,22 @@ PVI-FTC | Editable master guide
     `Team3PedroPilotAutoOpMode` (Pedro autonomous path selector), `Team3PedroDiagnostic` (raised-wheel/push localization diagnostics),
     and `Team3PedroTuning` (Pedro interactive follower tuner with Panels dashboard integration).
   - All architecture boundaries and dependency directions preserved without modifying shared baseline classes or Team A files.
+- (branch: feature/team-3-setup) Physical localization verification and automatic velocity tuning completed for Team 3:
+  - Motor direction configured: `leftFrontMotorDirection` set to `REVERSE` in `Team3PedroConfiguration` matching physical wiring and mecanum drive.
+  - Pinpoint odometry verified: `strafeEncoderDirection` set to `FORWARD` (ensuring positive Y on left translation), and `strafePodX` set to `-5.75` inches after mounting the strafe pod 5.75" behind the center of rotation. Spin test verified in `Team3PedroDiagnostic` (X and Y remained within ±0.5" over 3 full rotations in place).
+  - Forward velocity tuned: 5-run average measured at `57.666 in/s` recorded in `Team3PedroConfiguration.xVelocity`.
+  - Lateral velocity tuned: 5-run average measured at `58.178 in/s` (runs: 56.12, 55.90, 59.67, 59.20, 60.00) recorded in `Team3PedroConfiguration.yVelocity`.
+  - Weight-dependent parameters (forward/lateral zero power deceleration, predictive braking, mass) deferred until the robot's physical mechanism construction is completed.
+  - All architecture boundaries and dependency directions preserved without modifying shared baseline classes or Team A files.
+- (branch: feature/team-3-setup) Added Team 3 mechanisms under `robots.team3`: `Team3MechanismHardware`
+  (Expansion Hub motors `outtake` port 1 and `midtake` port 2, servo `intake-deploy` port 0, all optional),
+  `Team3OuttakeSubsystem` (Idle/Spinning), `Team3MidtakeSubsystem` (Idle/Feeding), and
+  `Team3IntakeDeploySubsystem` (Stowed/Deployed), each with its own FSM states. `Team3Robot` registers them
+  and exposes `setOuttakePower(double)`, `setMidtakeFeeding`, and `toggleIntakeDeploy`. `Team3TeleOp` was remapped
+  (gamepad 1): left trigger = intake, left bumper = eject, right trigger = outtake with variable power equal to the
+  trigger pull (0.05 deadband), right bumper = midtake feed,
+  A = toggle intake deploy, X/Y = drive modes. Motor directions are the SDK defaults (forward); servo
+  `STOWED_POSITION = 0.0` and `DEPLOYED_POSITION = 0.5` are placeholders to tune on the robot.
 - (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
   `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
   rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /
@@ -623,6 +639,7 @@ PVI-FTC | Editable master guide
   mode-selection mappings remain TODO items.
 - Deferred architecture review: no larger or ambiguous Prompt 16 findings require a speculative
   refactor at this time.
+- Team 3 Pedro tuning: Forward and lateral maximum velocities (57.666 in/s and 58.178 in/s), motor directions, and Pinpoint odometry geometry are calibrated and verified. Weight-dependent parameters (Forward/Lateral Zero-Power Deceleration, Predictive Braking, and robot mass) are intentionally deferred until physical mechanism assembly is completed.
 
 ## Update instructions
 After every completed update, replace or extend the sections above with:

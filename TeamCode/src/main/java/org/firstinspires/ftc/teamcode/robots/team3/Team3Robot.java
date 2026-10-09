@@ -19,8 +19,12 @@ import org.firstinspires.ftc.teamcode.core.robot.Robot;
  */
 public class Team3Robot extends Robot implements AutonomousRobotControl {
     private final RobotHardware robotHardware;
+    private final Team3MechanismHardware mechanismHardware = new Team3MechanismHardware();
     private final DriveSubsystem driveSubsystem;
     private final IntakeSubsystem intakeSubsystem;
+    private final Team3IntakeDeploySubsystem intakeDeploySubsystem;
+    private final Team3MidtakeSubsystem midtakeSubsystem;
+    private final Team3OuttakeSubsystem outtakeSubsystem;
     private final VisionSubsystem visionSubsystem;
     private boolean hardwareInitialized;
 
@@ -42,9 +46,15 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         this.robotHardware = robotHardware;
         driveSubsystem = new DriveSubsystem(robotHardware.getDriveHardware());
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
+        intakeDeploySubsystem = new Team3IntakeDeploySubsystem(mechanismHardware);
+        midtakeSubsystem = new Team3MidtakeSubsystem(mechanismHardware);
+        outtakeSubsystem = new Team3OuttakeSubsystem(mechanismHardware);
         visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
         registerSubsystem(driveSubsystem);
         registerSubsystem(intakeSubsystem);
+        registerSubsystem(intakeDeploySubsystem);
+        registerSubsystem(midtakeSubsystem);
+        registerSubsystem(outtakeSubsystem);
         registerSubsystem(visionSubsystem);
     }
 
@@ -59,6 +69,7 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         }
 
         robotHardware.initialize(hardwareMap);
+        mechanismHardware.initialize(hardwareMap);
         hardwareInitialized = true;
         super.initialize();
     }
@@ -106,6 +117,21 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
     /** Requests the baseline intake holding behavior. */
     public void holdIntake() {
         intakeSubsystem.hold();
+    }
+
+    /** Switches the intake-deploy servo between stowed and deployed. */
+    public void toggleIntakeDeploy() {
+        intakeDeploySubsystem.toggleDeploy();
+    }
+
+    /** Requests that the midtake feed (true) or stop (false). */
+    public void setMidtakeFeeding(boolean feeding) {
+        midtakeSubsystem.setFeeding(feeding);
+    }
+
+    /** Requests the outtake power from 0.0 (stopped) to 1.0 (full power). */
+    public void setOuttakePower(double power) {
+        outtakeSubsystem.setPower(power);
     }
 
     /** Requests reverse intake eject behavior. */
@@ -166,6 +192,24 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         return intakeSubsystem.isAvailable();
     }
 
+    public String getIntakeDeployStateName() {
+        return intakeDeploySubsystem.getCurrentStateName();
+    }
+
+    public String getMidtakeStateName() {
+        return midtakeSubsystem.getCurrentStateName();
+    }
+
+    public String getOuttakeStateName() {
+        return outtakeSubsystem.getCurrentStateName();
+    }
+
+    /** Returns whether the outtake, midtake, and intake-deploy devices were all found. */
+    public boolean areMechanismsAvailable() {
+        return outtakeSubsystem.isAvailable() && midtakeSubsystem.isAvailable()
+                && intakeDeploySubsystem.isAvailable();
+    }
+
     /** Returns the active vision state name for telemetry. */
     public String getVisionStateName() {
         return visionSubsystem.getCurrentStateName();
@@ -179,6 +223,7 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
     @Override
     protected void onStop() {
         robotHardware.stopAll();
+        mechanismHardware.stop();
     }
 
     private DriveHardware getDriveHardware() {

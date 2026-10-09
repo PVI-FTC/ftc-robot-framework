@@ -15,9 +15,11 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
  * <p><b>Driver (Gamepad 1):</b><br>
  * Left Stick Y/X = forward / strafe.<br>
  * Right Stick X = rotate.<br>
- * A (hold) = Green Machine Roller forward.<br>
- * B (hold) = Green Machine Roller reverse (eject).<br>
- * Neither A nor B = roller stops.<br>
+ * Left Trigger (hold) = Green Machine Roller intake forward.<br>
+ * Left Bumper (hold) = Green Machine Roller reverse (eject / clear jams).<br>
+ * Right Trigger (hold) = outtake (shoot); power matches how far you pull the trigger.<br>
+ * Right Bumper (hold) = midtake feed (pushes the game piece into the outtake).<br>
+ * A = toggle intake-deploy servo between stowed and deployed.<br>
  * X = manual drive mode. Y = heading-hold mode.</p>
  *
  * <p><b>Operator (Gamepad 2):</b><br>
@@ -25,6 +27,9 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
  */
 @TeleOp(name = "Team 3 Mecanum Drive", group = "Team 3")
 public class Team3TeleOp extends OpMode {
+    /** How far a trigger must be pulled before it counts as pressed. */
+    private static final double TRIGGER_THRESHOLD = 0.2;
+
     private Team3Robot robot;
     private InputManager driverInput;
     private InputManager operatorInput;
@@ -66,13 +71,22 @@ public class Team3TeleOp extends OpMode {
             robot.enableVision();
         }
 
-        // Driver Green Machine Roller: hold A = forward, hold B = eject, neither = stop.
-        if (driverInput.isAHeld()) {
+        // Intake: hold left trigger = forward, hold left bumper = eject, neither = stop.
+        if (driverInput.getLeftTrigger() > TRIGGER_THRESHOLD) {
             robot.startIntake();
-        } else if (driverInput.isBHeld()) {
+        } else if (driverInput.isLeftBumperHeld()) {
             robot.ejectIntake();
         } else {
             robot.stopIntake();
+        }
+
+        // Shooter: right trigger sets outtake power (0 to 1), right bumper feeds the midtake.
+        robot.setOuttakePower(driverInput.getRightTrigger());
+        robot.setMidtakeFeeding(driverInput.isRightBumperHeld());
+
+        // Intake-deploy servo: press A to switch between stowed and deployed.
+        if (driverInput.wasAJustPressed()) {
+            robot.toggleIntakeDeploy();
         }
 
         robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),
@@ -99,6 +113,10 @@ public class Team3TeleOp extends OpMode {
         telemetry.addData("Rear Right Power", robot.getRearRightMotorPower());
         telemetry.addData("Green Machine Roller", robot.getIntakeStateName());
         telemetry.addData("Green Machine Roller Available", robot.isIntakeAvailable());
+        telemetry.addData("Intake Deploy", robot.getIntakeDeployStateName());
+        telemetry.addData("Midtake", robot.getMidtakeStateName());
+        telemetry.addData("Outtake", robot.getOuttakeStateName());
+        telemetry.addData("Mechanisms Available", robot.areMechanismsAvailable());
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
         telemetry.update();

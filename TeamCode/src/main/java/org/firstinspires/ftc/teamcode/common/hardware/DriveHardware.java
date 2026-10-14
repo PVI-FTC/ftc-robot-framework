@@ -21,10 +21,35 @@ public class DriveHardware {
     private DcMotorEx frontRight;
     private DcMotorEx rearLeft;
     private DcMotorEx rearRight;
+    private final DcMotor.Direction frontLeftDirection;
+    private final DcMotor.Direction frontRightDirection;
+    private final DcMotor.Direction rearLeftDirection;
+    private final DcMotor.Direction rearRightDirection;
     private double frontLeftPower;
     private double frontRightPower;
     private double rearLeftPower;
     private double rearRightPower;
+
+    /** Creates the shared baseline drivetrain direction configuration. */
+    public DriveHardware() {
+        this(DcMotor.Direction.REVERSE, DcMotor.Direction.FORWARD,
+                DcMotor.Direction.REVERSE, DcMotor.Direction.FORWARD);
+    }
+
+    /** Creates drivetrain hardware with the supplied motor directions. */
+    public DriveHardware(DcMotor.Direction frontLeftDirection,
+            DcMotor.Direction frontRightDirection, DcMotor.Direction rearLeftDirection,
+            DcMotor.Direction rearRightDirection) {
+        if (frontLeftDirection == null || frontRightDirection == null
+                || rearLeftDirection == null || rearRightDirection == null) {
+            throw new IllegalArgumentException("Drive motor directions are required.");
+        }
+
+        this.frontLeftDirection = frontLeftDirection;
+        this.frontRightDirection = frontRightDirection;
+        this.rearLeftDirection = rearLeftDirection;
+        this.rearRightDirection = rearRightDirection;
+    }
 
     /** Finds and configures the required drive motors. */
     public void initialize(HardwareMap hardwareMap) {
@@ -37,10 +62,10 @@ public class DriveHardware {
         rearLeft = getRequiredMotor(hardwareMap, REAR_LEFT_MOTOR_NAME);
         rearRight = getRequiredMotor(hardwareMap, REAR_RIGHT_MOTOR_NAME);
 
-        frontLeft.setDirection(DcMotor.Direction.REVERSE);
-        rearLeft.setDirection(DcMotor.Direction.REVERSE);
-        frontRight.setDirection(DcMotor.Direction.FORWARD);
-        rearRight.setDirection(DcMotor.Direction.FORWARD);
+        frontLeft.setDirection(frontLeftDirection);
+        frontRight.setDirection(frontRightDirection);
+        rearLeft.setDirection(rearLeftDirection);
+        rearRight.setDirection(rearRightDirection);
         setBrakeMode();
         setRunWithoutEncoderMode();
         stop();

@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Team A's simple drivetrain composition now reverses all four recorded motor directions for the
+  geared drivetrain: left motors use `FORWARD` and right motors use `REVERSE`. The shared
+  `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp control
+  mapping is unchanged. `DriveHardware` and `RobotHardware` gained narrow configuration
+  constructors so the direction change remains owned by Team A's robot composition.
+  `TeamCode:assembleDebug` passed (52 tasks, 0 errors), and `git diff --check` passed.
 - SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
   SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in
   `VisionPortalAprilTagSource` because individual-tag `id` and `metadata` fields are no longer
@@ -695,7 +701,8 @@ PVI-FTC | Editable master guide
   - `FSM()`, `FSM(State)`, `setInitialState(State)`, `addTransition(Transition)`
   - `initialize()`, `update()`, `getCurrentState()`, and `getCurrentStateName()`
 - `org.firstinspires.ftc.teamcode.common.hardware.DriveHardware`
-  - `initialize(HardwareMap)`, `setMotorPowers(double, double, double, double)`, `stop()`,
+  - `DriveHardware()`, direction-configurable constructor, `initialize(HardwareMap)`,
+    `setMotorPowers(double, double, double, double)`, `stop()`,
     `setBrakeMode()`, `setFloatMode()`, and individual last-commanded-power getters
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
   - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
@@ -730,7 +737,8 @@ PVI-FTC | Editable master guide
   - neutral `FRESH`, `RETAINED`, and `UNAVAILABLE` frame status; immutable observation list;
     `getFrameStatus()`, `isFreshFrame()`, `isRetained()`, and `getObservations()`
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
-  - `initialize(HardwareMap)`, hardware-wrapper getters, and `stopAll()`
+  - `RobotHardware()`, `RobotHardware(DriveHardware)`, `initialize(HardwareMap)`, hardware-wrapper
+    getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
   - `DriveSubsystem(DriveHardware)` and `DriveSubsystem(DriveController)`
   - `initialize()`, `update()`, `stop()`, and `getName()`

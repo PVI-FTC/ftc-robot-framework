@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.robots.teamA;
 
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl;
@@ -24,9 +25,13 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     private final VisionSubsystem visionSubsystem;
     private boolean hardwareInitialized;
 
-    /** Creates Team A's robot with the shared baseline hardware composition. */
+    /** Creates Team A's robot with its geared drivetrain direction configuration. */
     public TeamARobot() {
-        this(new RobotHardware());
+        this(new RobotHardware(new DriveHardware(
+                DcMotor.Direction.FORWARD,
+                DcMotor.Direction.REVERSE,
+                DcMotor.Direction.FORWARD,
+                DcMotor.Direction.REVERSE)));
     }
 
     /**

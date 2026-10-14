@@ -26,17 +26,34 @@ PVI-FTC | Editable master guide
   - Pinpoint odometry verified: `strafeEncoderDirection` set to `FORWARD` (ensuring positive Y on left translation), and `strafePodX` set to `-5.75` inches after mounting the strafe pod 5.75" behind the center of rotation. Spin test verified in `Team3PedroDiagnostic` (X and Y remained within ±0.5" over 3 full rotations in place).
   - Forward velocity tuned: 5-run average measured at `57.666 in/s` recorded in `Team3PedroConfiguration.xVelocity`.
   - Lateral velocity tuned: 5-run average measured at `58.178 in/s` (runs: 56.12, 55.90, 59.67, 59.20, 60.00) recorded in `Team3PedroConfiguration.yVelocity`.
-  - Weight-dependent parameters (forward/lateral zero power deceleration, predictive braking, mass) deferred until the robot's physical mechanism construction is completed.
+  - Robot mass configured at `8.62 kg` (19 lbs nominal, representing the measured 17–21 lb complete mechanism range: 7.71 to 9.53 kg) in `Team3PedroConfiguration`. Deceleration and predictive braking remain at baseline values until physical powered path trials.
   - All architecture boundaries and dependency directions preserved without modifying shared baseline classes or Team A files.
 - (branch: feature/team-3-setup) Added Team 3 mechanisms under `robots.team3`: `Team3MechanismHardware`
   (Expansion Hub motors `outtake` port 1 and `midtake` port 2, servo `intake-deploy` port 0, all optional),
   `Team3OuttakeSubsystem` (Idle/Spinning), `Team3MidtakeSubsystem` (Idle/Feeding), and
   `Team3IntakeDeploySubsystem` (Stowed/Deployed), each with its own FSM states. `Team3Robot` registers them
-  and exposes `setOuttakePower(double)`, `setMidtakeFeeding`, and `toggleIntakeDeploy`. `Team3TeleOp` was remapped
-  (gamepad 1): left trigger = intake, left bumper = eject, right trigger = outtake with variable power equal to the
-  trigger pull (0.05 deadband), right bumper = midtake feed,
-  A = toggle intake deploy, X/Y = drive modes. Motor directions are the SDK defaults (forward); servo
-  `STOWED_POSITION = 0.0` and `DEPLOYED_POSITION = 0.5` are placeholders to tune on the robot.
+  and exposes `setOuttakePower(double)`, `getOuttakePower()`, `setMidtakeFeeding`, `toggleIntakeDeploy`,
+  and `deployIntake()`. `Team3TeleOp` was remapped (gamepad 1): left trigger = intake, left bumper = eject,
+  right trigger = outtake with variable power equal to trigger pull (0.05 deadband), right bumper = midtake feed,
+  A = toggle intake deploy, X/Y = drive modes. Driver Station telemetry now reports `Outtake Power (%)` and
+  `Right Trigger (%)`. Motor directions are SDK defaults (forward); servo `STOWED_POSITION = 0.0` and
+  `DEPLOYED_POSITION = 0.5` are placeholders to tune on the robot.
+- (branch: feature/team-3-setup) Narrow shared API addition: `IntakeSubsystem.setIdlePower(double)` (default
+  0.0, clamped 0 to 1) makes `IdleIntakeState` run the intake forward at that power instead of zero. Teams that
+  never call it are unchanged, and `stop()` still commands zero. `Team3Robot.setIntakeIdlePower` exposes it, and
+  `Team3TeleOp` configures `IDLE_INTAKE_POWER = 0.30` controlled by a D-pad Down toggle on Gamepad 1 (starts OFF; driver can toggle ON/OFF during match). Also expanded `InputManager` to support D-pad queries (`wasDpadDownJustPressed`, etc.).
+- (branch: feature/team-3-setup) Added Pinpoint-backed toggle heading hold for Team 3:
+  - Created `Team3PinpointHardware`: hardware wrapper safely looking up goBILDA Pinpoint Odometry Computer, configuring pod offsets (-8.0, -5.75 inches), encoder directions, and IMU tracking.
+  - Created `Team3HeadingHoldSubsystem`: Subsystem managing target heading lock and negative-feedback proportional heading correction (`KP = 1.0`, max power clamp `MAX_CORRECTION_POWER = 0.45`, deadband 0.5 deg). Corrected coordinate sign convention (CCW Pinpoint angle vs CW mecanum motor rotate command) to prevent positive feedback runaway spin. Automatically yields to manual driver steering on Right Stick ($> 0.05$) and re-locks target upon stick release.
+  - `Team3Robot`: composed `pinpointHardware` and `headingHoldSubsystem`, injecting heading correction into `drive()`, and exposing heading queries (`getHeadingDegrees()`, `getTargetHeadingDegrees()`, `isHeadingHoldActive()`, `isPinpointAvailable()`).
+  - `Team3TeleOp`: mapped Gamepad 1 button `Y` as a toggle (`wasYJustPressed()`) to switch heading hold ON/OFF (starts OFF), reporting live status, target heading, and Pinpoint availability on Driver Station telemetry.
+- (branch: feature/team-3-setup) Added `Team3AutonomousOpMode` ("Team 3 Autonomous"), the primary
+  autonomous OpMode for Team 3. On START it strafes 6 inches to the right using `Team3PedroRobot`,
+  `Team3PedroPathStep`, `Team3PedroPathRoute.STRAFE_RIGHT_6`, and `AutoSequence`. At 2.0 seconds into the run,
+  it deploys the intake servo to `DEPLOYED_POSITION = 0.5` (the same default position mapped to button A in
+  TeleOp) via `robot.deployIntake()`. `Team3PedroRobot` was updated to compose `Team3MechanismHardware` and
+  expose `deployIntake()`, `stowIntake()`, `toggleIntakeDeploy()`, and mechanism controls. Zero-power
+  deceleration, Predictive Braking, and mass still hold earlier baseline values until physical assembly is finalized.
 - (branch: feature/gamepad-rumble) Extended `core.util.RumbleManager` with two new public methods:
   `addTimerAlert(double secondsElapsed, int blips)` lets any team register additional match-timer
   rumble events at custom elapsed-time thresholds without touching the built-in 90 s / 105 s /
@@ -640,6 +657,8 @@ PVI-FTC | Editable master guide
 - Deferred architecture review: no larger or ambiguous Prompt 16 findings require a speculative
   refactor at this time.
 - Team 3 Pedro tuning: Forward and lateral maximum velocities (57.666 in/s and 58.178 in/s), motor directions, and Pinpoint odometry geometry are calibrated and verified. Weight-dependent parameters (Forward/Lateral Zero-Power Deceleration, Predictive Braking, and robot mass) are intentionally deferred until physical mechanism assembly is completed.
+- Team 3 Autonomous: `Team3AutonomousOpMode` is currently a temporary test routine (6-inch right strafe and 2.0-second intake servo deployment). A full autonomous suite with multi-waypoint Pedro pathing and AprilTag vision integration will be constructed once physical mechanism assembly is finalized and camera hardware is mounted.
+- Team 3 TeleOp & hardware optimizations: Added write-caching to `Team3MechanismHardware` to eliminate redundant Expansion Hub bus traffic for idle motors and servos. Streamlined match-loop telemetry in `Team3TeleOp` from 22 lines down to 6 core fields (moving static hardware health checks to `init()`), eliminating periodic Android GC stop-the-world pauses and Wi-Fi latency. Removed dead `maxPower` overload from `Team3PedroFollowerFactory`.
 
 ## Update instructions
 After every completed update, replace or extend the sections above with:

@@ -72,6 +72,16 @@ public class Team3OuttakeSubsystem implements Subsystem {
         return hardware.isOuttakeAvailable();
     }
 
+    /** Returns the power currently commanded to the outtake motor (0.0 to 1.0). */
+    public double getPower() {
+        return requestedPower > POWER_DEADBAND ? requestedPower : 0.0;
+    }
+
+    /** Returns the raw requested power (0.0 to 1.0) before deadband. */
+    public double getRequestedPower() {
+        return requestedPower;
+    }
+
     void runOuttake() {
         hardware.setOuttakePower(requestedPower);
     }

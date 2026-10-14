@@ -11,6 +11,10 @@ public class Team3PedroRobot extends Robot {
     private final Team3PedroFollowerFactory followerFactory;
     private final Team3PedroDriveController driveController;
     private final DriveSubsystem driveSubsystem;
+    private final Team3MechanismHardware mechanismHardware = new Team3MechanismHardware();
+    private final Team3IntakeDeploySubsystem intakeDeploySubsystem;
+    private final Team3OuttakeSubsystem outtakeSubsystem;
+    private final Team3MidtakeSubsystem midtakeSubsystem;
     private boolean hardwareInitialized;
 
     public Team3PedroRobot() {
@@ -24,11 +28,18 @@ public class Team3PedroRobot extends Robot {
         this.followerFactory = followerFactory;
         driveController = new Team3PedroDriveController();
         driveSubsystem = new DriveSubsystem(driveController);
+        intakeDeploySubsystem = new Team3IntakeDeploySubsystem(mechanismHardware);
+        outtakeSubsystem = new Team3OuttakeSubsystem(mechanismHardware);
+        midtakeSubsystem = new Team3MidtakeSubsystem(mechanismHardware);
         registerSubsystem(driveSubsystem);
+        registerSubsystem(intakeDeploySubsystem);
+        registerSubsystem(outtakeSubsystem);
+        registerSubsystem(midtakeSubsystem);
     }
     public void initialize(HardwareMap hardwareMap) {
         if (hardwareInitialized) return;
         configuration.requireConfigured();
+        mechanismHardware.initialize(hardwareMap);
         driveController.setFollower(followerFactory.create(hardwareMap, configuration));
         hardwareInitialized = true;
         super.initialize();
@@ -68,5 +79,14 @@ public class Team3PedroRobot extends Robot {
     public boolean isSafeInitializationReady() { return configuration.isSafeInitializationReady(); }
     public boolean isRestrictedManualDriveReady() { return configuration.isRestrictedManualDriveReady(); }
     public boolean isPathFollowingReady() { return configuration.isPathFollowingReady(); }
-    @Override protected void onStop() { driveController.stop(); }
+    public void deployIntake() { intakeDeploySubsystem.deploy(); }
+    public void stowIntake() { intakeDeploySubsystem.stow(); }
+    public void toggleIntakeDeploy() { intakeDeploySubsystem.toggleDeploy(); }
+    public String getIntakeDeployStateName() { return intakeDeploySubsystem.getCurrentStateName(); }
+    public void setOuttakePower(double power) { outtakeSubsystem.setPower(power); }
+    public void setMidtakeFeeding(boolean feeding) { midtakeSubsystem.setFeeding(feeding); }
+    @Override protected void onStop() {
+        driveController.stop();
+        mechanismHardware.stop();
+    }
 }

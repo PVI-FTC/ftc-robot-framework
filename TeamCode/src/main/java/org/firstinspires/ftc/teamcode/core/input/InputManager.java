@@ -19,6 +19,10 @@ public class InputManager {
     private boolean y;
     private boolean leftBumper;
     private boolean rightBumper;
+    private boolean dpadUp;
+    private boolean dpadDown;
+    private boolean dpadLeft;
+    private boolean dpadRight;
 
     private boolean previousA;
     private boolean previousB;
@@ -26,6 +30,10 @@ public class InputManager {
     private boolean previousY;
     private boolean previousLeftBumper;
     private boolean previousRightBumper;
+    private boolean previousDpadUp;
+    private boolean previousDpadDown;
+    private boolean previousDpadLeft;
+    private boolean previousDpadRight;
 
     private double leftStickX;
     private double leftStickY;
@@ -137,6 +145,54 @@ public class InputManager {
         return !rightBumper && previousRightBumper;
     }
 
+    public boolean isDpadUpHeld() {
+        return dpadUp;
+    }
+
+    public boolean wasDpadUpJustPressed() {
+        return dpadUp && !previousDpadUp;
+    }
+
+    public boolean wasDpadUpJustReleased() {
+        return !dpadUp && previousDpadUp;
+    }
+
+    public boolean isDpadDownHeld() {
+        return dpadDown;
+    }
+
+    public boolean wasDpadDownJustPressed() {
+        return dpadDown && !previousDpadDown;
+    }
+
+    public boolean wasDpadDownJustReleased() {
+        return !dpadDown && previousDpadDown;
+    }
+
+    public boolean isDpadLeftHeld() {
+        return dpadLeft;
+    }
+
+    public boolean wasDpadLeftJustPressed() {
+        return dpadLeft && !previousDpadLeft;
+    }
+
+    public boolean wasDpadLeftJustReleased() {
+        return !dpadLeft && previousDpadLeft;
+    }
+
+    public boolean isDpadRightHeld() {
+        return dpadRight;
+    }
+
+    public boolean wasDpadRightJustPressed() {
+        return dpadRight && !previousDpadRight;
+    }
+
+    public boolean wasDpadRightJustReleased() {
+        return !dpadRight && previousDpadRight;
+    }
+
     public double getLeftStickX() {
         return leftStickX;
     }
@@ -168,6 +224,10 @@ public class InputManager {
         previousY = y;
         previousLeftBumper = leftBumper;
         previousRightBumper = rightBumper;
+        previousDpadUp = dpadUp;
+        previousDpadDown = dpadDown;
+        previousDpadLeft = dpadLeft;
+        previousDpadRight = dpadRight;
     }
 
     private void readCurrentGamepadState() {
@@ -177,6 +237,10 @@ public class InputManager {
         y = gamepad.y;
         leftBumper = gamepad.left_bumper;
         rightBumper = gamepad.right_bumper;
+        dpadUp = gamepad.dpad_up;
+        dpadDown = gamepad.dpad_down;
+        dpadLeft = gamepad.dpad_left;
+        dpadRight = gamepad.dpad_right;
         leftStickX = gamepad.left_stick_x;
         leftStickY = gamepad.left_stick_y;
         rightStickX = gamepad.right_stick_x;

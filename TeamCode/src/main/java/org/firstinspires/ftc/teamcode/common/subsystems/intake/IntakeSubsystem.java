@@ -27,6 +27,7 @@ public class IntakeSubsystem implements Subsystem {
     private final FSM fsm;
 
     private RequestedMode requestedMode = RequestedMode.IDLE;
+    private double idlePower;
 
     /** Creates an intake subsystem that sends all motor commands through {@code intakeHardware}. */
     public IntakeSubsystem(IntakeHardware intakeHardware) {
@@ -75,6 +76,20 @@ public class IntakeSubsystem implements Subsystem {
         requestedMode = RequestedMode.IDLE;
     }
 
+    /**
+     * Sets a low forward power that the intake keeps running while it is idle.
+     *
+     * <p>The default is 0.0 (stopped), so teams that never call this are unaffected. Values are
+     * limited to 0.0 through 1.0. Stopping the robot still commands zero output.</p>
+     */
+    public void setIdlePower(double power) {
+        if (Double.isNaN(power)) {
+            idlePower = 0.0;
+        } else {
+            idlePower = Math.max(0.0, Math.min(1.0, power));
+        }
+    }
+
     /** Requests baseline holding behavior. */
     public void hold() {
         requestedMode = RequestedMode.HOLDING;
@@ -106,6 +121,15 @@ public class IntakeSubsystem implements Subsystem {
 
     void stopOutput() {
         intakeHardware.stop();
+    }
+
+    /** Applies the idle output: the configured idle power, or zero when none is set. */
+    void applyIdleOutput() {
+        if (idlePower > 0.0) {
+            intakeHardware.forward(idlePower);
+        } else {
+            intakeHardware.stop();
+        }
     }
 
     private void addTransitions() {

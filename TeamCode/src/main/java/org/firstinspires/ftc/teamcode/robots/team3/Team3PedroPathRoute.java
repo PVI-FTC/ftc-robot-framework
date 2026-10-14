@@ -11,7 +11,8 @@ public enum Team3PedroPathRoute {
     CURVING_TEST("Curving Test", 56.0, 8.0, 90.0,
             24.30746863099743, 93.82603876301096, 179.84797452163),
     ILLEGAL_PATH("Illegal Path", 56.0, 8.0, 90.0,
-            103.42511867493754, 32.68189726856656, 90.0);
+            103.42511867493754, 32.68189726856656, 90.0),
+    STRAFE_RIGHT_6("Strafe Right 6 in", 0.0, 0.0, 0.0, 0.0, -6.0, 0.0);
 
     private final String displayName;
     private final double startXInches;
@@ -55,6 +56,8 @@ public enum Team3PedroPathRoute {
                 return Team3PedroCurvingTestPath.build(follower);
             case ILLEGAL_PATH:
                 return Team3PedroIllegalPath.build(follower);
+            case STRAFE_RIGHT_6:
+                return Team3PedroStrafeRightPath.build(follower);
             default:
                 throw new IllegalStateException("No Team 3 Pedro path builder exists for " + this);
         }

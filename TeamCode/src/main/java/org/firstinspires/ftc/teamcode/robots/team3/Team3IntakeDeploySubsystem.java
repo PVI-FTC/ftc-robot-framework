@@ -55,6 +55,16 @@ public class Team3IntakeDeploySubsystem implements Subsystem {
         deployRequested = !deployRequested;
     }
 
+    /** Requests the deployed position. */
+    public void deploy() {
+        deployRequested = true;
+    }
+
+    /** Requests the stowed position. */
+    public void stow() {
+        deployRequested = false;
+    }
+
     public String getCurrentStateName() {
         String name = fsm.getCurrentStateName();
         return name == null ? stowedState.getName() : name;

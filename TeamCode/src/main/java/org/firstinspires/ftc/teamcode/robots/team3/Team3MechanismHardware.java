@@ -22,6 +22,9 @@ public class Team3MechanismHardware {
     private DcMotorEx outtakeMotor;
     private DcMotorEx midtakeMotor;
     private Servo intakeDeployServo;
+    private double lastOuttakePower = Double.NaN;
+    private double lastMidtakePower = Double.NaN;
+    private double lastDeployPosition = Double.NaN;
 
     /** Finds each optional device without throwing when one is missing from the configuration. */
     public void initialize(HardwareMap hardwareMap) {
@@ -38,27 +41,42 @@ public class Team3MechanismHardware {
             intakeDeployServo = null;
         }
 
+        lastOuttakePower = Double.NaN;
+        lastMidtakePower = Double.NaN;
+        lastDeployPosition = Double.NaN;
         stop();
     }
 
     /** Sets the outtake motor power. Positive is the motor's default forward direction. */
     public void setOuttakePower(double power) {
         if (outtakeMotor != null) {
-            outtakeMotor.setPower(clampPower(power));
+            double clamped = clampPower(power);
+            if (Double.isNaN(lastOuttakePower) || Math.abs(clamped - lastOuttakePower) > 0.001) {
+                outtakeMotor.setPower(clamped);
+                lastOuttakePower = clamped;
+            }
         }
     }
 
     /** Sets the midtake motor power. Positive is the motor's default forward direction. */
     public void setMidtakePower(double power) {
         if (midtakeMotor != null) {
-            midtakeMotor.setPower(clampPower(power));
+            double clamped = clampPower(power);
+            if (Double.isNaN(lastMidtakePower) || Math.abs(clamped - lastMidtakePower) > 0.001) {
+                midtakeMotor.setPower(clamped);
+                lastMidtakePower = clamped;
+            }
         }
     }
 
     /** Moves the intake-deploy servo to a position from 0.0 to 1.0. */
     public void setIntakeDeployPosition(double position) {
         if (intakeDeployServo != null) {
-            intakeDeployServo.setPosition(Math.max(0.0, Math.min(1.0, position)));
+            double clamped = Math.max(0.0, Math.min(1.0, position));
+            if (Double.isNaN(lastDeployPosition) || Math.abs(clamped - lastDeployPosition) > 0.001) {
+                intakeDeployServo.setPosition(clamped);
+                lastDeployPosition = clamped;
+            }
         }
     }
 

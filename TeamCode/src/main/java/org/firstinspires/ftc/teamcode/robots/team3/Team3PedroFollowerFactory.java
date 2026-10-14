@@ -21,21 +21,4 @@ public final class Team3PedroFollowerFactory {
         follower.breakFollowing();
         return follower;
     }
-
-    public Follower create(HardwareMap hardwareMap, Team3PedroConfiguration configuration, double maxPower) {
-        if (hardwareMap == null) throw new IllegalArgumentException("Pedro follower needs a hardware map.");
-        if (configuration == null) throw new IllegalArgumentException("Pedro follower needs configuration.");
-        configuration.requireConfigured();
-        configuration.getMecanumConstants().maxPower(maxPower);
-        Follower follower = new FollowerBuilder(configuration.getFollowerConstants(), hardwareMap)
-                .pinpointLocalizer(configuration.getPinpointConstants())
-                .mecanumDrivetrain(configuration.getMecanumConstants())
-                .pathConstraints(configuration.getPathConstraints())
-                .build();
-        if (configuration.getStartingPose() != null) {
-            follower.setStartingPose(configuration.getStartingPose());
-        }
-        follower.breakFollowing();
-        return follower;
-    }
 }

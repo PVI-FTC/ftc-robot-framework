@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode.common.subsystems.intake;
 
 import org.firstinspires.ftc.teamcode.core.fsm.State;
 
-/** Safe intake state that continuously commands zero output. */
+/** Safe intake state that commands zero output, or the optional idle power when one is set. */
 public class IdleIntakeState implements State {
     private final IntakeSubsystem intakeSubsystem;
 
@@ -12,12 +12,12 @@ public class IdleIntakeState implements State {
 
     @Override
     public void enter() {
-        intakeSubsystem.stopOutput();
+        intakeSubsystem.applyIdleOutput();
     }
 
     @Override
     public void update() {
-        intakeSubsystem.stopOutput();
+        intakeSubsystem.applyIdleOutput();
     }
 
     @Override

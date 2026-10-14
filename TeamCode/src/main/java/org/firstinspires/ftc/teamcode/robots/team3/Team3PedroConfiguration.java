@@ -69,7 +69,7 @@ public final class Team3PedroConfiguration {
     private static Team3PedroConfiguration createRecordedTeam3Configuration(
             boolean restrictedManualDriveReady, boolean pathFollowingReady) {
         FollowerConstants follower = new FollowerConstants()
-                .mass(4.85)
+                .mass(8.62) // 19 lbs nominal (17-21 lb range: 7.71 - 9.53 kg)
                 .headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))
                 .forwardZeroPowerAcceleration(-42.4832745291992)
                 .lateralZeroPowerAcceleration(-50.60694780564594)

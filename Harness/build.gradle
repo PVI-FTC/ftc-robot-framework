@@ -1,0 +1,193 @@
+// Build file for the FTC test harness. Run tests with:  gradlew test
+// This is a plain Java build (no Android plugin) and is completely separate from the
+// robot build in the repository root.
+
+// Classes this build script itself uses (for unzipping .aar files).
+import java.util.zip.ZipFile
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.TransformParameters
+
+plugins {
+    // Standard Java project: compile, test, jar.
+    id 'java'
+}
+
+// ---------------------------------------------------------------------------
+// The robot code is compiled straight from TeamCode. Nothing is copied, so the
+// harness always tests whatever is currently checked out.
+// ---------------------------------------------------------------------------
+def teamCodeSrc = file('../TeamCode/src/main/java')
+
+sourceSets {
+    // The Java agent (src/agent/java) is built separately: it is packaged as its own jar
+    // and loaded by the test JVM before any robot class, so it can redirect their clocks.
+    agent
+    // "main" = the harness (src/main/java) plus TeamCode, compiled together.
+    main {
+        java {
+            srcDir teamCodeSrc
+        }
+    }
+    // "test" (src/test/java) is set up automatically by the java plugin.
+}
+
+java {
+    toolchain {
+        // Use Java 25: the version bundled with Android Studio (its "jbr" folder).
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // TeamCode targets Java 8; compile at 17 so harness code can use modern Java.
+    options.release = 17
+    // Hide compiler style warnings about TeamCode/SDK code we don't control.
+    options.compilerArgs += ['-Xlint:none', '-nowarn']
+}
+
+// Where libraries are downloaded from (the same places the robot build uses).
+repositories {
+    mavenCentral()                                    // FTC SDK, JUnit, Byte Buddy, Robolectric
+    google()                                          // Android support libraries
+    maven { url = 'https://mymaven.bylazar.com/releases' }  // Panels (by Lazar)
+}
+
+// ---------------------------------------------------------------------------
+// The FTC SDK and Pedro are published as Android .aar archives. A plain JVM
+// cannot read those, so this transform pulls classes.jar (and any bundled
+// libs/*.jar) out of each .aar.
+// ---------------------------------------------------------------------------
+// Gradle labels every downloaded file with its type ("aar", "jar", ...).
+def artifactType = Attribute.of('artifactType', String)
+
+// Turns one .aar file into one or more .jar files.
+abstract class AarToJar implements TransformAction<TransformParameters.None> {
+    // The .aar file being converted (Gradle fills this in).
+    @InputArtifact
+    abstract Provider<FileSystemLocation> getInputArtifact()
+
+    @Override
+    void transform(TransformOutputs outputs) {
+        File aar = inputArtifact.get().asFile
+        String base = aar.name.replaceAll(/\.aar$/, '')       // e.g. "RobotCore-12.0.0"
+        // An .aar is a zip file; look inside it.
+        new ZipFile(aar).withCloseable { zip ->
+            zip.entries().each { entry ->
+                String target = null
+                if (entry.name == 'classes.jar') {
+                    // The compiled Java classes: the part we need.
+                    target = "${base}.jar"
+                } else if (entry.name.startsWith('libs/') && entry.name.endsWith('.jar')) {
+                    // Extra jars some libraries bundle inside their .aar.
+                    target = "${base}-${entry.name.substring(5)}"
+                }
+                if (target != null) {
+                    // Copy that jar out of the zip.
+                    File out = outputs.file(target)
+                    zip.getInputStream(entry).withCloseable { input -> out.bytes = input.bytes }
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    // Tell Gradle: whenever a "jar" is wanted but only an "aar" exists, use AarToJar.
+    registerTransform(AarToJar) {
+        from.attribute(artifactType, 'aar')
+        to.attribute(artifactType, 'jar')
+    }
+}
+
+configurations {
+    // Same libraries as build.dependencies.gradle (kept in sync by hand).
+    robotLibs {
+        canBeConsumed = false   // nothing else depends on this list...
+        canBeResolved = true    // ...but it can be downloaded
+    }
+}
+
+dependencies {
+    // The robot libraries TeamCode uses. KEEP THESE VERSIONS THE SAME as the
+    // repository's build.dependencies.gradle when the team upgrades.
+    robotLibs 'org.firstinspires.ftc:RobotCore:12.0.0'
+    robotLibs 'org.firstinspires.ftc:Hardware:12.0.0'
+    robotLibs 'org.firstinspires.ftc:FtcCommon:12.0.0'
+    robotLibs 'org.firstinspires.ftc:Vision:12.0.0'
+    robotLibs 'com.pedropathing:ftc:2.1.2'
+    robotLibs 'com.pedropathing:telemetry:1.0.0'
+    robotLibs 'com.bylazar:fullpanels:1.0.12'
+}
+
+// The robot libraries (and everything they depend on) as plain .jar files, via AarToJar.
+def robotLibJars = configurations.robotLibs.incoming.artifactView {
+    attributes { attribute(artifactType, 'jar') }
+}.files
+
+dependencies {
+    // Harness + TeamCode compile against the robot libraries.
+    implementation robotLibJars
+
+    // SimTime lives with the agent; the harness and tests need it even if the agent is not loaded.
+    implementation sourceSets.agent.output
+
+    // Real Android framework classes that run on a desktop JVM (API 34, matching compileSdk).
+    implementation 'org.robolectric:android-all:14-robolectric-10818077'
+
+    // JUnit 5: runs the tests (@Test) and provides assertEquals and friends.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Byte Buddy: the library the agent uses to rewrite clock calls in loaded classes.
+    agentImplementation 'net.bytebuddy:byte-buddy:1.17.7'
+}
+
+// ---------------------------------------------------------------------------
+// harness-agent.jar: the agent plus Byte Buddy in one jar, with the manifest
+// entry that tells Java to run HarnessAgent.premain before anything else.
+// ---------------------------------------------------------------------------
+def agentJar = tasks.register('agentJar', Jar) {
+    archiveFileName = 'harness-agent.jar'
+    destinationDirectory = layout.buildDirectory.dir('agent')   // build/agent/harness-agent.jar
+    // The agent's own classes...
+    from sourceSets.agent.output
+    // ...plus Byte Buddy unpacked into the same jar, so the agent works on its own.
+    from({ configurations.agentRuntimeClasspath.collect { zipTree(it) } }) {
+        // Leave out Byte Buddy's own manifest, signatures and module descriptors, which
+        // would conflict with ours.
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA',
+                'module-info.class', 'META-INF/versions/*/module-info.class'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+                'Premain-Class': 'pvi.harness.agent.HarnessAgent',   // run this class's premain first
+                'Can-Redefine-Classes': 'true',                      // permissions Java agents ask for
+                'Can-Retransform-Classes': 'true'
+        )
+    }
+}
+
+tasks.named('test') {
+    // Run JUnit 5 tests.
+    useJUnitPlatform()
+    // Always run the tests, even when nothing changed since the last run. Otherwise Gradle
+    // prints "UP-TO-DATE" and skips them, and output such as position reports never appears.
+    outputs.upToDateWhen { false }
+    // Build the agent jar first, then start the test JVM with -javaagent pointing at it.
+    dependsOn agentJar
+    def agentFile = agentJar.flatMap { it.archiveFile }
+    jvmArgumentProviders.add({ ["-javaagent:${agentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    // Byte Buddy probes sun.misc.Unsafe at startup; this silences Java 24+'s warning about it.
+    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    // What to print while tests run.
+    testLogging {
+        events 'passed', 'failed', 'skipped'   // one line per test
+        exceptionFormat = 'full'               // full error message and stack trace on failure
+        showStandardStreams = true             // show anything tests print
+    }
+}

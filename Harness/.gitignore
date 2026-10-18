@@ -1,0 +1,12 @@
+# Files git should not track in the harness. All of these are created by tools and can be
+# rebuilt at any time, so committing them would only clutter the repository.
+
+# Gradle's working files and caches
+.gradle/
+# Compiled classes, test reports, harness-agent.jar, sim logs
+build/
+# Machine-specific paths written by Android Studio
+local.properties
+# Android Studio / IntelliJ project files
+*.iml
+.idea/

@@ -1,0 +1,4 @@
+// The harness is its own Gradle build. Having this file here stops Gradle from
+// walking up to the robot project's settings.gradle, so the robot build and the
+// harness build never affect each other.
+rootProject.name = 'ftc-harness'

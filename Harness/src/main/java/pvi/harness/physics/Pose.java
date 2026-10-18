@@ -137,7 +137,7 @@ public record Pose(double xInches, double yInches, double headingRadians) {
     }
 
     /** Turns tiny values like -0.0001 into 0 so they print as "0.00" instead of "-0.00". */
-    private static double tidy(double value, int decimals) {
+    static double tidy(double value, int decimals) {
         double smallestShown = 0.5 * Math.pow(10, -decimals);
         return Math.abs(value) < smallestShown ? 0.0 : value;
     }

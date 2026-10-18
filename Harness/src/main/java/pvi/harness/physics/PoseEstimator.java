@@ -1,5 +1,6 @@
 package pvi.harness.physics;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +34,14 @@ public final class PoseEstimator {
     /** Speeds smaller than this (in/s) count as "not moving", ignoring tiny rounding leftovers. */
     private static final double MOVING_THRESHOLD_INCHES_PER_SECOND = 1e-6;
 
-    /** One entry in the history of where the robot was. */
-    public record TrackPoint(double matchTimeSeconds, Pose pose) {
+    /**
+     * One entry in the history of where the robot was.
+     *
+     * @param sinceInitSeconds seconds since INIT; keeps counting up during INIT, unlike match time
+     * @param matchTimeSeconds seconds since PLAY (0 before PLAY)
+     * @param pose             where the robot was at that moment
+     */
+    public record TrackPoint(double sinceInitSeconds, double matchTimeSeconds, Pose pose) {
     }
 
     /** The robot's speeds and size. */
@@ -115,7 +122,7 @@ public final class PoseEstimator {
         // These pushes drive the robot from now until the next update.
         lastPushes = wheels.read(hardwareMap);
         lastTimeSeconds = timeSeconds;
-        track.add(new TrackPoint(matchTimeSeconds, pose));
+        track.add(new TrackPoint(timeSeconds, matchTimeSeconds, pose));
     }
 
     /** Adds the movement caused by {@code pushes} acting for {@code dt} seconds. */
@@ -163,6 +170,19 @@ public final class PoseEstimator {
     public double movingSeconds() { return movingSeconds; }
     /** Every pose, one per update, oldest first. */
     public List<TrackPoint> track() { return Collections.unmodifiableList(track); }
+
+    // ---- Step 8: saving the track -------------------------------------------------------
+
+    /**
+     * Saves the track as {@code build/tracks/<name>.csv} (inside {@code Harness/} when tests run
+     * through Gradle), for graphing in a spreadsheet. See {@link TrackCsv} for the columns.
+     *
+     * @param name file name without ".csv": letters, digits, '-', '_' and '.' only
+     * @return the full path of the saved file
+     */
+    public Path saveTrackCsv(String name) {
+        return TrackCsv.save(track, TrackCsv.fileInDefaultFolder(name));
+    }
 
     // ---- Step 6: the printed report -------------------------------------------------------
 

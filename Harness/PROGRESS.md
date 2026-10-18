@@ -4,9 +4,9 @@ Where the FTC test harness stands, what is being worked on and what comes next. 
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
 **Last updated:** 2026-10-18
-**Test status:** 69 tests in 12 classes, all passing (`.\gradlew.bat test`, 2026-10-18)
+**Test status:** 79 tests in 14 classes, all passing (`.\gradlew.bat test`, 2026-10-18)
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
-**Next up:** position estimator Step 7 (more real-code motion tests)
+**Next up:** position estimator Step 9 (README section for the estimator)
 
 Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 later / optional
 
@@ -39,9 +39,9 @@ Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 
 | 5 | `PoseEstimator`: adds up movement every loop | ✅ Done |
 | 6 | Report printing | ✅ Done |
 | (extra) | Automatic final-position report after **every** test; tests always rerun; `deg` instead of `°` | ✅ Done |
-| 7 | More real-code motion tests: turning, a miswired motor causing drift, STOP freezing position, on-field check | ⏳ Next |
-| 8 | Save the track as a CSV for graphing | ⬜ |
-| 9 | README section for the estimator | ⬜ |
+| 7 | More real-code motion tests: turning, a miswired motor causing drift, STOP freezing position, on-field check (`RealCodeMotionTest`) | ✅ Done |
+| 8 | Save the track as a CSV for graphing (`TrackCsv`, `saveTrackCsv`; format v1 in README) | ✅ Done |
+| 9 | README section for the estimator | ⏳ Next |
 | 10 | Calibrate at the robot: measure turn rate and size, compare with a real autonomous run (team task) | ⬜ |
 | 11 | Full run recording (pose, motor powers, step names, telemetry per loop) saved as JSON | ⬜ |
 | 12 | Field drawing: 12 × 12 ft grid, robot box, heading arrow, trail | ⬜ |
@@ -79,6 +79,8 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-18 | Step 8: `physics/TrackCsv` + `PoseEstimator.saveTrackCsv(name)` write `build/tracks/<name>.csv` (format v1 documented in README); `TrackPoint` gained `sinceInitSeconds` so INIT rows do not pile up at time 0; `Pose.tidy` now package-private for reuse; `TrackCsvTest` (5 tests), each checked to fail when broken | 79/79 pass |
+| 2026-10-18 | Step 7: `physics/RealCodeMotionTest` (real Team A OpModes): right-stick turn in place, miswired front-left curving left, STOP freezing the pose, whole robot box on the field during autonomous plus a clear report when it leaves; each checked to fail when broken. Test-only, no main code changed | 74/74 pass |
 | 2026-10-18 | First commit of `Harness/` (local, not pushed); removed stray `__pycache__/pygame` file | 69/69 pass |
 | 2026-10-18 | Replaced the guessed plan in this file with the team's phase and step tables | 69/69 pass (no code change) |
 | 2026-10-18 | Added `AGENTS.md`, `CLAUDE.md`, `ai-instructions/` and this file (docs only) | 69/69 pass |

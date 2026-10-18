@@ -172,6 +172,36 @@ runner.run(MatchPeriod.AUTONOMOUS).assertNoException();
 
 `TeamAAutoOpModeTest.java` uses this pattern to check every step of the autonomous.
 
+### Saving the robot's path for graphing (CSV)
+
+Every runner estimates where the robot drives. To open that path in a spreadsheet, save it at the
+end of a test:
+
+```java
+runner.run(MatchPeriod.AUTONOMOUS).assertNoException();
+Path file = runner.positionEstimator().saveTrackCsv("myAutonomous");
+System.out.println("Track saved to " + file);
+```
+
+The file goes to `Harness\build\tracks\myAutonomous.csv` and is replaced each time the test runs.
+Names may use letters, digits, `-`, `_` and `.` only. Nothing is saved unless a test asks.
+`TrackCsvTest.java` has examples.
+
+**Track CSV format, version 1.** One header line, then one row per OpMode call, oldest first.
+Decimals always use a dot, and lines end in `\n`.
+
+| Column | Type | Unit | Meaning |
+|---|---|---|---|
+| `version` | whole number | — | Format version, `1`. It goes up whenever the columns change. |
+| `since_init_s` | decimal, 3 places | seconds | Time since INIT. Plot against this to see the whole run. |
+| `match_time_s` | decimal, 3 places | seconds | Time since PLAY; `0.000` for every row before PLAY. |
+| `x_in` | decimal, 3 places | inches | Robot center, field frame: origin at the field center, edges at ±72. |
+| `y_in` | decimal, 3 places | inches | Same as `x_in`, along the other axis. |
+| `heading_deg` | decimal, 2 places | degrees | Counter-clockwise from +x, from -180 to +180. |
+
+These are **estimates** from wheel powers (no slipping, instant speed changes). Team A's turn rate
+is still a placeholder, so headings after turning are only rough until it is measured.
+
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |

@@ -140,3 +140,11 @@ Planned as steps D1–D6 in [`Harness/PROGRESS.md`](../PROGRESS.md#drive-and-rec
   still moves exactly one loop period per step, so a recorded drive replays exactly.
 - If a controller disconnects, release every input, mark the moment in the recording and tell the
   user (D6).
+- A recorded drive is saved as a **generated `.java` test** (D4). The generated code must read
+  like a hand-written test ([04-code-style.md](04-code-style.md)):
+  - a class comment saying it was recorded, when, and from which OpMode and robot
+  - the `GamepadScript` with one line per change
+  - the automatic safe checks
+  - a clearly marked `// TODO: add your own checks here` spot
+
+  Generate it into `src/test/java/pvi/harness/`, and never overwrite an existing file.

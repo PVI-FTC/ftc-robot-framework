@@ -63,7 +63,7 @@ recorded inputs become a new test. Agreed with the user on 2026-10-18.
 | D1 | One gamepad input entry point in the core: scripts, live input (and later Unity) all feed `gamepad1`/`gamepad2` through it ([02](ai-instructions/02-unity-readiness.md) §5) | ⬜ |
 | D2 | Live driving in the viewer with the **keyboard** (sticks on WASD / arrows, buttons on letter keys). Real-time pacing lives in the viewer; simulated time is unchanged | ⬜ |
 | D3 | Converter: recorded gamepad timeline into `GamepadScript` steps (only the moments something changed, snapped to the 20 ms loop) | ⬜ |
-| D4 | Save as a new test: automatic safe checks (no crash, powers within -1..1, robot on the field), a marked place for your own checks, optional snapshot checks | ⬜ ❓ |
+| D4 | Save as a new **generated `.java` test file** that students can open and edit: the `GamepadScript` from D3, automatic safe checks (no crash, powers within -1..1, robot on the field), a marked place for your own checks, optional snapshot checks | ⬜ |
 | D5 | **Jamepad** controllers: Xbox, PlayStation (DualShock 4 / DualSense) and Logitech F310/F710 (X mode), USB or wireless; mapped to the FTC `Gamepad` (cross = A, circle = B, square = X, triangle = Y; stick up is negative); keyboard fallback when none is connected | ⬜ |
 | D6 | Wireless disconnects: release every input, mark the moment in the recording and tell the user | ⬜ |
 
@@ -72,9 +72,10 @@ Decisions:
   exact version when D5 starts. It belongs to the `viewer` source set only, never the core or
   TeamCode build.
 - **Keyboard first** (D2), Jamepad after (D5). The keyboard stays as the fallback.
-- **Still to decide (D4):** save new tests as scenario files (JSON in
-  `src/test/resources/scenarios/`, replayed by one test class), as generated `.java` test files,
-  or both.
+- **Generated `.java` tests** (D4, decided 2026-10-18): each recorded drive becomes its own
+  readable test class in `src/test/java/pvi/harness/`, in the same style as hand-written tests
+  (script, set up, run, check). Students edit it like any other test. It is not a JSON scenario
+  file.
 
 How the steps fit the rules in `ai-instructions/`:
 - **Step 11's recording** is the shared plain-data snapshot that both the desktop viewer and the
@@ -104,6 +105,7 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-18 | Decided D4: recorded drives are saved as generated `.java` test files students can edit (docs only) | 124/124 pass (no code change) |
 | 2026-10-18 | Planned "Drive and record a test" (D1–D6); Jamepad approved for USB and wireless controllers; committed Steps 11–14 and viewer work locally | 124/124 pass |
 | 2026-10-18 | Viewer dropdown ("Run or replay"): ready-made `Scenarios` (real Team A OpModes, run in the window and saved as `viewer-<id>.json`) and saved recordings (newest first, rescanned on open); window can switch recordings; `viewRecording` now loads the Java agent; with no recordings it runs the first scenario. `ViewerDropdownTest` (4 tests), each checked to fail when broken | 124/124 pass |
 | 2026-10-18 | Viewer: gamepad pictures in the bottom-right of the window (`GamepadIndicator`, `GamepadPanel`): held buttons lit, sticks and triggers shown. Recording loops gained `gamepad1`/`gamepad2` (format v1, still uncommitted, so kept at v1); `Button.isPressed` and `Axis.read` added. `GamepadIndicatorTest` (6 tests), each checked to fail when broken | 120/120 pass |

@@ -10,6 +10,19 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 public enum Axis {
     LEFT_STICK_X, LEFT_STICK_Y, RIGHT_STICK_X, RIGHT_STICK_Y, LEFT_TRIGGER, RIGHT_TRIGGER;
 
+    /** This axis's current value on {@code pad} (sticks -1..1, up is negative; triggers 0..1). */
+    public double read(Gamepad pad) {
+        switch (this) {
+            case LEFT_STICK_X: return pad.left_stick_x;
+            case LEFT_STICK_Y: return pad.left_stick_y;
+            case RIGHT_STICK_X: return pad.right_stick_x;
+            case RIGHT_STICK_Y: return pad.right_stick_y;
+            case LEFT_TRIGGER: return pad.left_trigger;
+            case RIGHT_TRIGGER: return pad.right_trigger;
+            default: throw new IllegalStateException("Unhandled axis " + this);
+        }
+    }
+
     /** Writes this axis on a gamepad, clamped to its legal range (sticks -1..1, triggers 0..1). */
     void set(Gamepad pad, double value) {
         boolean trigger = this == LEFT_TRIGGER || this == RIGHT_TRIGGER;

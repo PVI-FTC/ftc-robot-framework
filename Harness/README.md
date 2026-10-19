@@ -202,6 +202,150 @@ Decimals always use a dot, and lines end in `\n`.
 These are **estimates** from wheel powers (no slipping, instant speed changes). Team A's turn rate
 is still a placeholder, so headings after turning are only rough until it is measured.
 
+### Recording a whole run (JSON)
+
+A run recording keeps everything that happened, after **every** OpMode call: pose, motor powers,
+servo positions, the autonomous step, telemetry, plus rumbles. It is the file the desktop viewer
+(and later Unity) replays. Attach a recorder **before** `init()`:
+
+```java
+OpModeRunner runner = new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA());
+RunRecorder recorder = RunRecorder.attachTo(runner);
+runner.run(MatchPeriod.AUTONOMOUS).assertNoException();
+Path file = recorder.save("teamAAutonomous");   // Harness\build\recordings\teamAAutonomous.json
+```
+
+`recorder.recording()` gives the same data as Java records (`RunRecording`) without saving a file,
+and `RunRecordingJson.load(path)` reads a saved file back into them.
+The recorder only watches, so a test passes or fails the same with or without it. The same run
+always saves exactly the same bytes. A 30 s autonomous is about 0.8 MB. `RunRecordingTest.java`
+has examples.
+
+**Run recording format, version 1.** UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
+decimal places and written with a dot, without trailing zeros (`0.2`, `1`, `-3.141593`). Field
+names match the `RunRecording` record components. Devices are arrays of `{name, ...}` objects, not
+name-to-value maps, because some readers (Unity's JsonUtility) can't read maps. Distances are in
+inches, angles in radians, times in seconds, unless a field says otherwise.
+
+Top level:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `header` | object | What was run, on which robot (below). |
+| `gamepad1Rumbles` | array of rumble | Rumbles sent to the driver's gamepad, oldest first. |
+| `gamepad2Rumbles` | array of rumble | Rumbles sent to the operator's gamepad, oldest first. |
+| `loops` | array of loop | One entry per OpMode call (init, each init_loop, start, each loop, stop), oldest first. Each entry is on its own line. |
+
+`header`:
+
+| Field | Type | Unit | Meaning |
+|---|---|---|---|
+| `version` | whole number | — | Format version, `1`. It goes up whenever any field changes. |
+| `distanceUnit` | string | — | Always `"inches"`. |
+| `angleUnit` | string | — | Always `"radians"`. |
+| `timeUnit` | string | — | Always `"seconds"`. |
+| `robotConfig` | string | — | Fake robot configuration name: `"teamA"`, `"teamB"`, `"teamC"`, `"driveOnly"`, or `"custom"` (set your own with `hardwareMap.named("...")`). |
+| `opMode` | string | — | OpMode class name, e.g. `"TeamAAutoOpMode"`. |
+| `period` | string or `null` | — | `"AUTONOMOUS"` or `"TELEOP"`, from the OpMode's `@Autonomous` / `@TeleOp` annotation; `null` if it has neither. |
+| `loopPeriodSeconds` | number | s | Simulated time per OpMode call (default 0.02). |
+| `startPose` | pose or `null` | — | Where the position estimate started; `null` if position wasn't tracked (robot without the four drive motors). |
+| `driveModel` | drive model or `null` | — | Robot speeds and size used for the estimate; `null` if not tracked. |
+
+drive model: `name` (string, e.g. `"Team A"`) and five model values: `forward` (in/s), `strafe`
+(in/s), `turn` (deg/s), `length` (in), `width` (in). Each model value is:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `value` | number | The number, in `unit`. |
+| `unit` | string | `"in/s"`, `"deg/s"` or `"in"`. Model values keep the unit the team measures them in. |
+| `measured` | boolean | `true` if measured on the real robot, `false` for a placeholder still to measure. |
+| `source` | string | Where the number came from, or why it is a placeholder. |
+
+loop (one OpMode call):
+
+| Field | Type | Unit | Meaning |
+|---|---|---|---|
+| `sinceInitSeconds` | number | s | Time since INIT. |
+| `matchTimeSeconds` | number | s | Time since PLAY; `0` before PLAY. |
+| `stage` | string | — | Which call this was: `"INIT"`, `"INIT_LOOP"`, `"START"`, `"LOOP"` or `"STOP"`. |
+| `pose` | pose or `null` | — | Estimated robot position after this call; `null` if not tracked. |
+| `motors` | array of `{name, power}` | — | Every motor, in configuration order. `power` is what the code set, -1 to 1. |
+| `servos` | array of `{name, position}` | — | Every servo, in configuration order. `position` is 0 to 1, or `null` if the code never set one. |
+| `autoStep` | string or `null` | — | The value of the `"Auto Step"` telemetry caption sent during this call (TeamAAutoOpMode sends it every loop); `null` if none was sent. |
+| `telemetry` | array of `{lines, log}` | — | Every telemetry screen sent during this call, in order (usually one, sometimes none). `lines` and `log` are arrays of strings, as the Driver Station shows them. |
+| `gamepad1` | gamepad | — | The driver's gamepad as the OpMode saw it during this call. |
+| `gamepad2` | gamepad | — | The operator's gamepad as the OpMode saw it during this call. |
+
+gamepad:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `buttons` | array of strings | Buttons held down: `"A"`, `"B"`, `"X"`, `"Y"`, `"DPAD_UP"`, `"DPAD_DOWN"`, `"DPAD_LEFT"`, `"DPAD_RIGHT"`, `"LEFT_BUMPER"`, `"RIGHT_BUMPER"`, `"LEFT_STICK_BUTTON"`, `"RIGHT_STICK_BUTTON"`, `"START"`, `"BACK"`, `"GUIDE"`, `"TOUCHPAD"`, in that order. Empty if none. |
+| `leftStickX`, `rightStickX` | number | -1 (left) to 1 (right). |
+| `leftStickY`, `rightStickY` | number | -1 (up) to 1 (down): the FTC convention, up is negative. |
+| `leftTrigger`, `rightTrigger` | number | 0 (released) to 1 (fully pressed). |
+
+pose: `xInches`, `yInches` (numbers, inches, FTC field frame: origin at the field center, edges at
+±72) and `headingRadians` (number, counter-clockwise from +x, -π to +π).
+
+rumble: `matchTimeSeconds` (number, seconds after PLAY, `0` if before PLAY), `totalDurationMs`
+(whole number, milliseconds), `pulses` (whole number of separate buzzes).
+
+Not recorded yet: a crash's error message (a crashed call adds no loop entry; check the test's
+`RunResult`) and motor directions.
+
+### Watching a run in the viewer window
+
+The viewer replays runs in a window: a dropdown at the top, the field on the left, a side panel
+on the right, playback controls at the bottom. From `Harness\`:
+
+```powershell
+.\gradlew.bat viewRecording                                                   # newest recording
+.\gradlew.bat viewRecording "-Pfile=build\recordings\ViewerReplayTest-teleOpDrive.json"
+```
+
+With no recordings saved yet, it runs the first ready-made scenario instead. Close the window
+to finish. (In Android Studio you can also run `RecordingViewer`'s `main` with the green ▶, but
+scenarios then need `-javaagent:build\agent\harness-agent.jar` in the run configuration's VM
+options; `viewRecording` adds it for you.)
+
+**The dropdown** ("Run or replay") lists:
+
+- **Run: ...** ready-made scenarios (`Scenarios.java`): Team A autonomous, a TeleOp demo drive
+  with both gamepads, a turn in place, a miswired front-left motor, and the rumble demo match.
+  Picking one runs the real, unchanged OpMode in the harness right there (simulated time, so even
+  a whole match takes about a second), saves it as `build\recordings\viewer-<name>.json`, and
+  replays it. To add your own, copy a method in `Scenarios.java` and add it to `all()`.
+- **Replay: ...** every recording in `build\recordings`, newest first. The list is refreshed each
+  time you open it, so recordings saved by tests you just ran show up.
+
+**What you see.** The field shows the robot box (white edge = front), an orange heading arrow and
+a green trail of the path so far. The side panel shows the OpMode, AUTONOMOUS or TELEOP, the
+stage (INIT, INIT_LOOP, START, LOOP, STOP), match time, the robot's position, the autonomous
+step, every motor power and servo position, the Driver Station screen **as it was at that
+moment**, and rumbles so far. In the bottom-right corner, pictures of the driver's and operator's
+gamepads light up the buttons being held (A, B, X, Y in their own colors, others orange); the
+stick knobs move with the sticks and the triggers fill as they are pressed.
+
+**Controls.** The slider jumps anywhere in the run. Buttons and keys:
+
+| Key | Does |
+|---|---|
+| Space | Play / pause (at the end, starts over) |
+| Left / Right | One loop back / forward (20 ms) |
+| Shift + Left / Right | One second back / forward |
+| Home / End | Start / end |
+| `[` or `-` / `]` or `+` | Slower / faster (0.25x to 4x) |
+
+The viewer replays the finished recording at real speed. It never runs or changes the test, so
+test results are the same whether you watch or not, and `gradlew test` never opens a window.
+`viewRecording` is the only way to open one for now; more opt-in switches (Step 15) will be
+decided later.
+
+To save a still picture instead, use `FieldImage.savePng(recording, FieldImage.LAST_LOOP,
+"myAutonomous")` (a loop index instead of `LAST_LOOP` picks an earlier moment). It goes to
+`Harness\build\field-images\`.
+
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |
@@ -274,6 +418,9 @@ see Troubleshooting.
 
 - **Library versions are copied by hand.** When `build.dependencies.gradle` in the main repo changes
   an FTC SDK or Pedro version, update the `robotLibs` lines in `Harness/build.gradle` to match.
+- **The viewer is its own source set** (`src/viewer/java`). It may use the harness core, but the
+  core can't even see it, so window code can never leak into the simulation. Tests run with
+  `java.awt.headless=true`, so `gradlew test` never opens a window.
 - **TeamCode is compiled straight from `../TeamCode/src/main/java`**, so tests always use the
   current code.
 - The FTC libraries are Android `.aar` files; `build.gradle` unpacks their `classes.jar` so a normal
@@ -287,7 +434,20 @@ src/agent/java/pvi/harness/agent/
 src/main/java/pvi/harness/
   hardware/   FakeHardwareMap, FakeDcMotorEx, FakeServo, RobotConfigs
   ds/         Driver Station side: FakeTelemetry, GamepadScript, GamepadDriver, rumble records
-  runtime/    OpModeRunner, SimClock, RunResult, MatchPeriod
+  runtime/    OpModeRunner, SimClock, RunResult, MatchPeriod, RunRecorder / RunRecording / RunRecordingJson,
+              JsonReader (small JSON reader, no library)
+src/viewer/java/pvi/harness/viewer/
+  FieldCoordinates  inches <-> pixels (the only place the y axis is flipped)
+  FieldPainter      draws field, trail, robot box, heading arrow, legend
+  FieldImage        draws one moment of a RunRecording off-screen; saves PNGs
+  RecordingView     a recording prepared for drawing (trail, caption, robot box per loop)
+  SidePanelText     the side panel's text for one moment
+  Playback          play/pause, speed, seeking (no window, no clock: testable)
+  GamepadIndicator  draws both gamepads with held buttons lit
+  FieldPanel, GamepadPanel, ViewerWindow   the Swing window
+  RecordingViewer   main(): opens the window (gradlew viewRecording)
+  Scenarios         ready-made runs the dropdown can perform
+  ViewerChoices     the dropdown's entries (scenarios, then recordings newest first)
 src/test/java/pvi/harness/
   the tests
 ```

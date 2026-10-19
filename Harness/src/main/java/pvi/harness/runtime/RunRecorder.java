@@ -1,0 +1,154 @@
+package pvi.harness.runtime;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.Gamepad;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import pvi.harness.ds.Axis;
+import pvi.harness.ds.Button;
+import pvi.harness.ds.TelemetryFrame;
+import pvi.harness.hardware.FakeDcMotorEx;
+import pvi.harness.hardware.FakeHardwareMap;
+import pvi.harness.hardware.FakeServo;
+import pvi.harness.physics.PoseEstimator;
+
+/**
+ * Records a whole run, one {@link RunRecording.LoopRecord} per OpMode call, so it can be saved
+ * as JSON and replayed in the viewer (or sent to Unity later).
+ *
+ * <p>Use it like this:</p>
+ * <pre>{@code
+ * OpModeRunner runner = new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA());
+ * RunRecorder recorder = RunRecorder.attachTo(runner);
+ * runner.run(MatchPeriod.AUTONOMOUS);
+ * Path file = recorder.save("teamAAutonomous");   // build/recordings/teamAAutonomous.json
+ * }</pre>
+ *
+ * <p>It only watches through the runner's {@link OpModeRunner#everyLoop} hook. It never
+ * changes the run, so a test gives the same result with or without a recorder.</p>
+ */
+public final class RunRecorder {
+    /**
+     * The telemetry caption autonomous OpModes use for their current step (TeamAAutoOpMode
+     * sends it every loop). Its value is copied into {@link RunRecording.LoopRecord#autoStep()}.
+     */
+    public static final String AUTO_STEP_CAPTION = "Auto Step";
+
+    /** The run being recorded. */
+    private final OpModeRunner runner;
+    /** One entry per OpMode call so far. */
+    private final List<RunRecording.LoopRecord> loops = new ArrayList<>();
+    /** How many telemetry frames had been sent when the last entry was recorded. */
+    private int framesSeen;
+
+    private RunRecorder(OpModeRunner runner) {
+        this.runner = runner;
+    }
+
+    /**
+     * Starts recording a runner. Call it before {@code init()}, so the recording starts at INIT.
+     */
+    public static RunRecorder attachTo(OpModeRunner runner) {
+        if (runner == null) {
+            throw new IllegalArgumentException("A run recorder needs a runner.");
+        }
+        if (runner.stage() != null) {
+            throw new IllegalStateException("Attach the run recorder before init(), so it sees the whole run.");
+        }
+        RunRecorder recorder = new RunRecorder(runner);
+        runner.everyLoop(r -> recorder.recordLoop());
+        return recorder;
+    }
+
+    /** Called after every OpMode call: copies the robot's state into a new loop entry. */
+    private void recordLoop() {
+        FakeHardwareMap hardwareMap = runner.hardwareMap();
+        List<RunRecording.MotorState> motors = new ArrayList<>();
+        List<RunRecording.ServoState> servos = new ArrayList<>();
+        for (String name : hardwareMap.deviceNames()) {
+            FakeDcMotorEx motor = hardwareMap.motor(name);
+            if (motor != null) {
+                motors.add(new RunRecording.MotorState(name, motor.getPower()));
+            }
+            FakeServo servo = hardwareMap.servo(name);
+            if (servo != null) {
+                servos.add(new RunRecording.ServoState(name, servo.getPosition()));
+            }
+        }
+
+        // Telemetry screens sent during this call are the ones added since the last entry.
+        List<TelemetryFrame> allFrames = runner.telemetry().frames();
+        List<RunRecording.TelemetryScreen> screens = new ArrayList<>();
+        String autoStep = null;
+        for (TelemetryFrame frame : allFrames.subList(framesSeen, allFrames.size())) {
+            screens.add(new RunRecording.TelemetryScreen(frame.lines(), frame.log()));
+            if (frame.hasCaption(AUTO_STEP_CAPTION)) {
+                autoStep = frame.value(AUTO_STEP_CAPTION);
+            }
+        }
+        framesSeen = allFrames.size();
+
+        PoseEstimator estimator = runner.positionEstimator();
+        loops.add(new RunRecording.LoopRecord(
+                runner.clock().sinceInit(),
+                runner.clock().sinceStart(),
+                runner.stage(),
+                estimator == null ? null : estimator.pose(),
+                motors, servos, autoStep, screens,
+                gamepadState(runner.opMode().gamepad1), gamepadState(runner.opMode().gamepad2)));
+    }
+
+    /** Copies a gamepad's buttons and sticks into plain data. */
+    static RunRecording.GamepadState gamepadState(Gamepad pad) {
+        List<Button> held = new ArrayList<>();
+        for (Button button : Button.values()) {
+            if (button.isPressed(pad)) {
+                held.add(button);
+            }
+        }
+        return new RunRecording.GamepadState(held,
+                Axis.LEFT_STICK_X.read(pad), Axis.LEFT_STICK_Y.read(pad),
+                Axis.RIGHT_STICK_X.read(pad), Axis.RIGHT_STICK_Y.read(pad),
+                Axis.LEFT_TRIGGER.read(pad), Axis.RIGHT_TRIGGER.read(pad));
+    }
+
+    /** The recording so far, as an immutable snapshot (call it again later for more loops). */
+    public RunRecording recording() {
+        PoseEstimator estimator = runner.positionEstimator();
+        RunRecording.Header header = new RunRecording.Header(
+                RunRecording.VERSION, "inches", "radians", "seconds",
+                runner.hardwareMap().configName(),
+                runner.opMode().getClass().getSimpleName(),
+                periodOf(runner.opMode().getClass()),
+                runner.loopPeriodSeconds(),
+                estimator == null ? null : estimator.start(),
+                estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()));
+        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles());
+    }
+
+    /** AUTONOMOUS or TELEOP from the OpMode's annotation (what the Driver Station lists it under), or null. */
+    static MatchPeriod periodOf(Class<?> opModeClass) {
+        if (opModeClass.isAnnotationPresent(Autonomous.class)) {
+            return MatchPeriod.AUTONOMOUS;
+        }
+        if (opModeClass.isAnnotationPresent(TeleOp.class)) {
+            return MatchPeriod.TELEOP;
+        }
+        return null;
+    }
+
+    /**
+     * Saves the recording as {@code build/recordings/<name>.json} (inside {@code Harness/} when
+     * tests run through Gradle). See {@link RunRecordingJson} and the README for the format.
+     *
+     * @param name file name without ".json": letters, digits, '-', '_' and '.' only
+     * @return the full path of the saved file
+     */
+    public Path save(String name) {
+        return RunRecordingJson.save(recording(), RunRecordingJson.fileInDefaultFolder(name));
+    }
+}

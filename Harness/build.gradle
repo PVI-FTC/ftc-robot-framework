@@ -30,7 +30,16 @@ sourceSets {
             srcDir teamCodeSrc
         }
     }
+    // "viewer" (src/viewer/java) = the desktop field viewer (Swing). It is kept apart from
+    // "main" so the simulation core can never use window code: viewer may use main, but
+    // main cannot even see viewer. See ai-instructions/05-desktop-viewer.md.
+    viewer
     // "test" (src/test/java) is set up automatically by the java plugin.
+}
+
+configurations {
+    // The viewer compiles and runs against everything the harness core uses.
+    viewerImplementation.extendsFrom implementation
 }
 
 java {
@@ -131,6 +140,11 @@ dependencies {
     // Harness + TeamCode compile against the robot libraries.
     implementation robotLibJars
 
+    // The viewer reads the core's plain-data records (RunRecording, Pose, ...).
+    viewerImplementation sourceSets.main.output
+    // Tests may check the viewer too (always headless; see the test task below).
+    testImplementation sourceSets.viewer.output
+
     // SimTime lives with the agent; the harness and tests need it even if the agent is not loaded.
     implementation sourceSets.agent.output
 
@@ -182,6 +196,9 @@ tasks.named('test') {
     dependsOn agentJar
     def agentFile = agentJar.flatMap { it.archiveFile }
     jvmArgumentProviders.add({ ["-javaagent:${agentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    // Tests never open a window: with headless mode on, any attempt fails instead of showing
+    // one, and the viewer's drawing code still works on off-screen images.
+    systemProperty 'java.awt.headless', 'true'
     // Byte Buddy probes sun.misc.Unsafe at startup; this silences Java 24+'s warning about it.
     jvmArgs '--sun-misc-unsafe-memory-access=allow'
     // What to print while tests run.
@@ -189,5 +206,28 @@ tasks.named('test') {
         events 'passed', 'failed', 'skipped'   // one line per test
         exceptionFormat = 'full'               // full error message and stack trace on failure
         showStandardStreams = true             // show anything tests print
+    }
+}
+
+// ---------------------------------------------------------------------------
+// viewRecording: opens the desktop viewer window (replay recordings, run scenarios).
+//   .\gradlew.bat viewRecording                       (newest file in build/recordings)
+//   .\gradlew.bat viewRecording -Pfile=build\recordings\teamAAutonomous.json
+// Only this task opens a window; "test" never does (it runs headless).
+// ---------------------------------------------------------------------------
+tasks.register('viewRecording', JavaExec) {
+    group = 'harness'
+    description = 'Opens the viewer window: replays recordings (build/recordings) and runs scenarios.'
+    classpath = sourceSets.viewer.runtimeClasspath
+    mainClass = 'pvi.harness.viewer.RecordingViewer'
+    workingDir = projectDir
+    // The dropdown can run scenarios (real TeamCode), so load the Java agent as tests do:
+    // otherwise timed robot code would read the real clock.
+    dependsOn agentJar
+    def viewerAgentFile = agentJar.flatMap { it.archiveFile }
+    jvmArgumentProviders.add({ ["-javaagent:${viewerAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    if (project.hasProperty('file')) {
+        args project.property('file')
     }
 }

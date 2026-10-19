@@ -21,24 +21,24 @@ public final class RobotConfigs {
         hardwareMap.addMotor(DriveHardware.FRONT_RIGHT_MOTOR_NAME);
         hardwareMap.addMotor(DriveHardware.REAR_LEFT_MOTOR_NAME);
         hardwareMap.addMotor(DriveHardware.REAR_RIGHT_MOTOR_NAME);
-        return hardwareMap;
+        return hardwareMap.named("driveOnly");
     }
 
     /** The shared baseline robot: drive plus intake (used by TeamARobot). */
     public static FakeHardwareMap teamA() {
         FakeHardwareMap hardwareMap = driveOnly();
         hardwareMap.addMotor(IntakeHardware.INTAKE_MOTOR_NAME);
-        return hardwareMap;
+        return hardwareMap.named("teamA");
     }
 
     /** TeamBRobot currently uses the same shared RobotHardware as Team A. */
     public static FakeHardwareMap teamB() {
-        return teamA();
+        return teamA().named("teamB");
     }
 
     /** TeamCRobot currently uses the same shared RobotHardware as Team A. */
     public static FakeHardwareMap teamC() {
-        return teamA();
+        return teamA().named("teamC");
     }
 
     /** Names of the four drive motors, for loops in tests. */

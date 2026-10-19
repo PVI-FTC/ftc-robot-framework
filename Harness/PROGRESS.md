@@ -4,9 +4,9 @@ Where the FTC test harness stands, what is being worked on and what comes next. 
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
 **Last updated:** 2026-10-18
-**Test status:** 79 tests in 14 classes, all passing (`.\gradlew.bat test`, 2026-10-18)
+**Test status:** 124 tests in 19 classes, all passing (`.\gradlew.bat test`, 2026-10-18)
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
-**Next up:** position estimator Step 9 (README section for the estimator)
+**Next up:** position estimator Step 15 (opt-in switches; decide their behavior with the user); Step 9 (estimator README section) is still open
 
 Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 later / optional
 
@@ -43,13 +43,38 @@ Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 
 | 8 | Save the track as a CSV for graphing (`TrackCsv`, `saveTrackCsv`; format v1 in README) | ✅ Done |
 | 9 | README section for the estimator | ⏳ Next |
 | 10 | Calibrate at the robot: measure turn rate and size, compare with a real autonomous run (team task) | ⬜ |
-| 11 | Full run recording (pose, motor powers, step names, telemetry per loop) saved as JSON | ⬜ |
-| 12 | Field drawing: 12 × 12 ft grid, robot box, heading arrow, trail | ⬜ |
-| 13 | Viewer window (Swing) with a side panel | ⬜ |
-| 14 | Playback controls: play/pause, speed, timeline slider, keyboard | ⬜ |
-| 15 | Opt-in switches: `-Pview`, `simView`, `viewRecording`; no windows during normal runs | ⬜ |
+| 11 | Full run recording (pose, motor powers, step names, telemetry per loop) saved as JSON (`RunRecorder`, format v1 in README) | ✅ Done |
+| 12 | Field drawing: 12 × 12 ft grid, robot box, heading arrow, trail (`viewer/FieldPainter`, PNG via `FieldImage`) | ✅ Done |
+| 13 | Viewer window (Swing) with a side panel (`ViewerWindow`, `SidePanelText`, `gradlew viewRecording`) | ✅ Done |
+| 14 | Playback controls: play/pause, speed, timeline slider, keyboard (`Playback`) | ✅ Done |
+| 15 | Opt-in switches: `-Pview`, `simView`, `viewRecording`; no windows during normal runs (`viewRecording` exists from Step 13; behavior still to confirm) | ⏳ Next |
 | 16 | Extras: HTML replay, Pedro path overlay, Panels feasibility check | 💤 Optional |
 | 17 | Phase 5 upgrades: acceleration, encoders, fake Pinpoint, `PhysicsBackend` | 💤 Later |
+
+---
+
+## Drive and record a test
+
+Drive the robot live in the viewer window (keyboard first, then a USB or wireless controller). The
+recorded inputs become a new test. Agreed with the user on 2026-10-18.
+
+| Step | What | Status |
+|---|---|---|
+| D1 | One gamepad input entry point in the core: scripts, live input (and later Unity) all feed `gamepad1`/`gamepad2` through it ([02](ai-instructions/02-unity-readiness.md) §5) | ⬜ |
+| D2 | Live driving in the viewer with the **keyboard** (sticks on WASD / arrows, buttons on letter keys). Real-time pacing lives in the viewer; simulated time is unchanged | ⬜ |
+| D3 | Converter: recorded gamepad timeline into `GamepadScript` steps (only the moments something changed, snapped to the 20 ms loop) | ⬜ |
+| D4 | Save as a new test: automatic safe checks (no crash, powers within -1..1, robot on the field), a marked place for your own checks, optional snapshot checks | ⬜ ❓ |
+| D5 | **Jamepad** controllers: Xbox, PlayStation (DualShock 4 / DualSense) and Logitech F310/F710 (X mode), USB or wireless; mapped to the FTC `Gamepad` (cross = A, circle = B, square = X, triangle = Y; stick up is negative); keyboard fallback when none is connected | ⬜ |
+| D6 | Wireless disconnects: release every input, mark the moment in the recording and tell the user | ⬜ |
+
+Decisions:
+- **Jamepad approved** as a dependency (2026-10-18), for USB and wireless controllers. Pin an
+  exact version when D5 starts. It belongs to the `viewer` source set only, never the core or
+  TeamCode build.
+- **Keyboard first** (D2), Jamepad after (D5). The keyboard stays as the fallback.
+- **Still to decide (D4):** save new tests as scenario files (JSON in
+  `src/test/resources/scenarios/`, replayed by one test class), as generated `.java` test files,
+  or both.
 
 How the steps fit the rules in `ai-instructions/`:
 - **Step 11's recording** is the shared plain-data snapshot that both the desktop viewer and the
@@ -79,6 +104,12 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-18 | Planned "Drive and record a test" (D1–D6); Jamepad approved for USB and wireless controllers; committed Steps 11–14 and viewer work locally | 124/124 pass |
+| 2026-10-18 | Viewer dropdown ("Run or replay"): ready-made `Scenarios` (real Team A OpModes, run in the window and saved as `viewer-<id>.json`) and saved recordings (newest first, rescanned on open); window can switch recordings; `viewRecording` now loads the Java agent; with no recordings it runs the first scenario. `ViewerDropdownTest` (4 tests), each checked to fail when broken | 124/124 pass |
+| 2026-10-18 | Viewer: gamepad pictures in the bottom-right of the window (`GamepadIndicator`, `GamepadPanel`): held buttons lit, sticks and triggers shown. Recording loops gained `gamepad1`/`gamepad2` (format v1, still uncommitted, so kept at v1); `Button.isPressed` and `Axis.read` added. `GamepadIndicatorTest` (6 tests), each checked to fail when broken | 120/120 pass |
+| 2026-10-18 | Steps 13 + 14: viewer window (`ViewerWindow`: field, side panel, controls, keyboard), `Playback` (speed, seek, step, stop at end), `SidePanelText` (screen for the selected moment, rumbles so far), `RecordingViewer` + `gradlew viewRecording`; `RunRecordingJson.load/parse` with the JSON reader moved from tests to `runtime/JsonReader`; recording header gained `period` (v1 not yet committed, so kept at v1). Window opened by hand on the demo recording; `ViewerReplayTest` (12 tests) + 3 reading tests, each checked to fail when broken (except the headless-window test) | 114/114 pass |
+| 2026-10-18 | Step 12: new `viewer` source set (`src/viewer/java`, core cannot see it) with `FieldCoordinates` (only y flip), `FieldPainter` (grid, trail, robot box, front edge, heading arrow, placeholder legend), `FieldImage` (off-screen render, PNG to `build/field-images/`); tests forced headless in `build.gradle`; `FieldDrawingTest` (9 tests), each checked to fail when broken | 99/99 pass |
+| 2026-10-18 | Step 11 (done before Step 9, to unblock the viewer): `runtime/RunRecording` records, `RunRecorder` (via `everyLoop`), hand-written `RunRecordingJson` saving `build/recordings/<name>.json`, format v1 documented in README. Small API additions: `FakeHardwareMap.configName()`/`named()` (set by `RobotConfigs`), `OpModeRunner.stage()` and `loopPeriodSeconds()`. `RunRecordingTest` (11 tests, test-only `MiniJson` reader), each checked to fail when broken | 90/90 pass |
 | 2026-10-18 | Step 8: `physics/TrackCsv` + `PoseEstimator.saveTrackCsv(name)` write `build/tracks/<name>.csv` (format v1 documented in README); `TrackPoint` gained `sinceInitSeconds` so INIT rows do not pile up at time 0; `Pose.tidy` now package-private for reuse; `TrackCsvTest` (5 tests), each checked to fail when broken | 79/79 pass |
 | 2026-10-18 | Step 7: `physics/RealCodeMotionTest` (real Team A OpModes): right-stick turn in place, miswired front-left curving left, STOP freezing the pose, whole robot box on the field during autonomous plus a clear report when it leaves; each checked to fail when broken. Test-only, no main code changed | 74/74 pass |
 | 2026-10-18 | First commit of `Harness/` (local, not pushed); removed stray `__pycache__/pygame` file | 69/69 pass |

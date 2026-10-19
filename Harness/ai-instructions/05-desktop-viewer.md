@@ -125,3 +125,18 @@ show a run:
 The viewer is read by students too ([04-code-style.md](04-code-style.md)). Prefer one small window
 class, one field panel and one telemetry panel over a framework. Viewer code should be covered by
 tests that don't need a screen (for example the inches-to-pixels math and the replay timing).
+
+## 9. Live driving and recording tests
+
+Planned as steps D1–D6 in [`Harness/PROGRESS.md`](../PROGRESS.md#drive-and-record-a-test).
+
+- Live input (keyboard, and controllers through **Jamepad**, which the user approved on
+  2026-10-18) lives in the viewer. It reaches the robot code only through the core's single
+  gamepad input entry point (D1). It never sets `Gamepad` fields directly from the window's
+  thread.
+- Jamepad is a dependency of the `viewer` source set only. The core and tests that don't drive
+  live must build and run without it, and without a controller plugged in.
+- Waiting to match real time while someone drives happens in the viewer, as in §4. Simulated time
+  still moves exactly one loop period per step, so a recorded drive replays exactly.
+- If a controller disconnects, release every input, mark the moment in the recording and tell the
+  user (D6).

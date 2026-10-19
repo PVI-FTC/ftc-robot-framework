@@ -281,6 +281,10 @@ public class OpModeRunner {
     public SimClock clock() { return clock; }
     /** How many loop() calls have run. */
     public int loopCount() { return loopCount; }
+    /** The OpMode call that ran last (INIT, INIT_LOOP, START, LOOP or STOP), or null before INIT. */
+    public RunResult.Stage stage() { return stage; }
+    /** Seconds of simulated time per OpMode call (see {@link #loopPeriod(double)}). */
+    public double loopPeriodSeconds() { return loopPeriod; }
 
     /** Gamepad 1 as held by the driver. Change its fields directly for quick tests. */
     public Gamepad gamepad1() { return driver1.physical(); }

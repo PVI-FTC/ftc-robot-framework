@@ -22,6 +22,8 @@ public class FakeHardwareMap extends HardwareMap {
      * the SDK allows one name to hold more than one device type.
      */
     private final Map<String, List<HardwareDevice>> devicesByName = new LinkedHashMap<>();
+    /** A short name for this configuration, e.g. "teamA", shown in run recordings. */
+    private String configName = "custom";
     /** Port number for the next motor added (display only). */
     private int nextMotorPort;
     /** Port number for the next servo added (display only). */
@@ -81,6 +83,20 @@ public class FakeHardwareMap extends HardwareMap {
                     + deviceNames());
         }
         motor.setMiswired(true);
+        return this;
+    }
+
+    /** A short name for this configuration, e.g. "teamA"; "custom" unless {@link #named} set one. */
+    public String configName() {
+        return configName;
+    }
+
+    /** Gives this configuration a short name, e.g. "teamA", shown in run recordings. */
+    public FakeHardwareMap named(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("A robot configuration name must not be empty.");
+        }
+        this.configName = name;
         return this;
     }
 

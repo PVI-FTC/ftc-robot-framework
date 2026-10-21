@@ -19,9 +19,9 @@ PVI-FTC | Editable master guide
   remain available to Teams B and C. Input continues through `InputManager`, the OpMode calls only
   the Robot public API, and motor access remains in the hardware wrapper.
 - Team A's simple drivetrain composition now reverses all four recorded motor directions for the
-  geared drivetrain: left motors use `FORWARD` and right motors use `REVERSE`. The shared
-  `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp control
-  mapping is unchanged. `DriveHardware` and `RobotHardware` gained narrow configuration
+  geared drivetrain: front-left, front-right, rear-left, and rear-right all use `REVERSE`. The
+  shared `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp
+  control mapping is unchanged. `DriveHardware` and `RobotHardware` gained narrow configuration
   constructors so the direction change remains owned by Team A's robot composition.
   `TeamCode:assembleDebug` passed (52 tasks, 0 errors), and `git diff --check` passed.
 - SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream

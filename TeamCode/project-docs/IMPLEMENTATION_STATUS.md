@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Team A's simple TeleOp maps gamepad 1's right trigger to proportional forward intake power and
+  safely stops the intake below a small trigger deadzone. Team A now uses the hardware
+  configuration name `intakeMotor`; its old gamepad 2 A/B/X/Y intake mappings were removed. The
+  shared default `intake` hardware name remains available to Teams B and C. Input continues through
+  `InputManager`, the OpMode calls only the Robot public API, and motor access remains in the
+  hardware wrapper.
 - Team A's simple drivetrain composition now reverses all four recorded motor directions for the
   geared drivetrain: left motors use `FORWARD` and right motors use `REVERSE`. The shared
   `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp control
@@ -705,7 +711,8 @@ PVI-FTC | Editable master guide
     `setMotorPowers(double, double, double, double)`, `stop()`,
     `setBrakeMode()`, `setFloatMode()`, and individual last-commanded-power getters
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
-  - `initialize(HardwareMap)`, `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
+  - default and name-configurable constructors, `initialize(HardwareMap)`, `forward(double)`,
+    `reverse(double)`, `stop()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
   - `VisionHardware()`, `VisionHardware(String)`,
     `VisionHardware(AprilTagCameraConfiguration)`,
@@ -737,7 +744,8 @@ PVI-FTC | Editable master guide
   - neutral `FRESH`, `RETAINED`, and `UNAVAILABLE` frame status; immutable observation list;
     `getFrameStatus()`, `isFreshFrame()`, `isRetained()`, and `getObservations()`
 - `org.firstinspires.ftc.teamcode.common.hardware.RobotHardware`
-  - `RobotHardware()`, `RobotHardware(DriveHardware)`, `initialize(HardwareMap)`, hardware-wrapper
+  - `RobotHardware()`, `RobotHardware(DriveHardware)`,
+    `RobotHardware(DriveHardware, IntakeHardware)`, `initialize(HardwareMap)`, hardware-wrapper
     getters, and `stopAll()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem`
   - `DriveSubsystem(DriveHardware)` and `DriveSubsystem(DriveController)`
@@ -759,8 +767,8 @@ PVI-FTC | Editable master guide
     `disableDrive()`, and
     `enableHeadingHold()`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
-  - `startIntake()`, `stopIntake()`, `holdIntake()`, `ejectIntake()`, `getIntakeStateName()`,
-    and `isIntakeAvailable()`
+  - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
+    `getIntakeStateName()`, and `isIntakeAvailable()`
   - `enableVision()`, `disableVision()`, `getVisionStateName()`, and `isVisionAvailable()`
 - `org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroConfiguration`
   - `unconfigured()`, `configured(...)`, `recordedTeamAConfiguration()`, and
@@ -778,8 +786,8 @@ PVI-FTC | Editable master guide
 - `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp`
   - iterative TeleOp lifecycle mapping `gamepad1` to TeamARobot's public drivetrain API
 - `org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem`
-  - `IntakeSubsystem(IntakeHardware)`, lifecycle methods, `startIntake()`, `stopIntake()`,
-    `hold()`, `eject()`, `getCurrentStateName()`, and `isAvailable()`
+  - `IntakeSubsystem(IntakeHardware)`, lifecycle methods, `startIntake()`, `startIntake(double)`,
+    `stopIntake()`, `hold()`, `eject()`, `getCurrentStateName()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.subsystems.intake.IdleIntakeState`, `IntakingState`,
   `HoldingState`, and `EjectingState`
   - public `State` implementations with `IntakeSubsystem` constructors

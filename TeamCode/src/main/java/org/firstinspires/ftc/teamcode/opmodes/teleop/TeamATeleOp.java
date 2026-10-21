@@ -14,16 +14,16 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot;
  */
 @TeleOp(name = "Team A Mecanum Drive", group = "Team A")
 public class TeamATeleOp extends OpMode {
+    private static final double TRIGGER_DEADZONE = 0.05;
+
     private TeamARobot robot;
     private InputManager driverInput;
-    private InputManager operatorInput;
 
     @Override
     public void init() {
         robot = new TeamARobot();
         robot.initialize(hardwareMap);
         driverInput = new InputManager(gamepad1);
-        operatorInput = new InputManager(gamepad2);
 
         telemetry.addData("Status", "Team A robot initialized");
         telemetry.update();
@@ -32,14 +32,12 @@ public class TeamATeleOp extends OpMode {
     @Override
     public void start() {
         driverInput.update();
-        operatorInput.update();
         robot.enableManualDrive();
     }
 
     @Override
     public void loop() {
         driverInput.update();
-        operatorInput.update();
 
         if (driverInput.wasYJustPressed()) {
             robot.enableHeadingHold();
@@ -53,14 +51,11 @@ public class TeamATeleOp extends OpMode {
             robot.enableVision();
         }
 
-        if (operatorInput.wasAJustPressed()) {
-            robot.startIntake();
-        } else if (operatorInput.wasBJustPressed()) {
+        double intakePower = driverInput.getRightTrigger();
+        if (intakePower > TRIGGER_DEADZONE) {
+            robot.startIntake(intakePower);
+        } else {
             robot.stopIntake();
-        } else if (operatorInput.wasXJustPressed()) {
-            robot.ejectIntake();
-        } else if (operatorInput.wasYJustPressed()) {
-            robot.holdIntake();
         }
 
         robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),

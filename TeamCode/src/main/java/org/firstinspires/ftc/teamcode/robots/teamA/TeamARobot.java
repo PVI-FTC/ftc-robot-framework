@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl;
 import org.firstinspires.ftc.teamcode.common.hardware.DriveHardware;
+import org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware;
 import org.firstinspires.ftc.teamcode.common.hardware.RobotHardware;
 import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem;
@@ -31,7 +32,8 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
                 DcMotor.Direction.FORWARD,
                 DcMotor.Direction.REVERSE,
                 DcMotor.Direction.FORWARD,
-                DcMotor.Direction.REVERSE)));
+                DcMotor.Direction.REVERSE),
+                new IntakeHardware("intakeMotor")));
     }
 
     /**
@@ -101,6 +103,11 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     /** Requests normal forward intake behavior. */
     public void startIntake() {
         intakeSubsystem.startIntake();
+    }
+
+    /** Requests forward intake behavior at the supplied trigger power. */
+    public void startIntake(double power) {
+        intakeSubsystem.startIntake(power);
     }
 
     /** Requests the safe stopped intake behavior. */

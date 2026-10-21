@@ -14,10 +14,10 @@ PVI-FTC | Editable master guide
 ## Completed work
 - Team A's simple TeleOp maps gamepad 1's right trigger to proportional forward intake power and
   safely stops the intake below a small trigger deadzone. Team A now uses the hardware
-  configuration name `intakeMotor`; its old gamepad 2 A/B/X/Y intake mappings were removed. The
-  shared default `intake` hardware name remains available to Teams B and C. Input continues through
-  `InputManager`, the OpMode calls only the Robot public API, and motor access remains in the
-  hardware wrapper.
+  configuration name `intakeMotor` with its direction set to `REVERSE`; its old gamepad 2 A/B/X/Y
+  intake mappings were removed. The shared default `intake` hardware name and `FORWARD` direction
+  remain available to Teams B and C. Input continues through `InputManager`, the OpMode calls only
+  the Robot public API, and motor access remains in the hardware wrapper.
 - Team A's simple drivetrain composition now reverses all four recorded motor directions for the
   geared drivetrain: left motors use `FORWARD` and right motors use `REVERSE`. The shared
   `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp control
@@ -711,8 +711,8 @@ PVI-FTC | Editable master guide
     `setMotorPowers(double, double, double, double)`, `stop()`,
     `setBrakeMode()`, `setFloatMode()`, and individual last-commanded-power getters
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`
-  - default and name-configurable constructors, `initialize(HardwareMap)`, `forward(double)`,
-    `reverse(double)`, `stop()`, and `isAvailable()`
+  - default, name-configurable, and direction-configurable constructors, `initialize(HardwareMap)`,
+    `forward(double)`, `reverse(double)`, `stop()`, and `isAvailable()`
 - `org.firstinspires.ftc.teamcode.common.hardware.VisionHardware`
   - `VisionHardware()`, `VisionHardware(String)`,
     `VisionHardware(AprilTagCameraConfiguration)`,

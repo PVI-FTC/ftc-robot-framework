@@ -320,7 +320,10 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
 `RecordingViewer`'s `main` directly also opens the window, but the "Run: ..." scenarios then need
 `-javaagent:build\agent\harness-agent.jar` in the run configuration's VM options.)
 
-**The dropdown** ("Run or replay") lists:
+**The dropdown** ("Drive, run or replay") lists:
+
+- **Drive: ...** Team A, B or C TeleOp, driven live from the keyboard (see "Driving live from
+  the keyboard" below).
 
 - **Run: ...** ready-made scenarios (`Scenarios.java`): Team A autonomous, a TeleOp demo drive
   with both gamepads, a turn in place, a miswired front-left motor, and the rumble demo match.
@@ -329,6 +332,35 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
   replays it. To add your own, copy a method in `Scenarios.java` and add it to `all()`.
 - **Replay: ...** every recording in `build\recordings`, newest first. The list is refreshed each
   time you open it, so recordings saved by tests you just ran show up.
+
+**Driving live from the keyboard.** Pick **Drive: Team A TeleOp (keyboard)**. The real, unchanged
+TeleOp starts in INIT. Press **Enter** for PLAY, drive, and press **Esc** to STOP (it also stops
+by itself at 2:00, like a match).
+
+**Saving a drive: the Record button** (top right). It is **off** by default: the drive is just
+practice and is shown afterwards but **not saved**. Click it to **on** *before* pressing Enter,
+and the drive is saved as `build\recordings\drive-<teleop>-<date>-<time>.json`. Its state at
+PLAY decides, and it is locked until the drive ends. Either way, the drive then replays like any
+recording (Space to play).
+While driving, the side panel shows the layout and the time left, and the playback controls
+are off.
+
+| Gamepad 1 (driver) | Keys | Gamepad 2 (operator) | Keys |
+|---|---|---|---|
+| Left stick | W A S D (W = forward) | A B X Y | J K U I |
+| Right stick X (turn) | Left / Right arrow | LB / RB | O / P |
+| Right stick Y | Up / Down arrow | LT / RT | N / M |
+| Sticks at 40% | hold Shift | D-pad up, down, left, right | 7 8 9 0 |
+| A B X Y | F G R T | Sticks | not on the keyboard |
+| LB / RB | Q / E | | |
+| LT / RT (full press) | Z / C | | |
+| D-pad up, down, left, right | 1 2 3 4 | | |
+
+Click the window first so it has the keyboard. If it loses focus, every key is released.
+Robot code still runs on simulated time (exactly 20 ms per loop); the viewer only waits
+between loops so it feels real, so a saved drive replays exactly. In your own tests, a
+`GamepadSource` passed to `runner.gamepad1(...)` / `gamepad2(...)` feeds live input the same way
+(`GamepadSourceTest.java` has examples).
 
 **What you see.** The field shows the robot box (white edge = front), an orange heading arrow and
 a green trail of the path so far. The side panel shows the OpMode, AUTONOMOUS or TELEOP, the

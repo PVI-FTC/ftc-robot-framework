@@ -8,6 +8,7 @@ import java.lang.reflect.Field;
 import pvi.harness.ds.FakeTelemetry;
 import pvi.harness.ds.GamepadDriver;
 import pvi.harness.ds.GamepadScript;
+import pvi.harness.ds.GamepadSource;
 import pvi.harness.agent.SimTime;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.physics.DriveModel;
@@ -135,6 +136,21 @@ public class OpModeRunner {
     /** Gives gamepad 2 (the operator) a script to follow. Returns this runner for chaining. */
     public OpModeRunner gamepad2(GamepadScript script) {
         driver2.setScript(script);
+        return this;
+    }
+
+    /**
+     * Lets a live source (keyboard, controller, later Unity) drive gamepad 1. It is applied
+     * after any script each loop. Returns this runner for chaining.
+     */
+    public OpModeRunner gamepad1(GamepadSource source) {
+        driver1.setSource(source);
+        return this;
+    }
+
+    /** Lets a live source drive gamepad 2 (the operator). Returns this runner for chaining. */
+    public OpModeRunner gamepad2(GamepadSource source) {
+        driver2.setSource(source);
         return this;
     }
 

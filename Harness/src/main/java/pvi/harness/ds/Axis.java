@@ -24,7 +24,7 @@ public enum Axis {
     }
 
     /** Writes this axis on a gamepad, clamped to its legal range (sticks -1..1, triggers 0..1). */
-    void set(Gamepad pad, double value) {
+    public void set(Gamepad pad, double value) {
         boolean trigger = this == LEFT_TRIGGER || this == RIGHT_TRIGGER;
         float clamped = (float) Math.max(trigger ? 0.0 : -1.0, Math.min(1.0, value));
         switch (this) {

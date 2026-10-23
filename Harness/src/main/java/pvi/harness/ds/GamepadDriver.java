@@ -7,7 +7,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Plays a {@link GamepadScript} into the gamepad an OpMode reads.
+ * Plays a {@link GamepadScript}, and any live {@link GamepadSource}, into the gamepad an OpMode
+ * reads. Every way of giving a gamepad input goes through here.
  *
  * <p>The script changes a separate "physical" gamepad. Each loop that state is handed to
  * the OpMode's gamepad with the SDK's own {@link Gamepad#copy(Gamepad)}, the same path the
@@ -29,6 +30,8 @@ public class GamepadDriver {
     private int nextInit;
     /** Index of the next MATCH action still to apply. */
     private int nextMatch;
+    /** Live input (keyboard, controller, later Unity), or null. Applied after the script each loop. */
+    private GamepadSource source;
 
     /** @param opModeGamepad the OpMode's gamepad that this driver feeds */
     public GamepadDriver(Gamepad opModeGamepad) {
@@ -41,6 +44,15 @@ public class GamepadDriver {
         matchActions = script.actionsFor(GamepadScript.Period.MATCH);
         nextInit = 0;
         nextMatch = 0;
+    }
+
+    /**
+     * Lets a live source (keyboard, controller, later Unity) drive this gamepad. Each loop it
+     * runs after the script's actions, so it wins if both change the same input. Pass null to
+     * remove it.
+     */
+    public void setSource(GamepadSource source) {
+        this.source = source;
     }
 
     /** The gamepad the test changes directly, for quick tests without a script. */
@@ -65,6 +77,10 @@ public class GamepadDriver {
             while (nextMatch < matchActions.size() && matchActions.get(nextMatch).time <= sinceStart + 1e-9) {
                 matchActions.get(nextMatch++).apply.accept(physical);
             }
+        }
+        // Live input last, so it reflects what the driver is doing right now.
+        if (source != null) {
+            source.update(physical, sinceInit, sinceStart);
         }
         // Hand the new state to the OpMode through the SDK's own copy(), which also runs the
         // SDK's button edge detection (aWasPressed() and friends), like Driver Station data.

@@ -10,27 +10,37 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * The entries of the viewer's dropdown: first the ready-made scenarios to run, then every saved
- * recording to replay (newest first). Plain data, so tests can check the list without a window.
+ * The entries of the viewer's dropdown: TeleOps to drive live from the keyboard, the ready-made
+ * scenarios to run, then every saved recording to replay (newest first). Plain data, so tests
+ * can check the list without a window.
  */
 public final class ViewerChoices {
     /** Text in front of a scenario's title. */
     public static final String RUN_PREFIX = "Run: ";
     /** Text in front of a recording's file name. */
     public static final String REPLAY_PREFIX = "Replay: ";
+    /** Text in front of a TeleOp to drive live. */
+    public static final String DRIVE_PREFIX = "Drive: ";
 
     /**
-     * One dropdown entry: either a scenario to run or a recording file to replay.
+     * One dropdown entry: a TeleOp to drive live, a scenario to run, or a recording to replay.
+     * Exactly one of {@code scenario}, {@code file} and {@code drive} is set.
      *
      * @param label    what the dropdown shows
-     * @param scenario the scenario to run, or null for a recording
-     * @param file     the recording to replay, or null for a scenario
+     * @param scenario the scenario to run, or null
+     * @param file     the recording to replay, or null
+     * @param drive    the TeleOp to drive live from the keyboard, or null
      */
-    public record Choice(String label, Scenarios.Scenario scenario, Path file) {
+    public record Choice(String label, Scenarios.Scenario scenario, Path file, LiveDrive.Option drive) {
 
-        /** True if picking this runs a scenario (false: it replays a file). */
+        /** True if picking this runs a scenario. */
         public boolean isScenario() {
             return scenario != null;
+        }
+
+        /** True if picking this starts a live keyboard drive. */
+        public boolean isDrive() {
+            return drive != null;
         }
 
         /** The dropdown shows the label. */
@@ -46,12 +56,20 @@ public final class ViewerChoices {
 
     /** Scenarios first (in their order), then the recordings in {@code folder}, newest first. */
     public static List<Choice> list(List<Scenarios.Scenario> scenarios, Path folder) {
+        return list(List.of(), scenarios, folder);
+    }
+
+    /** Live drives first, then scenarios (in their order), then the recordings in {@code folder}, newest first. */
+    public static List<Choice> list(List<LiveDrive.Option> drives, List<Scenarios.Scenario> scenarios, Path folder) {
         List<Choice> choices = new ArrayList<>();
+        for (LiveDrive.Option drive : drives) {
+            choices.add(new Choice(DRIVE_PREFIX + drive.title(), null, null, drive));
+        }
         for (Scenarios.Scenario scenario : scenarios) {
-            choices.add(new Choice(RUN_PREFIX + scenario.title(), scenario, null));
+            choices.add(new Choice(RUN_PREFIX + scenario.title(), scenario, null, null));
         }
         for (Path file : recordingsNewestFirst(folder)) {
-            choices.add(new Choice(REPLAY_PREFIX + file.getFileName(), null, file));
+            choices.add(new Choice(REPLAY_PREFIX + file.getFileName(), null, file, null));
         }
         return choices;
     }

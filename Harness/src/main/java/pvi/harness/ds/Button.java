@@ -34,7 +34,7 @@ public enum Button {
     }
 
     /** Sets this button on a gamepad to pressed (true) or released (false). */
-    void set(Gamepad pad, boolean pressed) {
+    public void set(Gamepad pad, boolean pressed) {
         switch (this) {
             case A: pad.a = pressed; break;
             case B: pad.b = pressed; break;

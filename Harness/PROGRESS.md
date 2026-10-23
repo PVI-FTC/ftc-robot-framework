@@ -3,7 +3,7 @@
 Where the FTC test harness stands, what is being worked on and what comes next. Update this file in
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-23
 **Test status:** 124 tests in 19 classes, all passing (`.\gradlew.bat test`, 2026-10-18)
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
 **Next up:** position estimator Step 15 (opt-in switches; decide their behavior with the user); Step 9 (estimator README section) is still open
@@ -105,6 +105,7 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-23 | `view.bat`: double-click (or drop a `.json` on it) to open the viewer with Android Studio's Java; README updated | 124/124 pass (no Java code change) |
 | 2026-10-18 | Decided D4: recorded drives are saved as generated `.java` test files students can edit (docs only) | 124/124 pass (no code change) |
 | 2026-10-18 | Planned "Drive and record a test" (D1–D6); Jamepad approved for USB and wireless controllers; committed Steps 11–14 and viewer work locally | 124/124 pass |
 | 2026-10-18 | Viewer dropdown ("Run or replay"): ready-made `Scenarios` (real Team A OpModes, run in the window and saved as `viewer-<id>.json`) and saved recordings (newest first, rescanned on open); window can switch recordings; `viewRecording` now loads the Java agent; with no recordings it runs the first scenario. `ViewerDropdownTest` (4 tests), each checked to fail when broken | 124/124 pass |

@@ -297,7 +297,13 @@ Not recorded yet: a crash's error message (a crashed call adds no loop entry; ch
 ### Watching a run in the viewer window
 
 The viewer replays runs in a window: a dropdown at the top, the field on the left, a side panel
-on the right, playback controls at the bottom. From `Harness\`:
+on the right, playback controls at the bottom.
+
+**Easiest:** double-click `Harness\view.bat`. It sets Java for you and opens the newest recording.
+Drag a recording (`.json`) onto `view.bat` to open that one instead. If something goes wrong, the
+window stays open so you can read the message.
+
+Or from PowerShell in `Harness\` (after the `$env:JAVA_HOME = ...` line from section 2):
 
 ```powershell
 .\gradlew.bat viewRecording                                                   # newest recording

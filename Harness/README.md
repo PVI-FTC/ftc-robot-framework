@@ -311,9 +311,14 @@ Or from PowerShell in `Harness\` (after the `$env:JAVA_HOME = ...` line from sec
 ```
 
 With no recordings saved yet, it runs the first ready-made scenario instead. Close the window
-to finish. (In Android Studio you can also run `RecordingViewer`'s `main` with the green ▶, but
-scenarios then need `-javaagent:build\agent\harness-agent.jar` in the run configuration's VM
-options; `viewRecording` adds it for you.)
+to finish.
+
+**From Android Studio:** open the `Harness` folder (not the repository root), pick **View
+recording** in the run dropdown at the top, and click the green ▶. That shared run configuration
+is stored in `Harness\.run\` and runs `viewRecording`, Java agent included. You can also
+double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harness**. (Running
+`RecordingViewer`'s `main` directly also opens the window, but the "Run: ..." scenarios then need
+`-javaagent:build\agent\harness-agent.jar` in the run configuration's VM options.)
 
 **The dropdown** ("Run or replay") lists:
 

@@ -145,6 +145,12 @@ dependencies {
     // Tests may check the viewer too (always headless; see the test task below).
     testImplementation sourceSets.viewer.output
 
+    // Jamepad (SDL): reads USB and wireless game controllers for live driving in the viewer.
+    // Approved by the team on 2026-10-18; viewer only, never the core or the robot build.
+    // Tests get it only so viewer classes load; they never open a controller.
+    viewerImplementation 'com.badlogicgames.jamepad:jamepad:2.30.0.0'
+    testImplementation 'com.badlogicgames.jamepad:jamepad:2.30.0.0'
+
     // SimTime lives with the agent; the harness and tests need it even if the agent is not loaded.
     implementation sourceSets.agent.output
 

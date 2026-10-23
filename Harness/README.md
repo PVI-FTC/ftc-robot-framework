@@ -221,7 +221,8 @@ The recorder only watches, so a test passes or fails the same with or without it
 always saves exactly the same bytes. A 30 s autonomous is about 0.8 MB. `RunRecordingTest.java`
 has examples.
 
-**Run recording format, version 1.** UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
+**Run recording format, version 2.** (Version 2 added `events`. Version 1 files, without
+`events`, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
 decimal places and written with a dot, without trailing zeros (`0.2`, `1`, `-3.141593`). Field
 names match the `RunRecording` record components. Devices are arrays of `{name, ...}` objects, not
 name-to-value maps, because some readers (Unity's JsonUtility) can't read maps. Distances are in
@@ -234,13 +235,14 @@ Top level:
 | `header` | object | What was run, on which robot (below). |
 | `gamepad1Rumbles` | array of rumble | Rumbles sent to the driver's gamepad, oldest first. |
 | `gamepad2Rumbles` | array of rumble | Rumbles sent to the operator's gamepad, oldest first. |
+| `events` | array of event | Marked moments, oldest first, e.g. a controller disconnecting during a live drive. Usually empty. |
 | `loops` | array of loop | One entry per OpMode call (init, each init_loop, start, each loop, stop), oldest first. Each entry is on its own line. |
 
 `header`:
 
 | Field | Type | Unit | Meaning |
 |---|---|---|---|
-| `version` | whole number | — | Format version, `1`. It goes up whenever any field changes. |
+| `version` | whole number | — | Format version, `2`. It goes up whenever any field changes. |
 | `distanceUnit` | string | — | Always `"inches"`. |
 | `angleUnit` | string | — | Always `"radians"`. |
 | `timeUnit` | string | — | Always `"seconds"`. |
@@ -287,6 +289,10 @@ gamepad:
 
 pose: `xInches`, `yInches` (numbers, inches, FTC field frame: origin at the field center, edges at
 ±72) and `headingRadians` (number, counter-clockwise from +x, -π to +π).
+
+event: `sinceInitSeconds` (number, seconds since INIT), `matchTimeSeconds` (number, seconds after
+PLAY, `0` if before PLAY), `text` (string, what happened, e.g. `"Gamepad 1: controller
+disconnected; inputs released, keyboard takes over"`).
 
 rumble: `matchTimeSeconds` (number, seconds after PLAY, `0` if before PLAY), `totalDurationMs`
 (whole number, milliseconds), `pulses` (whole number of separate buzzes).
@@ -357,6 +363,22 @@ are off.
 | D-pad up, down, left, right | 1 2 3 4 | | |
 
 Click the window first so it has the keyboard. If it loses focus, every key is released.
+
+**Driving with a controller.** Plug in, or pair over Bluetooth, an Xbox, PlayStation
+(DualShock 4 / DualSense) or Logitech F310/F710 controller (switch on "X") *before* picking
+**Drive: ...**. The first controller is gamepad 1 (driver) and the second is gamepad 2
+(operator). A gamepad with no controller uses the keyboard, so one controller plus the operator
+keys works. Buttons are by position, like the Driver Station: cross = A, circle = B, square = X,
+triangle = Y. Stick movement under 5% is ignored, so a worn stick doesn't creep. The side panel
+shows what drives each gamepad (for example `Gamepad 1: PS5 Controller   Gamepad 2: keyboard`).
+
+If a wireless controller drops out mid-drive (battery, sleep, out of range), that gamepad
+**releases everything at once** and falls back to the keyboard, so the robot never keeps
+"holding" a stick. The window beeps and shows a message, and the moment is saved in the
+recording's `events` (shown under **Events so far** in the side panel when you replay it). A
+controller that reconnects is picked up again. Controllers are read with
+[Jamepad](https://github.com/libgdx/Jamepad) (SDL); if it can't start, the side panel says why
+and the keyboard still works.
 Robot code still runs on simulated time (exactly 20 ms per loop); the viewer only waits
 between loops so it feels real, so a saved drive replays exactly. In your own tests, a
 `GamepadSource` passed to `runner.gamepad1(...)` / `gamepad2(...)` feeds live input the same way

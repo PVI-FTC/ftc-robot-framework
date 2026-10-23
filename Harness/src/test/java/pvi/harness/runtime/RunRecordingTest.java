@@ -158,7 +158,7 @@ class RunRecordingTest {
     void headerDescribesTheRunTheRobotAndItsModel() {
         RunRecording.Header header = recordTeamAAutonomous().header();
 
-        assertEquals(1, header.version());
+        assertEquals(2, header.version());
         assertEquals("inches", header.distanceUnit());
         assertEquals("radians", header.angleUnit());
         assertEquals("seconds", header.timeUnit());
@@ -258,12 +258,12 @@ class RunRecordingTest {
         Map<String, Object> json = (Map<String, Object>) JsonReader.parse(Files.readString(saved, StandardCharsets.UTF_8));
 
         // Top level and header.
-        assertEquals(List.of("header", "gamepad1Rumbles", "gamepad2Rumbles", "loops"), List.copyOf(json.keySet()));
+        assertEquals(List.of("header", "gamepad1Rumbles", "gamepad2Rumbles", "events", "loops"), List.copyOf(json.keySet()));
         Map<String, Object> header = (Map<String, Object>) json.get("header");
         assertEquals(List.of("version", "distanceUnit", "angleUnit", "timeUnit", "robotConfig", "opMode",
                 "period", "loopPeriodSeconds", "startPose", "driveModel"), List.copyOf(header.keySet()));
         assertEquals("AUTONOMOUS", header.get("period"));
-        assertEquals(1.0, header.get("version"));
+        assertEquals(2.0, header.get("version"));
         assertEquals("radians", header.get("angleUnit"));
         assertEquals(List.of("xInches", "yInches", "headingRadians"),
                 List.copyOf(((Map<String, Object>) header.get("startPose")).keySet()));
@@ -360,16 +360,48 @@ class RunRecordingTest {
     /**
      * WHAT: A file with another format version is refused, saying which versions are involved.
      *
-     * <p>WHY: Reading a newer layout as if it were version 1 would show wrong values silently.</p>
+     * <p>WHY: Reading a newer layout as if it were this one would show wrong values silently.</p>
      */
     @Test
     void refusesOtherFormatVersions() {
-        String json = RunRecordingJson.format(recordTeamAAutonomous()).replace("\"version\": 1,", "\"version\": 2,");
+        String json = RunRecordingJson.format(recordTeamAAutonomous()).replace("\"version\": 2,", "\"version\": 3,");
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> RunRecordingJson.parse(json));
 
-        assertTrue(error.getMessage().contains("version 2"), error.getMessage());
-        assertTrue(error.getMessage().contains("reads version 1"), error.getMessage());
+        assertTrue(error.getMessage().contains("version 3"), error.getMessage());
+        assertTrue(error.getMessage().contains("reads versions 1 to 2"), error.getMessage());
+    }
+
+    /**
+     * WHAT: Events marked with note() are saved with their times and read back; version 1 files
+     * (from before events existed) still load, with no events.
+     *
+     * <p>WHY: A live drive marks controller disconnects as events. Recordings saved before that
+     * must keep working in the viewer.</p>
+     */
+    @Test
+    void eventsRoundTripAndVersionOneStillLoads() {
+        OpModeRunner runner = new OpModeRunner(new org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp(),
+                pvi.harness.hardware.RobotConfigs.teamA());
+        RunRecorder recorder = RunRecorder.attachTo(runner);
+        runner.init().start();
+        runner.loop(5);
+        recorder.note("Gamepad 1 controller disconnected");
+        RunRecording recording = recorder.recording();
+
+        RunRecording.Event event = recording.events().get(0);
+        // Noted between loops: after START and 5 loops, the clock reads 6 x 20 ms since PLAY.
+        assertEquals(0.12, event.matchTimeSeconds(), 1e-9);
+        assertEquals("Gamepad 1 controller disconnected", event.text());
+        assertEquals(recording.events(), RunRecordingJson.parse(RunRecordingJson.format(recording)).events());
+
+        String versionOne = RunRecordingJson.format(recording)
+                .replace("\"version\": 2,", "\"version\": 1,")
+                .replaceFirst("  \"events\": \\[[^\\]]*\\],\n", "");
+        assertFalse(versionOne.contains("\"events\""), "the test should have removed the events field");
+        RunRecording old = RunRecordingJson.parse(versionOne);
+        assertEquals(List.of(), old.events());
+        assertEquals(recording.loops().size(), old.loops().size());
     }
 
     /**

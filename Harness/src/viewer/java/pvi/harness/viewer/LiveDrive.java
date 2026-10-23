@@ -20,8 +20,9 @@ import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunnerRegistry;
 
 /**
- * Drives a real TeleOp live from the keyboard, like a practice match: INIT, wait for PLAY,
- * drive until STOP (or the end of the 2:00 match), then STOP.
+ * Drives a real TeleOp live, like a practice match: INIT, wait for PLAY, drive until STOP (or
+ * the end of the 2:00 match), then STOP. Each gamepad is a real controller when one is connected
+ * in its slot, otherwise the keyboard ({@link LiveGamepads}).
  *
  * <p>The OpMode runs on its own thread so the window stays responsive. That thread is the only
  * one that touches the runner, fake robot and TeamCode. The window only reads immutable
@@ -75,6 +76,14 @@ public final class LiveDrive {
     private volatile RuntimeException error;
     private final AtomicReference<RunRecording> latest = new AtomicReference<>();
     private Thread thread;
+    /** The controllers (or {@link ControllerPoller#NONE}); only the drive's thread uses them. */
+    private final ControllerPoller controllers;
+    /** Gamepad 1 and 2: controller or keyboard. */
+    private final LiveGamepads gamepads;
+    /** The newest controller connect/disconnect message, for the window; null if none yet. */
+    private volatile String notice;
+    /** Counts notices, so the window can tell a new one from an old one with the same text. */
+    private volatile int noticeCount;
 
     /**
      * Sets up a live drive. Nothing runs until {@link #start()}.
@@ -85,11 +94,23 @@ public final class LiveDrive {
      * @param paced        true to drive in real time; false for tests
      */
     public LiveDrive(Option option, HeldKeys keys, double matchSeconds, boolean paced) {
+        this(option, keys, ControllerPoller.NONE, matchSeconds, paced);
+    }
+
+    /**
+     * Sets up a live drive with controllers. Nothing runs until {@link #start()}.
+     *
+     * @param controllers the game controllers (slot 0 = gamepad 1); the keyboard covers any
+     *                    gamepad without one. Closed when the drive ends.
+     */
+    public LiveDrive(Option option, HeldKeys keys, ControllerPoller controllers, double matchSeconds, boolean paced) {
         // Each drive makes a new runner; forget earlier ones (only tests read them).
         RunnerRegistry.startTest();
+        this.controllers = controllers;
+        this.gamepads = new LiveGamepads(keys, controllers, this::controllerChanged);
         this.runner = new OpModeRunner(option.opMode().get(), option.robot().get())
-                .gamepad1(KeyboardGamepads.driver(keys))
-                .gamepad2(KeyboardGamepads.operator(keys));
+                .gamepad1(gamepads.gamepad1())
+                .gamepad2(gamepads.gamepad2());
         this.recorder = RunRecorder.attachTo(runner);
         this.matchSeconds = matchSeconds;
         this.paced = paced;
@@ -151,6 +172,26 @@ public final class LiveDrive {
         return error;
     }
 
+    /** What drives each gamepad, e.g. ["PS5 Controller", "keyboard"]. */
+    public List<String> inputStatus() {
+        return gamepads.status();
+    }
+
+    /** The newest controller connect/disconnect message, or null if there was none. */
+    public String notice() {
+        return notice;
+    }
+
+    /** How many notices there have been; goes up by one with each new {@link #notice()}. */
+    public int noticeCount() {
+        return noticeCount;
+    }
+
+    /** Why controllers aren't working, or null if they are (or none were asked for). */
+    public String controllerProblem() {
+        return controllers.problem();
+    }
+
     /** The match length this drive stops at, in seconds. */
     public double matchSeconds() {
         return matchSeconds;
@@ -191,9 +232,24 @@ public final class LiveDrive {
             // Like the Robot Controller: a crash ends the OpMode. Keep what was recorded.
             error = e;
         } finally {
+            controllers.close();
             publish();
             phase = Phase.FINISHED;
         }
+    }
+
+    /**
+     * A controller connected or disconnected (on the drive's thread, inside a loop). Marks it in
+     * the recording and keeps the message for the window. On a disconnect, {@link LiveGamepads}
+     * has already released that gamepad's inputs.
+     */
+    private void controllerChanged(int gamepadNumber, ControllerReading reading, boolean connected) {
+        String text = connected
+                ? "Gamepad " + gamepadNumber + ": " + LiveGamepads.describe(reading) + " connected"
+                : "Gamepad " + gamepadNumber + ": controller disconnected; inputs released, keyboard takes over";
+        recorder.note(text);
+        notice = text;
+        noticeCount++;
     }
 
     /** Sleeps until real time has caught up with simulated time (only when paced). */

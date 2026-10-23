@@ -6,6 +6,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -117,6 +118,8 @@ public final class ViewerWindow extends JFrame {
      * (PLAY) is pressed and locked until the drive ends.
      */
     private final JToggleButton recordButton = new JToggleButton();
+    /** The live drive's notice count last shown, so each new controller notice is shown once. */
+    private int noticesShown;
 
     /** Builds the window for a recording. Call on the Swing thread; see {@link #open}. */
     public ViewerWindow(RunRecording recording, String title) {
@@ -386,7 +389,8 @@ public final class ViewerWindow extends JFrame {
         playback.pause();
         heldKeys.releaseAll();
         liveOption = option;
-        liveDrive = new LiveDrive(option, heldKeys, MatchPeriod.TELEOP.seconds(), true);
+        liveDrive = new LiveDrive(option, heldKeys, new JamepadControllers(), MatchPeriod.TELEOP.seconds(), true);
+        noticesShown = 0;
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(driveKeys);
         choiceBox.setEnabled(false);
         replayControls.forEach(control -> control.setEnabled(false));
@@ -407,7 +411,16 @@ public final class ViewerWindow extends JFrame {
             showSnapshot(snapshot);
         }
         if (liveDrive.phase() == LiveDrive.Phase.DRIVING) {
-            choiceDescription.setText("Driving " + liveOption.title() + ". Esc to stop and save.");
+            choiceDescription.setText("Driving " + liveOption.title() + ". Esc to stop.");
+        }
+        if (liveDrive.noticeCount() != noticesShown) {
+            // A controller connected or disconnected: say so where the driver is looking.
+            noticesShown = liveDrive.noticeCount();
+            String notice = liveDrive.notice();
+            choiceDescription.setText(notice);
+            if (notice.contains("disconnected")) {
+                Toolkit.getDefaultToolkit().beep();
+            }
         }
         if (liveDrive.phase() == LiveDrive.Phase.FINISHED) {
             finishDrive();
@@ -484,6 +497,12 @@ public final class ViewerWindow extends JFrame {
             lines.add(String.format(Locale.ROOT, ">> DRIVING: %d:%02d left, Esc to stop <<",
                     (int) left / 60, (int) left % 60));
         }
+        List<String> inputs = liveDrive.inputStatus();
+        lines.add("Gamepad 1: " + inputs.get(0) + "   Gamepad 2: " + inputs.get(1));
+        if (liveDrive.controllerProblem() != null) {
+            lines.add(liveDrive.controllerProblem());
+        }
+        lines.add("");
         lines.addAll(KeyboardGamepads.help());
         return lines;
     }

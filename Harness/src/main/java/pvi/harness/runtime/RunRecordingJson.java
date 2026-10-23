@@ -52,6 +52,7 @@ public final class RunRecordingJson {
         json.append("  \"header\": ").append(header(recording.header())).append(",\n");
         json.append("  \"gamepad1Rumbles\": ").append(rumbles(recording.gamepad1Rumbles())).append(",\n");
         json.append("  \"gamepad2Rumbles\": ").append(rumbles(recording.gamepad2Rumbles())).append(",\n");
+        json.append("  \"events\": ").append(events(recording.events())).append(",\n");
         json.append("  \"loops\": [");
         List<RunRecording.LoopRecord> loops = recording.loops();
         for (int i = 0; i < loops.size(); i++) {
@@ -115,9 +116,9 @@ public final class RunRecordingJson {
         Map<String, Object> top = object(JsonReader.parse(json), "the file");
         Map<String, Object> h = object(top.get("header"), "header");
         int version = whole(h.get("version"), "header.version");
-        if (version != RunRecording.VERSION) {
+        if (version < 1 || version > RunRecording.VERSION) {
             throw new IllegalArgumentException("This recording is format version " + version
-                    + ", but this harness reads version " + RunRecording.VERSION + ".");
+                    + ", but this harness reads versions 1 to " + RunRecording.VERSION + ".");
         }
         String periodName = optionalText(h.get("period"), "header.period");
         RunRecording.Header header = new RunRecording.Header(version,
@@ -136,9 +137,12 @@ public final class RunRecordingJson {
         for (int i = 0; i < loopItems.size(); i++) {
             loops.add(readLoop(loopItems.get(i), "loops[" + i + "]"));
         }
+        // Version 1 files have no events.
+        List<RunRecording.Event> events = version >= 2 ? readEvents(top.get("events"), "events") : List.of();
         return new RunRecording(header, loops,
                 readRumbles(top.get("gamepad1Rumbles"), "gamepad1Rumbles"),
-                readRumbles(top.get("gamepad2Rumbles"), "gamepad2Rumbles"));
+                readRumbles(top.get("gamepad2Rumbles"), "gamepad2Rumbles"),
+                events);
     }
 
     private static RunRecording.LoopRecord readLoop(Object value, String where) {
@@ -245,6 +249,19 @@ public final class RunRecordingJson {
                     whole(r.get("pulses"), at + ".pulses")));
         }
         return rumbles;
+    }
+
+    private static List<RunRecording.Event> readEvents(Object value, String where) {
+        List<RunRecording.Event> events = new ArrayList<>();
+        List<Object> items = array(value, where);
+        for (int i = 0; i < items.size(); i++) {
+            String at = where + "[" + i + "]";
+            Map<String, Object> e = object(items.get(i), at);
+            events.add(new RunRecording.Event(decimal(e.get("sinceInitSeconds"), at + ".sinceInitSeconds"),
+                    decimal(e.get("matchTimeSeconds"), at + ".matchTimeSeconds"),
+                    text(e.get("text"), at + ".text")));
+        }
+        return events;
     }
 
     // Type checks with clear messages. "where" is the field's path in the file.
@@ -364,6 +381,19 @@ public final class RunRecordingJson {
                     .append(field("matchTimeSeconds", number(r.matchTimeSeconds()))).append(", ")
                     .append(field("totalDurationMs", Integer.toString(r.totalDurationMs()))).append(", ")
                     .append(field("pulses", Integer.toString(r.pulses())))
+                    .append("}");
+        }
+        return json.append("]").toString();
+    }
+
+    private static String events(List<RunRecording.Event> events) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < events.size(); i++) {
+            RunRecording.Event e = events.get(i);
+            json.append(i == 0 ? "" : ", ").append("{")
+                    .append(field("sinceInitSeconds", number(e.sinceInitSeconds()))).append(", ")
+                    .append(field("matchTimeSeconds", number(e.matchTimeSeconds()))).append(", ")
+                    .append(field("text", string(e.text())))
                     .append("}");
         }
         return json.append("]").toString();

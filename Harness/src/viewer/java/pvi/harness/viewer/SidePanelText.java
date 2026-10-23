@@ -55,7 +55,23 @@ public final class SidePanelText {
         lines.add("");
         addRumbles(lines, "Gamepad 1", recording.gamepad1Rumbles(), loop);
         addRumbles(lines, "Gamepad 2", recording.gamepad2Rumbles(), loop);
+        addEvents(lines, recording.events(), loop);
         return lines;
+    }
+
+    /** Marked moments (e.g. a controller disconnecting) up to this moment, if there were any. */
+    private static void addEvents(List<String> lines, List<RunRecording.Event> events, RunRecording.LoopRecord loop) {
+        List<RunRecording.Event> soFar = events.stream()
+                .filter(event -> event.sinceInitSeconds() <= loop.sinceInitSeconds() + 1e-9)
+                .toList();
+        if (soFar.isEmpty()) {
+            return;
+        }
+        lines.add("");
+        lines.add("Events so far");
+        for (RunRecording.Event event : soFar) {
+            lines.add(String.format(Locale.ROOT, "  %.2f s  %s", event.matchTimeSeconds(), event.text()));
+        }
     }
 
     /**

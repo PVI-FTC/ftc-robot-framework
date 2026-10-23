@@ -44,6 +44,8 @@ public final class RunRecorder {
     private final List<RunRecording.LoopRecord> loops = new ArrayList<>();
     /** How many telemetry frames had been sent when the last entry was recorded. */
     private int framesSeen;
+    /** Marked moments, oldest first (see {@link #note}). */
+    private final List<RunRecording.Event> events = new ArrayList<>();
 
     private RunRecorder(OpModeRunner runner) {
         this.runner = runner;
@@ -116,6 +118,15 @@ public final class RunRecorder {
                 Axis.LEFT_TRIGGER.read(pad), Axis.RIGHT_TRIGGER.read(pad));
     }
 
+    /**
+     * Marks a moment in the recording, e.g. "Gamepad 1 controller disconnected", stamped with the
+     * runner's current simulated time. Call it from the thread that runs the OpMode.
+     */
+    public void note(String text) {
+        double matchTime = runner.clock().hasStarted() ? runner.clock().sinceStart() : 0.0;
+        events.add(new RunRecording.Event(runner.clock().sinceInit(), matchTime, text));
+    }
+
     /** The recording so far, as an immutable snapshot (call it again later for more loops). */
     public RunRecording recording() {
         PoseEstimator estimator = runner.positionEstimator();
@@ -127,7 +138,7 @@ public final class RunRecorder {
                 runner.loopPeriodSeconds(),
                 estimator == null ? null : estimator.start(),
                 estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()));
-        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles());
+        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles(), events);
     }
 
     /** AUTONOMOUS or TELEOP from the OpMode's annotation (what the Driver Station lists it under), or null. */

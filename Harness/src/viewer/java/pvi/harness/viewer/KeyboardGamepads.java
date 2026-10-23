@@ -102,8 +102,8 @@ public final class KeyboardGamepads {
     /** The layout as text, for the side panel while driving. */
     public static List<String> help() {
         return List.of(
-                "KEYBOARD DRIVING",
-                "  Enter = PLAY   Esc = STOP and save",
+                "KEYBOARD DRIVING (a connected controller replaces the keyboard for its gamepad)",
+                "  Enter = PLAY   Esc = STOP",
                 "Gamepad 1 (driver)",
                 "  Left stick   W A S D",
                 "  Right stick  arrow keys",

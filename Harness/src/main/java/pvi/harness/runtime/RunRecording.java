@@ -25,10 +25,14 @@ import pvi.harness.physics.Pose;
  * @param gamepad2Rumbles rumble commands sent to the operator's gamepad, oldest first
  */
 public record RunRecording(Header header, List<LoopRecord> loops,
-                           List<RumbleRecord> gamepad1Rumbles, List<RumbleRecord> gamepad2Rumbles) {
+                           List<RumbleRecord> gamepad1Rumbles, List<RumbleRecord> gamepad2Rumbles,
+                           List<Event> events) {
 
-    /** Format version. Raise it (and update the README) whenever any field changes. */
-    public static final int VERSION = 1;
+    /**
+     * Format version. Raise it (and update the README) whenever any field changes.
+     * Version 2 added {@link #events()}; version 1 files still load (with no events).
+     */
+    public static final int VERSION = 2;
 
     /** Copies the lists, so the recording can't change after it is made. */
     public RunRecording {
@@ -38,6 +42,29 @@ public record RunRecording(Header header, List<LoopRecord> loops,
         loops = List.copyOf(loops);
         gamepad1Rumbles = List.copyOf(gamepad1Rumbles);
         gamepad2Rumbles = List.copyOf(gamepad2Rumbles);
+        events = List.copyOf(events);
+    }
+
+    /** A recording with no events. */
+    public RunRecording(Header header, List<LoopRecord> loops,
+                        List<RumbleRecord> gamepad1Rumbles, List<RumbleRecord> gamepad2Rumbles) {
+        this(header, loops, gamepad1Rumbles, gamepad2Rumbles, List.of());
+    }
+
+    /**
+     * Something worth marking that isn't part of the robot's state, such as "Gamepad 1
+     * controller disconnected" during a live drive.
+     *
+     * @param sinceInitSeconds seconds since INIT when it happened
+     * @param matchTimeSeconds seconds since PLAY, or 0 before PLAY
+     * @param text             what happened, in plain words
+     */
+    public record Event(double sinceInitSeconds, double matchTimeSeconds, String text) {
+        public Event {
+            if (text == null || text.isBlank()) {
+                throw new IllegalArgumentException("An event needs some text.");
+            }
+        }
     }
 
     /**

@@ -2,8 +2,8 @@
 rem ---------------------------------------------------------------------------
 rem Opens the harness viewer window. Double-click this file.
 rem
-rem   - Double-click: opens the newest recording in build\recordings
-rem     (or runs the first ready-made scenario if there are none yet).
+rem   - Double-click: opens straight into "Drive: Team A TeleOp" (INIT, press Enter for PLAY).
+rem     Pick a replay or a scenario from the dropdown at any time.
 rem   - Drag a recording (.json) onto this file: opens that recording.
 rem
 rem It does the same as typing ".\gradlew.bat viewRecording" in PowerShell, but sets

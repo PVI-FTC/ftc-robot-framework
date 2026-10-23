@@ -1,9 +1,11 @@
 package pvi.harness.viewer;
 
 import java.util.List;
+import java.util.Map;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
+import pvi.harness.ds.Button;
 import pvi.harness.ds.GamepadSource;
 
 /**
@@ -18,8 +20,19 @@ import pvi.harness.ds.GamepadSource;
  * everything the controller was holding is released at once: the robot never keeps "holding" a
  * stick. The {@link Listener} is told, so the drive can mark it in the recording and warn the
  * driver.</p>
+ *
+ * <p><b>One controller runs both.</b> With a controller for gamepad 1 and none for gamepad 2, the
+ * controller's D-pad works the operator's face buttons, by position: up = Y, down = A, left = X,
+ * right = B. The D-pad then isn't sent to gamepad 1. The operator keys on the keyboard still
+ * work too. Once a second controller connects, it takes over gamepad 2 and the D-pad goes back
+ * to the driver.</p>
  */
 public final class LiveGamepads {
+
+    /** One-controller mode: which D-pad direction presses which operator button. */
+    static final Map<Button, Button> DPAD_TO_OPERATOR = Map.of(
+            Button.DPAD_UP, Button.Y, Button.DPAD_DOWN, Button.A,
+            Button.DPAD_LEFT, Button.X, Button.DPAD_RIGHT, Button.B);
 
     /** Told when a controller connects or disconnects. Called on the live drive's thread. */
     public interface Listener {
@@ -63,21 +76,44 @@ public final class LiveGamepads {
         return List.of(status[0], status[1]);
     }
 
-    /** Sets gamepad {@code slot + 1} from its controller, or from the keyboard if there is none. */
+    /**
+     * Sets gamepad {@code slot + 1} from its controller, or from the keyboard if there is none.
+     * In one-controller mode, gamepad 1 loses its D-pad and gamepad 2 gets the operator buttons
+     * the D-pad stands for.
+     */
     private void apply(int slot, Gamepad pad, double sinceInit, double sinceStart) {
-        ControllerReading reading = slot < readings.size() ? readings.get(slot) : ControllerReading.DISCONNECTED;
+        ControllerReading reading = reading(slot);
+        ControllerReading driver = reading(0);
+        boolean oneController = driver.connected() && !reading(1).connected();
+        String nowStatus;
         if (reading.connected()) {
-            reading.applyTo(pad);
+            (slot == 0 && oneController ? reading.withoutDpad() : reading).applyTo(pad);
+            nowStatus = describe(reading) + (slot == 0 && oneController ? " (D-pad = operator)" : "");
         } else {
             keyboard[slot].update(pad, sinceInit, sinceStart);
+            nowStatus = "keyboard";
+            if (slot == 1 && oneController) {
+                // The driver's D-pad presses the operator's face buttons (on top of the keyboard keys).
+                DPAD_TO_OPERATOR.forEach((dpad, button) -> {
+                    if (driver.buttons().contains(dpad)) {
+                        button.set(pad, true);
+                    }
+                });
+                nowStatus = describe(driver) + " D-pad + keyboard";
+            }
+        }
+        synchronized (this) {
+            status[slot] = nowStatus;
         }
         if (reading.connected() != connected[slot]) {
             connected[slot] = reading.connected();
-            synchronized (this) {
-                status[slot] = reading.connected() ? describe(reading) : "keyboard";
-            }
             listener.controllerChanged(slot + 1, reading, reading.connected());
         }
+    }
+
+    /** This loop's reading for a slot ({@link ControllerReading#DISCONNECTED} if there is none). */
+    private ControllerReading reading(int slot) {
+        return slot < readings.size() ? readings.get(slot) : ControllerReading.DISCONNECTED;
     }
 
     /** "PS5 Controller", or "controller" if it gave no name. */

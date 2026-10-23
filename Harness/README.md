@@ -305,18 +305,20 @@ Not recorded yet: a crash's error message (a crashed call adds no loop entry; ch
 The viewer replays runs in a window: a dropdown at the top, the field on the left, a side panel
 on the right, playback controls at the bottom.
 
-**Easiest:** double-click `Harness\view.bat`. It sets Java for you and opens the newest recording.
+**Easiest:** double-click `Harness\view.bat`. It sets Java for you and opens straight into
+**Drive: Team A TeleOp**, in INIT and waiting for Enter (pick a replay from the dropdown instead
+any time).
 Drag a recording (`.json`) onto `view.bat` to open that one instead. If something goes wrong, the
 window stays open so you can read the message.
 
 Or from PowerShell in `Harness\` (after the `$env:JAVA_HOME = ...` line from section 2):
 
 ```powershell
-.\gradlew.bat viewRecording                                                   # newest recording
+.\gradlew.bat viewRecording                                                   # drive Team A TeleOp
 .\gradlew.bat viewRecording "-Pfile=build\recordings\ViewerReplayTest-teleOpDrive.json"
 ```
 
-With no recordings saved yet, it runs the first ready-made scenario instead. Close the window
+With a file, it replays that recording; without one, it starts the Team A drive. Close the window
 to finish.
 
 **From Android Studio:** open the `Harness` folder (not the repository root), pick **View
@@ -367,8 +369,14 @@ Click the window first so it has the keyboard. If it loses focus, every key is r
 **Driving with a controller.** Plug in, or pair over Bluetooth, an Xbox, PlayStation
 (DualShock 4 / DualSense) or Logitech F310/F710 controller (switch on "X") *before* picking
 **Drive: ...**. The first controller is gamepad 1 (driver) and the second is gamepad 2
-(operator). A gamepad with no controller uses the keyboard, so one controller plus the operator
-keys works. Buttons are by position, like the Driver Station: cross = A, circle = B, square = X,
+(operator). A gamepad with no controller uses the keyboard.
+
+**One controller runs both gamepads.** With only one controller connected, its **D-pad** works
+the operator's face buttons (by position: up = Y, down = A, left = X, right = B), so one person
+can drive and run Team A's intake. The D-pad then isn't sent to the driver, and the operator keys
+(J K U I) still work too. The operator's gamepad picture still shows what gamepad 2 is pressing.
+When a second controller connects, it takes over gamepad 2 and the D-pad goes back to the
+driver. Buttons are by position, like the Driver Station: cross = A, circle = B, square = X,
 triangle = Y. Stick movement under 5% is ignored, so a worn stick doesn't creep. The side panel
 shows what drives each gamepad (for example `Gamepad 1: PS5 Controller   Gamepad 2: keyboard`).
 
@@ -384,13 +392,54 @@ between loops so it feels real, so a saved drive replays exactly. In your own te
 `GamepadSource` passed to `runner.gamepad1(...)` / `gamepad2(...)` feeds live input the same way
 (`GamepadSourceTest.java` has examples).
 
-**What you see.** The field shows the robot box (white edge = front), an orange heading arrow and
-a green trail of the path so far. The side panel shows the OpMode, AUTONOMOUS or TELEOP, the
-stage (INIT, INIT_LOOP, START, LOOP, STOP), match time, the robot's position, the autonomous
-step, every motor power and servo position, the Driver Station screen **as it was at that
-moment**, and rumbles so far. In the bottom-right corner, pictures of the driver's and operator's
-gamepads light up the buttons being held (A, B, X, Y in their own colors, others orange); the
-stick knobs move with the sticks and the triggers fill as they are pressed.
+**Turning a drive into a test.** Drive with **Record on** (above), then, from `Harness\`:
+
+```powershell
+.\gradlew.bat makeTest                                                  # the newest drive-*.json
+.\gradlew.bat makeTest "-Pfile=build\recordings\drive-teamA-teleop-20261023-181935.json"
+.\gradlew.bat makeTest "-Pfile=..." "-PtestName=IntakeDriveTest"        # choose the class name
+```
+
+It saves a new test in `src\test\java\pvi\harness\recorded\` (for example
+`RecordedTeamATeleOpDrive.java`) and prints the command to run it. An existing file is never
+replaced: a second one becomes `...Drive2.java`. Open it and edit it like any other test:
+
+- **Script:** what each gamepad did, **one line per change**, as normal `GamepadScript` lines
+  (`s.at(1.24).hold(Button.A, 0.12);`). Sticks are rounded to two decimals and wobble under 0.05
+  is left out, so a 30 s controller drive is a few hundred lines, not thousands. Inputs before
+  PLAY come after `s.duringInit();`. Marked moments (a controller disconnecting) are comments.
+- **Run:** the same OpMode, robot and number of loops before and after PLAY as the drive.
+- **Check:** two safety checks every run should pass: motor powers stay within -1 to 1, and the
+  robot box stays on the field. If your drive already broke one (for example you drove into the
+  wall), it is written **turned off**, with the reason, so the new test starts green. Then a
+  `// TODO: add your own checks here` spot.
+- **Snapshot checks** (commented out): where the robot ended and the last Driver Station screen.
+  Remove the `//` in front of the ones you want; they then fail if the robot code starts
+  behaving differently. They are measured by replaying the test's own (rounded) inputs while
+  the test is made, so they always pass at first.
+
+`makeTest` runs the real OpMode once (with the Java agent, like tests), so it takes a few
+seconds. `RecordedDriveToTestTest.java` shows the parts in action.
+
+**What you see.** A dark "mission control" look, inspired by SpaceX's launch displays (colors
+and fonts all live in `Theme.java`):
+
+- **Header:** the OpMode, robot and file on the left; a small **T+ match clock** in the middle,
+  with REPLAY or LIVE, the period, the stage (amber light = INIT, green = running, grey =
+  STOP) and the loop number; the **REC** button on the right (a red dot by the clock while a
+  live drive is being recorded).
+- **Field:** a dark field with a hairline grid, the robot as a wireframe box (cyan edge =
+  front) with its **four mecanum wheels** (each fills toward the front in cyan or the back in
+  amber as far as its power, so a wheel spinning the wrong way stands out) and its **intake**
+  across the front (cyan with inward chevrons while taking in, amber while ejecting), a white heading arrow, and the path so far in cyan. The legend under it turns amber
+  while the robot's size is a placeholder.
+- **Telemetry column:** cards for the vehicle, the **position** (large X, Y and heading), the
+  autonomous step, a **gauge** for every motor (-1 to 1, filled from the center) and servo, the
+  Driver Station screen **as it was at that moment**, and events (rumbles, controller
+  connects and disconnects). While driving live, a LIVE card (what to press, recording,
+  controllers) and the key layout come first.
+- **Gamepads** (bottom right): held buttons light up (A, B, X, Y in their own colors, others
+  white); the stick knobs move with the sticks and the triggers fill as they are pressed.
 
 **Controls.** The slider jumps anywhere in the run. Buttons and keys:
 
@@ -515,6 +564,8 @@ src/viewer/java/pvi/harness/viewer/
   ViewerChoices     the dropdown's entries (scenarios, then recordings newest first)
 src/test/java/pvi/harness/
   the tests
+unity/
+  Unity project for watching recordings in 3D (Stage U1; set up only, see unity/README.md)
 ```
 
 - **The Java agent.** `build.gradle` packages `src/agent` with Byte Buddy into

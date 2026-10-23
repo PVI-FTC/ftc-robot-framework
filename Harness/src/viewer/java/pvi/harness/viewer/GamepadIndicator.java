@@ -2,7 +2,6 @@ package pvi.harness.viewer;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -18,7 +17,7 @@ import pvi.harness.runtime.RunRecording;
 /**
  * Small pictures of the driver's and operator's gamepads, with every button that is held at
  * the shown moment lit up. A, B, X and Y light in their gamepad colors; other buttons light
- * orange. The stick knobs move the way the sticks are pushed, and the triggers fill up as
+ * white. The stick knobs move the way the sticks are pushed, and the triggers fill up as
  * they are pressed. The viewer shows it in the bottom-right corner of the window, under the
  * side panel ({@link GamepadPanel}).
  *
@@ -38,16 +37,17 @@ public final class GamepadIndicator {
     static final double AT_REST = 0.005;
 
     // Colors. Package-private so tests can check which thing a pixel shows.
-    static final Color BODY = new Color(0x3A, 0x3A, 0x3A);
-    static final Color BODY_EDGE = new Color(0x15, 0x15, 0x15);
-    static final Color UNPRESSED = new Color(0x5C, 0x5C, 0x5C);
-    static final Color LIT = new Color(0xFF, 0x8C, 0x1A);
-    static final Color A_GREEN = new Color(0x3C, 0xD0, 0x4B);
-    static final Color B_RED = new Color(0xE8, 0x30, 0x30);
-    static final Color X_BLUE = new Color(0x2E, 0x86, 0xFF);
-    static final Color Y_YELLOW = new Color(0xFF, 0xD0, 0x00);
-    static final Color STICK_BASE = new Color(0x22, 0x22, 0x22);
-    static final Color BOX = new Color(0, 0, 0, 170);
+    // The look follows Theme: dark bodies with hairline edges, white for anything held.
+    static final Color BODY = new Color(0x0E, 0x12, 0x16);
+    static final Color BODY_EDGE = new Color(0x3A, 0x44, 0x4F);
+    static final Color UNPRESSED = new Color(0x1F, 0x26, 0x2E);
+    static final Color LIT = Theme.TEXT;
+    static final Color A_GREEN = Theme.GREEN;
+    static final Color B_RED = Theme.RED;
+    static final Color X_BLUE = Theme.ACCENT;
+    static final Color Y_YELLOW = Theme.AMBER;
+    static final Color STICK_BASE = new Color(0x06, 0x08, 0x0B);
+    static final Color BOX = Theme.PANEL;
 
     /** Only static methods here; nothing to create. */
     private GamepadIndicator() {
@@ -66,7 +66,7 @@ public final class GamepadIndicator {
         try {
             box.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             box.setColor(BOX);
-            box.fill(new RoundRectangle2D.Double(left, top, width, height, 12, 12));
+            box.fill(new Rectangle2D.Double(left, top, width, height));
             box.translate(left, top);
             box.scale(SCALE, SCALE);
             paintController(box, 0, 0, loop.gamepad1(), "Driver");
@@ -88,9 +88,7 @@ public final class GamepadIndicator {
             c.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             c.translate(left, top);
 
-            c.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
-            c.setColor(FieldPainter.TEXT);
-            c.drawString(label, 8, 14);
+            Theme.drawLabel(c, label, 8, 13, 10f, Theme.MUTED);
 
             // Triggers (fill up as pressed) and bumpers, above the body.
             paintTrigger(c, new Rectangle2D.Double(30, 18, 36, 10), pad.leftTrigger());
@@ -104,7 +102,7 @@ public final class GamepadIndicator {
             body.add(new Area(new Ellipse2D.Double(126, 66, 58, 56)));
             fill(c, body, BODY);
             c.setColor(BODY_EDGE);
-            c.setStroke(new BasicStroke(1.5f));
+            c.setStroke(new BasicStroke(1f));
             c.draw(body);
 
             // Left stick (upper left) and right stick (lower right), Xbox / Logitech layout.
@@ -179,8 +177,8 @@ public final class GamepadIndicator {
         double knobY = base.getY() + y * STICK_TRAVEL;
         fill(c, new Ellipse2D.Double(knobX - 8, knobY - 8, 16, 16), moved || clicked ? LIT : UNPRESSED);
         if (clicked) {
-            // A stick pressed in (LS / RS) gets a white ring.
-            c.setColor(Color.WHITE);
+            // A stick pressed in (LS / RS) gets a cyan ring.
+            c.setColor(Theme.ACCENT);
             c.setStroke(new BasicStroke(2f));
             c.draw(new Ellipse2D.Double(knobX - 8, knobY - 8, 16, 16));
         }

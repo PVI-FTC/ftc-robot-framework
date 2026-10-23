@@ -63,7 +63,8 @@ public final class FieldPanel extends JComponent {
             FieldCoordinates coords = coordinatesFor(getWidth(), getHeight());
             // Center the field square in the panel.
             g.translate((getWidth() - coords.totalPixels()) / 2, (getHeight() - coords.totalPixels()) / 2);
-            FieldPainter.paint(g, coords, view.box(), view.loop(index).pose(), view.trail(index), view.caption(index));
+            FieldPainter.paint(g, coords, view.box(), view.loop(index).pose(), view.trail(index), view.caption(index),
+                    FieldPainter.RobotParts.of(view.loop(index).motors()));
         } finally {
             g.dispose();
         }

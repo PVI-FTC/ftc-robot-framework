@@ -56,6 +56,15 @@ public record ControllerReading(boolean connected, String type,
         }
     }
 
+    /** The same reading with the D-pad released (for one-controller mode, where it works gamepad 2). */
+    public ControllerReading withoutDpad() {
+        Set<Button> rest = EnumSet.noneOf(Button.class);
+        rest.addAll(buttons);
+        rest.removeAll(Set.of(Button.DPAD_UP, Button.DPAD_DOWN, Button.DPAD_LEFT, Button.DPAD_RIGHT));
+        return new ControllerReading(connected, type, leftStickX, leftStickY, rightStickX, rightStickY,
+                leftTrigger, rightTrigger, rest);
+    }
+
     /** 0 inside the dead zone, otherwise the value unchanged. */
     static double deadzone(double value) {
         return Math.abs(value) < STICK_DEADZONE ? 0.0 : value;

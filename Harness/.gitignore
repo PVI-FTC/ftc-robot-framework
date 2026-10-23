@@ -10,3 +10,18 @@ local.properties
 # Android Studio / IntelliJ project files
 *.iml
 .idea/
+
+# Unity's generated folders and IDE files in the Unity project (unity/). Unity rebuilds them;
+# only Assets/, Packages/ and ProjectSettings/ are kept.
+/unity/[Ll]ibrary/
+/unity/[Tt]emp/
+/unity/[Ll]ogs/
+/unity/[Oo]bj/
+/unity/[Uu]ser[Ss]ettings/
+/unity/[Bb]uild/
+/unity/[Bb]uilds/
+/unity/.vs/
+/unity/.vscode/
+/unity/*.csproj
+/unity/*.sln
+/unity/*.slnx

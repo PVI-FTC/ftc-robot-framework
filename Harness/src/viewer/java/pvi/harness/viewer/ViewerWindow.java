@@ -3,7 +3,6 @@ package pvi.harness.viewer;
 import java.awt.BorderLayout;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
@@ -31,14 +30,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
-import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
-import javax.swing.text.DefaultCaret;
 
 import pvi.harness.runtime.MatchPeriod;
 import pvi.harness.runtime.RunRecording;
@@ -83,7 +80,12 @@ public final class ViewerWindow extends JFrame {
     private Playback playback;
     private final FieldPanel fieldPanel;
     private final GamepadPanel gamepadPanel;
-    private final JTextArea sideText = new JTextArea();
+    /** The right-hand column: telemetry cards for the shown moment. */
+    private final TelemetryPanel telemetryPanel;
+    /** The bar across the top: the mark, the mission clock, the Record button. */
+    private final MissionHeader header;
+    /** Name of what is shown (file name, or "practice drive"), for the header. */
+    private String shownName;
     private final JSlider timeline;
     private final JButton playButton = new JButton("Play");
     private final JComboBox<String> speedBox = new JComboBox<>();
@@ -128,13 +130,21 @@ public final class ViewerWindow extends JFrame {
         playback = new Playback(recording);
         fieldPanel = new FieldPanel(view);
         gamepadPanel = new GamepadPanel(view);
+        telemetryPanel = new TelemetryPanel(view);
+        shownName = title;
         timeline = new JSlider(0, view.size() - 1, 0);
         timer = new Timer(FRAME_MILLIS, e -> tick());
         liveTimer = new Timer(2 * FRAME_MILLIS, e -> liveTick());
 
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
-        add(buildChooser(title), BorderLayout.NORTH);
+        JComponent chooser = buildChooser(title);
+        header = new MissionHeader(view, recordButton);
+        JPanel top = new JPanel(new BorderLayout());
+        top.add(header, BorderLayout.NORTH);
+        top.add(chooser, BorderLayout.SOUTH);
+        add(top, BorderLayout.NORTH);
         add(fieldPanel, BorderLayout.CENTER);
         add(buildSidePanel(), BorderLayout.EAST);
         add(buildControls(), BorderLayout.SOUTH);
@@ -153,6 +163,18 @@ public final class ViewerWindow extends JFrame {
         SwingUtilities.invokeLater(() -> new ViewerWindow(recording, title).setVisible(true));
     }
 
+    /**
+     * Opens a viewer window that goes straight into a live drive of {@code option} (INIT, waiting
+     * for Enter). {@code background} is shown for the moment before the drive's first snapshot.
+     */
+    public static void openDriving(RunRecording background, String title, LiveDrive.Option option) {
+        SwingUtilities.invokeLater(() -> {
+            ViewerWindow window = new ViewerWindow(background, title);
+            window.setVisible(true);
+            window.startDrive(option);
+        });
+    }
+
     /** Saves a scenario's recording as {@code build/recordings/viewer-<id>.json} and returns the file. */
     static Path saveScenarioRun(Scenarios.Scenario scenario, RunRecording recording) {
         return RunRecordingJson.save(recording, RunRecordingJson.fileInDefaultFolder("viewer-" + scenario.id()));
@@ -164,6 +186,7 @@ public final class ViewerWindow extends JFrame {
     private JComponent buildChooser(String shownName) {
         choiceBox.setToolTipText("Drive a TeleOp from the keyboard, run a ready-made scenario, or replay a saved"
                 + " recording (build/recordings)");
+        Theme.flat(choiceBox);
         choiceBox.setFocusable(false);
         choiceBox.setMaximumRowCount(20);
         fillChoices("Replay: " + shownName);
@@ -190,18 +213,28 @@ public final class ViewerWindow extends JFrame {
             }
         });
 
+        Theme.flat(recordButton);
+        recordButton.setFont(Theme.labelFont(12f));
         recordButton.setFocusable(false);   // keep the keyboard on the robot
         recordButton.setToolTipText("Turn on before pressing Enter (PLAY) to save the drive."
                 + " Off = practice: the drive is shown but not saved.");
         recordButton.addActionListener(e -> showRecordState());
         showRecordState();
 
-        JPanel bar = new JPanel(new BorderLayout(8, 0));
-        bar.add(new JLabel("Drive, run or replay:"), BorderLayout.WEST);
+        JLabel caption = new JLabel(Theme.label("Drive / run / replay"));
+        caption.setFont(Theme.labelFont(10f));
+        caption.setForeground(Theme.MUTED);
+        choiceDescription.setFont(Theme.text(12f));
+        choiceDescription.setForeground(Theme.MUTED);
+
+        JPanel bar = new JPanel(new BorderLayout(12, 6));
+        bar.setBackground(Theme.BACKGROUND);
+        bar.add(caption, BorderLayout.WEST);
         bar.add(choiceBox, BorderLayout.CENTER);
-        bar.add(recordButton, BorderLayout.EAST);
         bar.add(choiceDescription, BorderLayout.SOUTH);
-        bar.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+        bar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
+                BorderFactory.createEmptyBorder(10, 20, 8, 20)));
         return bar;
     }
 
@@ -257,6 +290,8 @@ public final class ViewerWindow extends JFrame {
         playback.setSpeedIndex(speedIndex);
         fieldPanel.setView(view);
         gamepadPanel.setView(view);
+        telemetryPanel.setView(view);
+        shownName = name;
         updatingControls = true;
         try {
             timeline.setMaximum(view.size() - 1);
@@ -265,27 +300,22 @@ public final class ViewerWindow extends JFrame {
         }
         setTitle(WINDOW_TITLE + " - " + name);
         choiceDescription.setText("Showing " + name);
+        choiceDescription.setForeground(Theme.MUTED);
         fillChoices(ViewerChoices.REPLAY_PREFIX + name);
         refresh();
     }
 
+    /** The right-hand column: telemetry cards (scrolling) over the two gamepads. */
     private JComponent buildSidePanel() {
+        JScrollPane scroll = Theme.flat(new JScrollPane(telemetryPanel,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER));
+        scroll.setPreferredSize(new Dimension(TelemetryPanel.WIDTH + 8, 600));
         JPanel side = new JPanel(new BorderLayout());
-        side.add(buildSideText(), BorderLayout.CENTER);
+        side.setBackground(Theme.BACKGROUND);
+        side.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Theme.LINE));
+        side.add(scroll, BorderLayout.CENTER);
         side.add(gamepadPanel, BorderLayout.SOUTH);
         return side;
-    }
-
-    private JComponent buildSideText() {
-        sideText.setEditable(false);
-        sideText.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        sideText.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        sideText.setFocusable(false);
-        // Don't jump to the bottom every time the text changes.
-        ((DefaultCaret) sideText.getCaret()).setUpdatePolicy(DefaultCaret.NEVER_UPDATE);
-        JScrollPane scroll = new JScrollPane(sideText);
-        scroll.setPreferredSize(new Dimension(420, 640));
-        return scroll;
     }
 
     private JComponent buildControls() {
@@ -293,6 +323,8 @@ public final class ViewerWindow extends JFrame {
         JButton back = button("<", "One loop back (Left; Shift+Left = 1 s)", () -> playback.step(-1));
         JButton forward = button(">", "One loop forward (Right; Shift+Right = 1 s)", () -> playback.step(1));
         JButton toEnd = button(">|", "End (End)", () -> playback.seek(view.size() - 1));
+        Theme.flat(playButton);
+        playButton.setPreferredSize(new Dimension(92, playButton.getPreferredSize().height));
         playButton.setToolTipText("Play / pause (Space)");
         playButton.setFocusable(false);
         playButton.addActionListener(e -> {
@@ -303,6 +335,7 @@ public final class ViewerWindow extends JFrame {
         for (double speed : Playback.SPEEDS) {
             speedBox.addItem(String.format(Locale.ROOT, "%sx", trimNumber(speed)));
         }
+        Theme.flat(speedBox);
         speedBox.setToolTipText("Playback speed ([ slower, ] faster)");
         speedBox.setFocusable(false);
         speedBox.addActionListener(e -> {
@@ -312,6 +345,7 @@ public final class ViewerWindow extends JFrame {
             }
         });
 
+        Theme.flat(timeline);
         timeline.setFocusable(false);
         timeline.addChangeListener(e -> {
             if (!updatingControls) {
@@ -323,26 +357,40 @@ public final class ViewerWindow extends JFrame {
 
         replayControls.addAll(List.of(toStart, back, playButton, forward, toEnd, speedBox, timeline));
 
-        JPanel buttons = new JPanel();
+        JLabel speedLabel = new JLabel(Theme.label("Speed"));
+        speedLabel.setFont(Theme.labelFont(10f));
+        speedLabel.setForeground(Theme.MUTED);
+        timeLabel.setFont(Theme.mono(13f));
+        timeLabel.setForeground(Theme.TEXT);
+
+        JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        buttons.setOpaque(false);
         buttons.add(toStart);
         buttons.add(back);
         buttons.add(playButton);
         buttons.add(forward);
         buttons.add(toEnd);
-        buttons.add(new JLabel("  Speed"));
+        buttons.add(javax.swing.Box.createHorizontalStrut(14));
+        buttons.add(speedLabel);
         buttons.add(speedBox);
+        buttons.add(javax.swing.Box.createHorizontalStrut(14));
         buttons.add(timeLabel);
+        buttons.add(javax.swing.Box.createHorizontalStrut(10));
 
         JPanel controls = new JPanel(new BorderLayout());
+        controls.setBackground(Theme.PANEL);
         controls.add(buttons, BorderLayout.WEST);
         controls.add(timeline, BorderLayout.CENTER);
-        controls.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 8));
+        controls.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.LINE),
+                BorderFactory.createEmptyBorder(10, 14, 10, 20)));
         return controls;
     }
 
     /** A small button that runs {@code action} then refreshes the window. */
     private JButton button(String text, String tip, Runnable action) {
-        JButton button = new JButton(text);
+        JButton button = Theme.flat(new JButton(text));
+        button.setFont(Theme.text(13f));
         button.setToolTipText(tip);
         button.setFocusable(false);
         button.addActionListener(e -> {
@@ -391,10 +439,12 @@ public final class ViewerWindow extends JFrame {
         liveOption = option;
         liveDrive = new LiveDrive(option, heldKeys, new JamepadControllers(), MatchPeriod.TELEOP.seconds(), true);
         noticesShown = 0;
+        fillChoices(ViewerChoices.DRIVE_PREFIX + option.title());
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(driveKeys);
         choiceBox.setEnabled(false);
         replayControls.forEach(control -> control.setEnabled(false));
         setTitle(WINDOW_TITLE + " - driving " + option.title());
+        shownName = "driving " + option.title();
         choiceDescription.setText("Driving " + option.title() + ". INIT: press Enter for PLAY, Esc to stop.");
         liveDrive.start();
         liveTimer.start();
@@ -412,6 +462,7 @@ public final class ViewerWindow extends JFrame {
         }
         if (liveDrive.phase() == LiveDrive.Phase.DRIVING) {
             choiceDescription.setText("Driving " + liveOption.title() + ". Esc to stop.");
+            choiceDescription.setForeground(Theme.MUTED);
         }
         if (liveDrive.noticeCount() != noticesShown) {
             // A controller connected or disconnected: say so where the driver is looking.
@@ -419,6 +470,7 @@ public final class ViewerWindow extends JFrame {
             String notice = liveDrive.notice();
             choiceDescription.setText(notice);
             if (notice.contains("disconnected")) {
+                choiceDescription.setForeground(Theme.AMBER);
                 Toolkit.getDefaultToolkit().beep();
             }
         }
@@ -434,6 +486,7 @@ public final class ViewerWindow extends JFrame {
         playback.seek(view.size() - 1);
         fieldPanel.setView(view);
         gamepadPanel.setView(view);
+        telemetryPanel.setView(view);
         updatingControls = true;
         try {
             timeline.setMaximum(view.size() - 1);
@@ -482,28 +535,27 @@ public final class ViewerWindow extends JFrame {
         return RunRecordingJson.save(recording, RunRecordingJson.fileInDefaultFolder("drive-" + option.id() + "-" + stamp));
     }
 
-    /** Lines at the top of the side panel while driving: what to press, and the layout. */
+    /** Status lines for the telemetry panel while driving: what to press, recording, inputs. */
     private List<String> driveStatus() {
         List<String> lines = new ArrayList<>();
+        // The first line is the headline (the telemetry panel shows it large).
         if (liveDrive.phase() == LiveDrive.Phase.INIT) {
             lines.add(">> INIT: press Enter for PLAY <<");
             lines.add(recordButton.isSelected()
                     ? "Record ON: this drive will be saved"
                     : "Record OFF: practice, not saved (click Record before Enter to save)");
         } else {
-            lines.add(liveDrive.keepRecording() ? "Recording: this drive will be saved" : "Practice: not saved");
             RunRecording.LoopRecord last = view.loop(view.size() - 1);
             double left = Math.max(0.0, liveDrive.matchSeconds() - last.matchTimeSeconds());
             lines.add(String.format(Locale.ROOT, ">> DRIVING: %d:%02d left, Esc to stop <<",
                     (int) left / 60, (int) left % 60));
+            lines.add(liveDrive.keepRecording() ? "Recording: this drive will be saved" : "Practice: not saved");
         }
         List<String> inputs = liveDrive.inputStatus();
         lines.add("Gamepad 1: " + inputs.get(0) + "   Gamepad 2: " + inputs.get(1));
         if (liveDrive.controllerProblem() != null) {
             lines.add(liveDrive.controllerProblem());
         }
-        lines.add("");
-        lines.addAll(KeyboardGamepads.help());
         return lines;
     }
 
@@ -536,7 +588,10 @@ public final class ViewerWindow extends JFrame {
 
     /** Shows the Record button's state in its text. */
     private void showRecordState() {
-        recordButton.setText(recordButton.isSelected() ? "\u25CF Record: ON" : "\u25CB Record: OFF");
+        recordButton.setText(Theme.label(recordButton.isSelected() ? "Rec on" : "Rec off"));
+        recordButton.setIcon(new Theme.Dot(recordButton.isSelected() ? Theme.RED : null, Theme.MUTED));
+        recordButton.setIconTextGap(8);
+        recordButton.setForeground(recordButton.isSelected() ? Theme.RED : Theme.MUTED);
         if (liveDrive != null) {
             refresh();
         }
@@ -579,13 +634,15 @@ public final class ViewerWindow extends JFrame {
         int index = playback.index();
         fieldPanel.show(index);
         gamepadPanel.show(index);
-        List<String> side = new ArrayList<>();
+        telemetryPanel.show(index);
         if (liveDrive != null) {
-            side.addAll(driveStatus());
-            side.add("");
+            telemetryPanel.setLive(driveStatus(), KeyboardGamepads.help());
+        } else {
+            telemetryPanel.setLive(null, null);
         }
-        side.addAll(SidePanelText.describe(view, index));
-        sideText.setText(String.join("\n", side));
+        boolean recordingLive = liveDrive != null && (liveDrive.phase() == LiveDrive.Phase.INIT
+                ? recordButton.isSelected() : liveDrive.keepRecording());
+        header.show(view, index, shownName, liveDrive != null, recordingLive);
 
         updatingControls = true;
         try {
@@ -594,11 +651,11 @@ public final class ViewerWindow extends JFrame {
         } finally {
             updatingControls = false;
         }
-        playButton.setText(playback.isPlaying() ? "Pause" : "Play");
+        playButton.setText(Theme.label(playback.isPlaying() ? "Pause" : "Play"));
         RunRecording.LoopRecord loop = view.loop(index);
         RunRecording.LoopRecord last = view.loop(view.size() - 1);
-        timeLabel.setText(String.format(Locale.ROOT, "  t = %.2f / %.2f s", loop.matchTimeSeconds(),
-                last.matchTimeSeconds()));
+        timeLabel.setText("T+ " + MissionHeader.clock(loop.matchTimeSeconds()) + "  /  "
+                + MissionHeader.clock(last.matchTimeSeconds()));
 
         // Run the timer only while playing, so an idle window uses no CPU.
         if (playback.isPlaying() && !timer.isRunning()) {

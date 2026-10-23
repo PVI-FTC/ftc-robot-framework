@@ -45,7 +45,7 @@ public final class GamepadPanel extends JComponent {
     protected void paintComponent(Graphics graphics) {
         Graphics2D g = (Graphics2D) graphics.create();
         try {
-            g.setColor(FieldPainter.BACKGROUND);
+            g.setColor(Theme.PANEL);
             g.fillRect(0, 0, getWidth(), getHeight());
             GamepadIndicator.paint(g, getWidth() - INSET_PIXELS, getHeight() - INSET_PIXELS, view.loop(index));
         } finally {

@@ -97,7 +97,61 @@ class ControllerTest {
         assertEquals(-1.0, Axis.LEFT_STICK_Y.read(pad1), 1e-6);
         assertTrue(Button.A.isPressed(pad1));
         assertTrue(Button.A.isPressed(pad2), "gamepad 2 is still the keyboard");
-        assertEquals(List.of("PS5 Controller", "keyboard"), gamepads.status());
+        assertEquals(List.of("PS5 Controller (D-pad = operator)", "PS5 Controller D-pad + keyboard"),
+                gamepads.status());
+    }
+
+    /**
+     * WHAT: With one controller, its D-pad presses the operator's face buttons (up = Y,
+     * down = A, left = X, right = B) and is not sent to the driver's gamepad.
+     *
+     * <p>WHY: One person with one controller can then run Team A's intake (operator A/B/X/Y)
+     * while driving, without the keyboard. A D-pad press must not also reach the driver.</p>
+     */
+    @Test
+    void oneControllerDpadWorksTheOperatorButtons() {
+        ControllerReading dpadDownAndLeft = new ControllerReading(true, "PS5 Controller", 0, 0, 0, 0, 0, 0,
+                Set.of(Button.DPAD_DOWN, Button.DPAD_LEFT, Button.Y));
+        LiveGamepads gamepads = new LiveGamepads(new HeldKeys(),
+                new FakeControllers(List.of(List.of(dpadDownAndLeft))), (n, r, c) -> { });
+        Gamepad driver = new Gamepad();
+        Gamepad operator = new Gamepad();
+        gamepads.gamepad1().update(driver, 0, 0);
+        gamepads.gamepad2().update(operator, 0, 0);
+
+        assertTrue(Button.A.isPressed(operator), "D-pad down = operator A");
+        assertTrue(Button.X.isPressed(operator), "D-pad left = operator X");
+        assertFalse(Button.B.isPressed(operator));
+        assertFalse(Button.Y.isPressed(operator), "the driver's own Y is not the operator's");
+        assertTrue(Button.Y.isPressed(driver), "face buttons stay with the driver");
+        assertFalse(Button.DPAD_DOWN.isPressed(driver), "the D-pad went to the operator instead");
+        assertFalse(Button.DPAD_LEFT.isPressed(driver));
+    }
+
+    /**
+     * WHAT: With a second controller, gamepad 2 comes from it and the D-pad is the driver's
+     * again.
+     *
+     * <p>WHY: The D-pad sharing is only for one controller; two people with two controllers
+     * get the normal layout.</p>
+     */
+    @Test
+    void secondControllerTakesOverGamepadTwo() {
+        ControllerReading driverDpadUp = new ControllerReading(true, "PS5 Controller", 0, 0, 0, 0, 0, 0,
+                Set.of(Button.DPAD_UP));
+        ControllerReading operatorB = new ControllerReading(true, "Xbox One Controller", 0, 0, 0, 0, 0, 0,
+                Set.of(Button.B));
+        LiveGamepads gamepads = new LiveGamepads(new HeldKeys(),
+                new FakeControllers(List.of(List.of(driverDpadUp, operatorB))), (n, r, c) -> { });
+        Gamepad driver = new Gamepad();
+        Gamepad operator = new Gamepad();
+        gamepads.gamepad1().update(driver, 0, 0);
+        gamepads.gamepad2().update(operator, 0, 0);
+
+        assertTrue(Button.DPAD_UP.isPressed(driver), "the driver keeps the D-pad");
+        assertTrue(Button.B.isPressed(operator));
+        assertFalse(Button.Y.isPressed(operator), "D-pad up is not the operator's Y any more");
+        assertEquals(List.of("PS5 Controller", "Xbox One Controller"), gamepads.status());
     }
 
     /**

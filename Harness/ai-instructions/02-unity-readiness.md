@@ -10,6 +10,20 @@ unchanged TeamCode. This is **Phase 7** in [`Harness/PROGRESS.md`](../PROGRESS.m
 The message format over the socket is not designed yet. Write code now so that the bridge can be
 added without rewriting the harness.
 
+**The plan, in three stages** (agreed with the user on 2026-10-23; details and status in
+[`PROGRESS.md`](../PROGRESS.md#unity-phase-7-in-three-stages)):
+
+1. **U1, replay:** Unity reads the saved run recording JSON files (the same ones the Swing viewer
+   replays) and animates them. No socket and no harness Java changes.
+2. **U2, live display and controller:** the harness runs TeamCode and talks to Unity over a local
+   socket from `pvi.harness.bridge`. It sends each loop's snapshot; Unity sends gamepad input back
+   through the single gamepad entry point (§5). Unity asks for each step (§2).
+3. **U3, physics:** Unity replaces the built-in position estimate behind `PhysicsBackend` (§5):
+   wheel powers in, pose (later encoders and Pinpoint) out.
+
+The Unity project lives in **`Harness/unity/`** (decided 2026-10-23). §1 still applies: C# and
+Unity files stay in that folder, and nothing in `src/` may depend on it.
+
 Unity uses C#, so **nothing in Unity can call Java classes directly.** Everything Unity needs has
 to go across a boundary as plain data.
 

@@ -2,7 +2,6 @@ package pvi.harness.viewer;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Line2D;
@@ -24,22 +23,36 @@ import pvi.harness.runtime.RunRecording;
  */
 public final class FieldPainter {
     // Colors. Package-private so tests can check which thing a pixel belongs to.
-    static final Color BACKGROUND = new Color(0x2B, 0x2B, 0x2B);
-    static final Color FIELD = new Color(0x9A, 0x9A, 0x9A);
-    static final Color FOOT_LINE = new Color(0x8A, 0x8A, 0x8A);
-    static final Color TILE_LINE = new Color(0x5A, 0x5A, 0x5A);
-    static final Color BORDER = new Color(0x1A, 0x1A, 0x1A);
-    static final Color TRAIL = new Color(0x1B, 0x9E, 0x4B);
-    static final Color ROBOT_FILL = new Color(0x2E, 0x6F, 0xD9);
-    static final Color ROBOT_OUTLINE = new Color(0x10, 0x2A, 0x5C);
-    static final Color ROBOT_FRONT = new Color(0xF2, 0xF2, 0xF2);
-    static final Color HEADING_ARROW = new Color(0xFF, 0xA5, 0x00);
-    static final Color TEXT = new Color(0xE8, 0xE8, 0xE8);
+    // The look follows Theme: a dark field with hairline grid, a cyan path, a wireframe robot.
+    static final Color BACKGROUND = Theme.BACKGROUND;
+    static final Color FIELD = new Color(0x0A, 0x0D, 0x11);
+    static final Color FOOT_LINE = new Color(0x12, 0x17, 0x1D);
+    static final Color TILE_LINE = new Color(0x1D, 0x24, 0x2C);
+    static final Color BORDER = new Color(0x3A, 0x44, 0x4F);
+    static final Color TRAIL = Theme.ACCENT;
+    static final Color ROBOT_FILL = new Color(0x0E, 0x1F, 0x2E);
+    static final Color ROBOT_OUTLINE = new Color(0xA9, 0xBC, 0xCC);
+    static final Color ROBOT_FRONT = Theme.ACCENT;
+    static final Color HEADING_ARROW = Theme.TEXT;
+    static final Color TEXT = Theme.TEXT;
+    /** Quieter text: axis labels and the legend. */
+    static final Color TEXT_MUTED = Theme.MUTED;
 
     /** FTC field tiles are 2 ft (24 in) square: 6 × 6 tiles. */
     static final double TILE_INCHES = 24.0;
     /** Lighter lines every foot, between the tile lines. */
     static final double FOOT_INCHES = 12.0;
+    /** A wheel, seen from above. */
+    static final Color WHEEL = new Color(0x1A, 0x2A, 0x38);
+    /** Mecanum roller lines on a wheel. */
+    static final Color WHEEL_ROLLERS = new Color(0x3D, 0x52, 0x63);
+    /** A wheel or the intake turning backwards (wheel) or ejecting (intake). */
+    static final Color REVERSE = Theme.AMBER;
+
+    /** Wheel size on the drawing, in inches (a typical 104 mm mecanum wheel, seen from above). */
+    static final double WHEEL_LENGTH_INCHES = 4.0;
+    static final double WHEEL_WIDTH_INCHES = 1.6;
+
     /** How far the heading arrow reaches past the front of the robot, in inches. */
     static final double ARROW_PAST_FRONT_INCHES = 8.0;
 
@@ -66,8 +79,52 @@ public final class FieldPainter {
         }
     }
 
+    /**
+     * What the robot's moving parts are doing, for drawing them on the robot: the power each
+     * drive motor and the intake was set to (-1 to 1). A missing intake is drawn as none.
+     */
+    public record RobotParts(double frontLeft, double frontRight, double rearLeft, double rearRight,
+                             boolean hasIntake, double intake) {
+
+        /**
+         * Reads the parts from a loop's motors by their configuration names ("frontLeft",
+         * "frontRight", "rearLeft", "rearRight", "intake"). Returns null if the four drive
+         * motors aren't all there (then no wheels are drawn).
+         */
+        public static RobotParts of(List<RunRecording.MotorState> motors) {
+            Double fl = null, fr = null, rl = null, rr = null, in = null;
+            for (RunRecording.MotorState m : motors) {
+                switch (m.name()) {
+                    case "frontLeft" -> fl = m.power();
+                    case "frontRight" -> fr = m.power();
+                    case "rearLeft" -> rl = m.power();
+                    case "rearRight" -> rr = m.power();
+                    case "intake" -> in = m.power();
+                    default -> { }
+                }
+            }
+            if (fl == null || fr == null || rl == null || rr == null) {
+                return null;
+            }
+            return new RobotParts(fl, fr, rl, rr, in != null, in == null ? 0 : in);
+        }
+    }
+
     /** Only static methods here; nothing to create. */
     private FieldPainter() {
+    }
+
+    /** Like {@link #paint(Graphics2D, FieldCoordinates, RobotBox, Pose, List, String)}, also drawing the wheels and intake. */
+    public static void paint(Graphics2D g, FieldCoordinates coords, RobotBox box, Pose pose,
+                             List<Pose> trail, String caption, RobotParts parts) {
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        paintField(g, coords);
+        paintTrail(g, coords, trail);
+        if (pose != null) {
+            paintRobot(g, coords, box, pose, parts);
+        }
+        paintText(g, coords, box, pose, caption);
     }
 
     /**
@@ -88,7 +145,7 @@ public final class FieldPainter {
         paintField(g, coords);
         paintTrail(g, coords, trail);
         if (pose != null) {
-            paintRobot(g, coords, box, pose);
+            paintRobot(g, coords, box, pose, null);
         }
         paintText(g, coords, box, pose, caption);
     }
@@ -98,7 +155,7 @@ public final class FieldPainter {
         String size = String.format(Locale.ROOT, "Robot %.0f x %.0f in (%s)", box.lengthInches(), box.widthInches(),
                 box.modelName());
         String flag = box.measured() ? "measured size" : "PLACEHOLDER size, not measured";
-        return size + ", " + flag + ". Green = path so far. Orange = facing.";
+        return size + ", " + flag + ". Cyan = path, white = facing.";
     }
 
     // ---- The parts --------------------------------------------------------------------------
@@ -113,13 +170,19 @@ public final class FieldPainter {
         g.setColor(FIELD);
         g.fill(new Rectangle2D.Double(c.screenX(-half), c.screenY(half), c.fieldPixels(), c.fieldPixels()));
 
-        // Thin lines every foot, then darker ones every tile (2 ft) on top.
+        // Faint lines every foot, then slightly brighter ones every tile (2 ft) on top.
         drawGrid(g, c, FOOT_INCHES, FOOT_LINE, 1f);
-        drawGrid(g, c, TILE_INCHES, TILE_LINE, 2f);
+        drawGrid(g, c, TILE_INCHES, TILE_LINE, 1f);
 
+        // A small cross at the field center (0, 0).
+        double arm = 3 * c.pixelsPerInch();
         g.setColor(BORDER);
-        g.setStroke(new BasicStroke(3f));
-        g.draw(new Rectangle2D.Double(c.screenX(-half), c.screenY(half), c.fieldPixels(), c.fieldPixels()));
+        g.setStroke(new BasicStroke(1f));
+        g.draw(new Line2D.Double(c.screenX(0) - arm, c.screenY(0), c.screenX(0) + arm, c.screenY(0)));
+        g.draw(new Line2D.Double(c.screenX(0), c.screenY(0) - arm, c.screenX(0), c.screenY(0) + arm));
+
+        // Hairline border with brighter corner ticks.
+        Theme.drawFrame(g, c.screenX(-half), c.screenY(half), c.fieldPixels(), c.fieldPixels());
     }
 
     /** Lines across the field every {@code spacingInches}, both ways. */
@@ -144,13 +207,16 @@ public final class FieldPainter {
             path.lineTo(c.screenX(p.xInches()), c.screenY(p.yInches()));
         }
         g.setColor(TRAIL);
-        g.setStroke(new BasicStroke((float) Math.max(2.0, 0.6 * c.pixelsPerInch()),
+        g.setStroke(new BasicStroke((float) Math.max(2.0, 0.3 * c.pixelsPerInch()),
                 BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.draw(path);
     }
 
-    /** The robot box (turned to its heading), a light front edge, and the heading arrow. */
-    private static void paintRobot(Graphics2D g, FieldCoordinates c, RobotBox box, Pose pose) {
+    /**
+     * The robot box (turned to its heading), its wheels and intake if {@code parts} is given, a
+     * light front edge, and the heading arrow.
+     */
+    private static void paintRobot(Graphics2D g, FieldCoordinates c, RobotBox box, Pose pose, RobotParts parts) {
         double halfLength = box.lengthInches() / 2.0;
         double halfWidth = box.widthInches() / 2.0;
         // Corners in order front-left, front-right, back-right, back-left (forward, left), in inches.
@@ -170,14 +236,18 @@ public final class FieldPainter {
         g.setColor(ROBOT_FILL);
         g.fill(outline);
         g.setColor(ROBOT_OUTLINE);
-        g.setStroke(new BasicStroke(2f));
+        g.setStroke(new BasicStroke(1.5f));
         g.draw(outline);
+
+        if (parts != null) {
+            paintParts(g, c, box, pose, parts);
+        }
 
         // Front edge, so the robot's front is visible even without the arrow.
         double[] frontLeft = toScreen(c, pose, halfLength, halfWidth);
         double[] frontRight = toScreen(c, pose, halfLength, -halfWidth);
         g.setColor(ROBOT_FRONT);
-        g.setStroke(new BasicStroke((float) Math.max(3.0, 0.8 * c.pixelsPerInch()), BasicStroke.CAP_BUTT,
+        g.setStroke(new BasicStroke((float) Math.max(2.5, 0.6 * c.pixelsPerInch()), BasicStroke.CAP_BUTT,
                 BasicStroke.JOIN_MITER));
         g.draw(new Line2D.Double(frontLeft[0], frontLeft[1], frontRight[0], frontRight[1]));
 
@@ -191,7 +261,7 @@ public final class FieldPainter {
         double[] headLeft = toScreen(c, pose, tipForward - headLength, headHalfWidth);
         double[] headRight = toScreen(c, pose, tipForward - headLength, -headHalfWidth);
         g.setColor(HEADING_ARROW);
-        g.setStroke(new BasicStroke((float) Math.max(2.0, 0.6 * c.pixelsPerInch()), BasicStroke.CAP_ROUND,
+        g.setStroke(new BasicStroke((float) Math.max(2.0, 0.45 * c.pixelsPerInch()), BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_ROUND));
         g.draw(new Line2D.Double(center[0], center[1], shaftEnd[0], shaftEnd[1]));
         Path2D.Double head = new Path2D.Double();
@@ -202,26 +272,136 @@ public final class FieldPainter {
         g.fill(head);
     }
 
+    /**
+     * Four mecanum wheels in the corners and the intake across the front. Each wheel fills from
+     * its middle toward the front (cyan) or back (amber) as far as its power; the rollers are
+     * drawn as diagonal lines, in the X pattern a mecanum drive has seen from above. The intake
+     * lights cyan while taking in, amber while ejecting.
+     */
+    private static void paintParts(Graphics2D g, FieldCoordinates c, RobotBox box, Pose pose, RobotParts parts) {
+        double halfLength = box.lengthInches() / 2.0;
+        double halfWidth = box.widthInches() / 2.0;
+        double wheelForward = halfLength - WHEEL_LENGTH_INCHES / 2.0 - 1.0;
+        double wheelLeft = halfWidth - WHEEL_WIDTH_INCHES / 2.0 - 0.6;
+        // forward, left, power, roller slant (+1 = "/" from above, -1 = "\").
+        double[][] wheels = {
+                {wheelForward, wheelLeft, parts.frontLeft(), -1},
+                {wheelForward, -wheelLeft, parts.frontRight(), +1},
+                {-wheelForward, wheelLeft, parts.rearLeft(), +1},
+                {-wheelForward, -wheelLeft, parts.rearRight(), -1}};
+        for (double[] w : wheels) {
+            paintWheel(g, c, pose, w[0], w[1], w[2], w[3]);
+        }
+        if (parts.hasIntake()) {
+            paintIntake(g, c, pose, halfLength, halfWidth, parts.intake());
+        }
+    }
+
+    /** One wheel centered at (forward, left) inches on the robot. */
+    private static void paintWheel(Graphics2D g, FieldCoordinates c, Pose pose, double forward, double left,
+                                   double power, double slant) {
+        double hl = WHEEL_LENGTH_INCHES / 2.0;
+        double hw = WHEEL_WIDTH_INCHES / 2.0;
+        g.setColor(WHEEL);
+        g.fill(robotRect(c, pose, forward - hl, forward + hl, left - hw, left + hw));
+
+        // Power: fill from the middle toward the front (forward) or the back (backward).
+        double clamped = Math.max(-1.0, Math.min(1.0, power));
+        if (Math.abs(clamped) > 0.005) {
+            double end = forward + clamped * hl;
+            g.setColor(clamped > 0 ? Theme.ACCENT : REVERSE);
+            g.fill(robotRect(c, pose, Math.min(forward, end), Math.max(forward, end), left - hw, left + hw));
+        }
+
+        // Rollers: three short diagonal lines.
+        g.setColor(WHEEL_ROLLERS);
+        g.setStroke(new BasicStroke(1f));
+        for (double at = -hl * 0.6; at <= hl * 0.6 + 1e-9; at += hl * 0.6) {
+            double[] a = toScreen(c, pose, forward + at - slant * hw * 0.8, left - hw * 0.8);
+            double[] b = toScreen(c, pose, forward + at + slant * hw * 0.8, left + hw * 0.8);
+            g.draw(new Line2D.Double(a[0], a[1], b[0], b[1]));
+        }
+        g.setColor(ROBOT_OUTLINE);
+        g.draw(robotRect(c, pose, forward - hl, forward + hl, left - hw, left + hw));
+    }
+
+    /** The intake: a bar just inside the front edge, with chevrons showing which way it runs. */
+    private static void paintIntake(Graphics2D g, FieldCoordinates c, Pose pose, double halfLength,
+                                    double halfWidth, double power) {
+        double front = halfLength - 0.8;
+        double back = front - 2.2;
+        double side = halfWidth * 0.55;
+        boolean running = Math.abs(power) > 0.005;
+        g.setColor(running ? (power > 0 ? Theme.ACCENT : REVERSE) : WHEEL);
+        g.fill(robotRect(c, pose, back, front, -side, side));
+        g.setColor(ROBOT_OUTLINE);
+        g.setStroke(new BasicStroke(1f));
+        g.draw(robotRect(c, pose, back, front, -side, side));
+        if (running) {
+            // Chevrons point in (toward the robot) while intaking, out while ejecting.
+            double tipShift = power > 0 ? -0.6 : 0.6;
+            double middle = (front + back) / 2.0;
+            g.setColor(Theme.BACKGROUND);
+            g.setStroke(new BasicStroke(1.4f));
+            for (double at = -side * 0.6; at <= side * 0.6 + 1e-9; at += side * 0.6) {
+                double[] a = toScreen(c, pose, middle - tipShift, at - 0.7);
+                double[] tip = toScreen(c, pose, middle + tipShift, at);
+                double[] b = toScreen(c, pose, middle - tipShift, at + 0.7);
+                Path2D.Double chevron = new Path2D.Double();
+                chevron.moveTo(a[0], a[1]);
+                chevron.lineTo(tip[0], tip[1]);
+                chevron.lineTo(b[0], b[1]);
+                g.draw(chevron);
+            }
+        }
+    }
+
+    /** A rectangle on the robot, from forward/left limits in inches, turned with the robot. */
+    private static Path2D.Double robotRect(FieldCoordinates c, Pose pose, double back, double front,
+                                           double right, double left) {
+        double[][] corners = {{front, left}, {front, right}, {back, right}, {back, left}};
+        Path2D.Double path = new Path2D.Double();
+        for (int i = 0; i < corners.length; i++) {
+            double[] p = toScreen(c, pose, corners[i][0], corners[i][1]);
+            if (i == 0) {
+                path.moveTo(p[0], p[1]);
+            } else {
+                path.lineTo(p[0], p[1]);
+            }
+        }
+        path.closePath();
+        return path;
+    }
+
     /** Caption in the top margin, legend in the bottom margin, axis labels at the edges. */
     private static void paintText(Graphics2D g, FieldCoordinates c, RobotBox box, Pose pose, String caption) {
         double half = Pose.FIELD_HALF_WIDTH_INCHES;
-        int fontSize = (int) Math.max(10, Math.min(14, c.marginPixels() * 0.5));
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, fontSize));
-        g.setColor(TEXT);
+        float fontSize = (float) Math.max(9, Math.min(12, c.marginPixels() * 0.42));
         float left = (float) c.screenX(-half);
-        float topBaseline = (float) (c.screenY(half) - c.marginPixels() * 0.3);
+        float topBaseline = (float) (c.screenY(half) - c.marginPixels() * 0.35);
         float bottomBaseline = (float) (c.screenY(-half) + c.marginPixels() * 0.65);
 
         String top = caption == null ? "" : caption;
         if (pose != null) {
             top = (top.isEmpty() ? "" : top + "   ") + pose.toString();
         }
-        g.drawString(top, left, topBaseline);
-        g.drawString(legendText(box), left, bottomBaseline);
+        float width = (float) c.fieldPixels();
+        Theme.drawLabel(g, top, left, topBaseline, fitted(g, top, fontSize, width * 0.85f), TEXT);
+        String legend = legendText(box);
+        Theme.drawLabel(g, legend, left, bottomBaseline, fitted(g, legend, fontSize, width), box.measured() ? TEXT_MUTED : Theme.AMBER);
 
-        // Which way is +x and +y, in the right and top margins.
-        g.drawString("+x", (float) (c.screenX(half) + 4), (float) c.screenY(0));
-        g.drawString("+y", (float) (c.screenX(half) - 2 * fontSize), topBaseline);
+        // Which way is +x and +y: at the right edge, beside the center line and above the top-right corner.
+        Theme.drawLabel(g, "+x", (float) (c.screenX(half) + 6), (float) c.screenY(0) + fontSize / 3, fontSize, TEXT_MUTED);
+        Theme.drawLabel(g, "+y", (float) (c.screenX(half) - 2.2f * fontSize), topBaseline, fontSize, TEXT_MUTED);
+    }
+
+    /** The largest label size up to {@code size} (and at least 7) at which {@code text} fits in {@code maxWidth}. */
+    private static float fitted(Graphics2D g, String text, float size, float maxWidth) {
+        float fit = size;
+        while (fit > 7f && g.getFontMetrics(Theme.labelFont(fit)).stringWidth(Theme.label(text)) > maxWidth) {
+            fit -= 0.5f;
+        }
+        return fit;
     }
 
     /** Screen pixels for a point given in inches forward/left of the robot center. */

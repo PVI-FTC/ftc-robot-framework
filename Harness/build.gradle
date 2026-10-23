@@ -217,13 +217,13 @@ tasks.named('test') {
 
 // ---------------------------------------------------------------------------
 // viewRecording: opens the desktop viewer window (replay recordings, run scenarios).
-//   .\gradlew.bat viewRecording                       (newest file in build/recordings)
+//   .\gradlew.bat viewRecording                       (drive Team A TeleOp live)
 //   .\gradlew.bat viewRecording -Pfile=build\recordings\teamAAutonomous.json
 // Only this task opens a window; "test" never does (it runs headless).
 // ---------------------------------------------------------------------------
 tasks.register('viewRecording', JavaExec) {
     group = 'harness'
-    description = 'Opens the viewer window: replays recordings (build/recordings) and runs scenarios.'
+    description = 'Opens the viewer window: drives a TeleOp live, replays recordings (build/recordings), runs scenarios.'
     classpath = sourceSets.viewer.runtimeClasspath
     mainClass = 'pvi.harness.viewer.RecordingViewer'
     workingDir = projectDir
@@ -236,4 +236,27 @@ tasks.register('viewRecording', JavaExec) {
     if (project.hasProperty('file')) {
         args project.property('file')
     }
+}
+
+// ---------------------------------------------------------------------------
+// makeTest: turns a saved recording (for example a drive recorded in the viewer) into a new
+// test in src/test/java/pvi/harness/recorded/. Never replaces an existing file.
+//   .\gradlew.bat makeTest                                          (newest drive-*.json)
+//   .\gradlew.bat makeTest "-Pfile=build\recordings\drive-....json"
+//   .\gradlew.bat makeTest "-Pfile=..." "-PtestName=IntakeDriveTest"  (choose the class name)
+// ---------------------------------------------------------------------------
+tasks.register('makeTest', JavaExec) {
+    group = 'harness'
+    description = 'Turns a saved recording into a new, editable test in src/test/java/pvi/harness/recorded.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'pvi.harness.recorded.MakeRecordedTest'
+    workingDir = projectDir
+    // It replays the inputs on the real OpMode for the snapshot checks, so load the Java agent
+    // as tests do: otherwise timed robot code would read the real clock.
+    dependsOn agentJar
+    def makeTestAgentFile = agentJar.flatMap { it.archiveFile }
+    jvmArgumentProviders.add({ ["-javaagent:${makeTestAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    systemProperty 'java.awt.headless', 'true'
+    args(project.findProperty('file') ?: '', project.findProperty('testName') ?: '')
 }

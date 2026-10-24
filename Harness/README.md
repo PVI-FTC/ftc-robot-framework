@@ -483,6 +483,56 @@ recordings; the other keys match the viewer window (Space, arrows, Home/End, `[`
 top-down and F to follow the robot. Unity only reads the saved files; nothing connects to the
 harness live yet. Details: [`unity/README.md`](unity/README.md).
 
+### Live connection to Unity (Stage U2, harness side)
+
+The harness can run TeamCode **live for Unity**: Unity connects, picks an OpMode, sends its
+gamepads, and asks for one OpMode call at a time; the harness answers each with that moment's
+robot state. Start the harness side from `Harness\`:
+
+```powershell
+.\gradlew.bat unityBridge                    # listens on 127.0.0.1:7465
+.\gradlew.bat unityBridge -Pport=7500
+```
+
+It only accepts connections from this computer, serves one client at a time, and keeps running
+for the next client until you press Ctrl+C. The Unity side (U2 piece 3) is not built yet; the
+`BridgeSessionTest` and `BridgeServerTest` tests play Unity's part.
+
+**Bridge message format, version 1.** A local TCP connection; each message is one line of UTF-8
+JSON ending in `\n`, with a `type`. Unity sends a request and the harness sends **exactly one
+reply**, then waits: the harness never runs ahead, so **Unity drives the clock** (about one
+`step` per 20 ms of real time) and the same messages always give the same replies. Numbers and
+gamepads use the same rules and layouts as the run recording (above). Every request can get an
+`error` reply instead; the connection stays usable unless it says otherwise.
+
+Unity sends:
+
+| `type` | Other fields | Allowed when | Reply |
+|---|---|---|---|
+| `hello` | `version` (whole number, must be `1`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
+| `load` | `opMode` (string, an `id` from `welcome`) | after `hello`; again any time to start over | `loaded` |
+| `init` | — | after `load` | `frame` (stage `INIT`) |
+| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before") | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
+| `play` | `gamepad1`, `gamepad2` (optional) | after `init` | `frame` (stage `START`) |
+| `stop` | — | after `init` or `play` | `frame` (stage `STOP`, `finished: true`) |
+| `save` | `name` (string: letters, digits, `-`, `_`, `.`) | after `load` | `saved` |
+| `bye` | — | any time | `goodbye`, then the connection closes |
+
+The harness sends:
+
+| `type` | Fields |
+|---|---|
+| `welcome` | `version` (whole number, `1`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
+| `loaded` | `opMode` (string, the id); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `header` (the run recording's header object) |
+| `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself) |
+| `saved` | `path` (string, the recording file under `build\recordings`) |
+| `goodbye` | — |
+| `error` | `message` (string, what was wrong); `crashed` (boolean, only when the OpMode threw: the run is over, as on the Robot Controller) |
+
+A typical run: `hello` → `load` → `init` → a few `step`s (INIT_LOOP) → `play` → `step` every 20 ms
+with the current gamepads → `stop` (or `finished: true`) → optionally `save` → `bye`. The OpModes
+Unity can pick are listed in `src/bridge/java/pvi/harness/bridge/BridgeOpModes.java`.
+
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |
@@ -617,6 +667,12 @@ src/test/java/pvi/harness/
   the tests
 unity/
   Unity project: replays recordings in 3D (Stage U1; see unity/README.md)
+src/bridge/java/pvi/harness/bridge/
+  BridgeServer      the live Unity connection (gradlew unityBridge): local socket, one client
+  BridgeSession     the messages (no socket here, so tests drive it line by line)
+  BridgeProtocol    message types, version, default port
+  BridgeOpModes     the OpModes Unity can run
+  BridgeGamepads    Unity's gamepad, through the core's single live-input entry point
 ```
 
 - **The Java agent.** `build.gradle` packages `src/agent` with Byte Buddy into

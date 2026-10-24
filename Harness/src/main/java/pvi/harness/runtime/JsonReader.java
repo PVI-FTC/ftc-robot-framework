@@ -14,7 +14,7 @@ import java.util.Map;
  * and {@code null}. Anything that isn't valid JSON throws {@link IllegalArgumentException}
  * saying where the problem is.</p>
  */
-final class JsonReader {
+public final class JsonReader {
     private final String text;
     private int at;
 
@@ -23,7 +23,7 @@ final class JsonReader {
     }
 
     /** Reads one JSON value that must fill the whole text (spaces around it are fine). */
-    static Object parse(String text) {
+    public static Object parse(String text) {
         JsonReader reader = new JsonReader(text);
         Object value = reader.value();
         reader.skipSpaces();

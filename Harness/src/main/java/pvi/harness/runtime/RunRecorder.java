@@ -127,10 +127,32 @@ public final class RunRecorder {
         events.add(new RunRecording.Event(runner.clock().sinceInit(), matchTime, text));
     }
 
+    /** The newest loop entry, or null before the first OpMode call. Cheap: nothing is copied. */
+    public RunRecording.LoopRecord lastLoop() {
+        return loops.isEmpty() ? null : loops.get(loops.size() - 1);
+    }
+
+    /** How many loop entries have been recorded so far. */
+    public int loopCount() {
+        return loops.size();
+    }
+
+    /** The marked events so far (including wall hits), in time order. */
+    public List<RunRecording.Event> events() {
+        return List.copyOf(eventsWithWallHits(runner.positionEstimator()));
+    }
+
     /** The recording so far, as an immutable snapshot (call it again later for more loops). */
     public RunRecording recording() {
         PoseEstimator estimator = runner.positionEstimator();
-        RunRecording.Header header = new RunRecording.Header(
+        return new RunRecording(header(), loops, runner.driver1().rumbles(), runner.driver2().rumbles(),
+                eventsWithWallHits(estimator));
+    }
+
+    /** What is being run, on which robot, with which drive model: the recording's header. */
+    public RunRecording.Header header() {
+        PoseEstimator estimator = runner.positionEstimator();
+        return new RunRecording.Header(
                 RunRecording.VERSION, "inches", "radians", "seconds",
                 runner.hardwareMap().configName(),
                 runner.opMode().getClass().getSimpleName(),
@@ -138,8 +160,6 @@ public final class RunRecorder {
                 runner.loopPeriodSeconds(),
                 estimator == null ? null : estimator.start(),
                 estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()));
-        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles(),
-                eventsWithWallHits(estimator));
     }
 
     /** The noted events plus every time the robot ran into a field wall, in time order. */

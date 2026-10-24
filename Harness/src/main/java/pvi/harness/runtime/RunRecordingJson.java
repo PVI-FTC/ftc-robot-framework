@@ -322,6 +322,38 @@ public final class RunRecordingJson {
                 + ", but it is " + (got == null ? "missing or null" : "'" + got + "'") + ".");
     }
 
+    // ---- Single pieces, for messages that carry one loop at a time (the Unity bridge) -----
+
+    /** One loop as a single line of JSON, exactly as it appears in a saved recording's "loops". */
+    public static String loopJson(RunRecording.LoopRecord loop) {
+        return loop(loop);
+    }
+
+    /** A recording header as a single line of JSON, exactly as in a saved recording. */
+    public static String headerJson(RunRecording.Header header) {
+        return header(header);
+    }
+
+    /** Rumbles as a JSON array, as in a saved recording's "gamepad1Rumbles". */
+    public static String rumblesJson(List<RumbleRecord> rumbles) {
+        return rumbles(rumbles);
+    }
+
+    /** Events as a JSON array, as in a saved recording's "events". */
+    public static String eventsJson(List<RunRecording.Event> events) {
+        return events(events);
+    }
+
+    /**
+     * A gamepad from already-parsed JSON (see {@link JsonReader}), in the same layout as a
+     * recording's "gamepad1". Names the exact field when something is wrong.
+     *
+     * @param where the field's name for error messages, e.g. "step.gamepad1"
+     */
+    public static RunRecording.GamepadState gamepadFrom(Object parsed, String where) {
+        return readGamepad(parsed, where);
+    }
+
     // ---- One method per record ------------------------------------------------------------
 
     private static String header(RunRecording.Header h) {
@@ -478,7 +510,7 @@ public final class RunRecordingJson {
      * A number rounded to {@value #DECIMALS} places, without trailing zeros: 0.2, 1, -3.141593.
      * JSON has no NaN or infinity, so those are refused with a clear message.
      */
-    static String number(double value) {
+    public static String number(double value) {
         if (!Double.isFinite(value)) {
             throw new IllegalArgumentException("JSON can't hold " + value + "; a recorded number must be finite.");
         }
@@ -488,7 +520,7 @@ public final class RunRecordingJson {
     }
 
     /** A JSON string in quotes, with quotes, backslashes and control characters escaped. */
-    static String string(String value) {
+    public static String string(String value) {
         StringBuilder json = new StringBuilder("\"");
         for (int i = 0; i < value.length(); i++) {
             char c = value.charAt(i);

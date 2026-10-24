@@ -34,12 +34,18 @@ sourceSets {
     // "main" so the simulation core can never use window code: viewer may use main, but
     // main cannot even see viewer. See ai-instructions/05-desktop-viewer.md.
     viewer
+    // "bridge" (src/bridge/java) = the connection to Unity (a local socket). Kept apart from
+    // "main" for the same reason as the viewer: the simulation core never contains network
+    // code. See ai-instructions/02-unity-readiness.md.
+    bridge
     // "test" (src/test/java) is set up automatically by the java plugin.
 }
 
 configurations {
     // The viewer compiles and runs against everything the harness core uses.
     viewerImplementation.extendsFrom implementation
+    // So does the Unity bridge.
+    bridgeImplementation.extendsFrom implementation
 }
 
 java {
@@ -144,6 +150,9 @@ dependencies {
     viewerImplementation sourceSets.main.output
     // Tests may check the viewer too (always headless; see the test task below).
     testImplementation sourceSets.viewer.output
+    // The Unity bridge uses the core, and tests check it (with a fake client, no Unity needed).
+    bridgeImplementation sourceSets.main.output
+    testImplementation sourceSets.bridge.output
 
     // Jamepad (SDL): reads USB and wireless game controllers for live driving in the viewer.
     // Approved by the team on 2026-10-18; viewer only, never the core or the robot build.
@@ -259,4 +268,28 @@ tasks.register('makeTest', JavaExec) {
     jvmArgs '--sun-misc-unsafe-memory-access=allow'
     systemProperty 'java.awt.headless', 'true'
     args(project.findProperty('file') ?: '', project.findProperty('testName') ?: '')
+}
+
+// ---------------------------------------------------------------------------
+// unityBridge: runs the harness side of the live Unity connection (Stage U2).
+//   .\gradlew.bat unityBridge                 (listens on 127.0.0.1:7465)
+//   .\gradlew.bat unityBridge -Pport=7500
+// Unity connects, picks an OpMode, and asks for one OpMode call at a time. The message format
+// is in README.md, "Live connection to Unity". Stop it with Ctrl+C.
+// ---------------------------------------------------------------------------
+tasks.register('unityBridge', JavaExec) {
+    group = 'harness'
+    description = 'Runs the harness side of the live Unity connection (local socket, port 7465 by default).'
+    classpath = sourceSets.bridge.runtimeClasspath
+    mainClass = 'pvi.harness.bridge.BridgeServer'
+    workingDir = projectDir
+    // Robot code runs here, so load the Java agent as tests do: otherwise timed code would
+    // read the real clock.
+    dependsOn agentJar
+    def bridgeAgentFile = agentJar.flatMap { it.archiveFile }
+    jvmArgumentProviders.add({ ["-javaagent:${bridgeAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    if (project.hasProperty('port')) {
+        args project.property('port')
+    }
 }

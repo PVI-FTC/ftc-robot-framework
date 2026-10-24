@@ -4,7 +4,7 @@ Where the FTC test harness stands, what is being worked on and what comes next. 
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
 **Last updated:** 2026-10-23
-**Test status:** 139 tests in 22 classes, all passing (`.\gradlew.bat test`, 2026-10-23)
+**Test status:** 188 tests in 30 classes, all passing (`.\gradlew.bat test`, 2026-10-23)
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
 **Next up:** D4's viewer "Save as test" button (after the viewer redesign lands); position estimator Step 15 (opt-in switches; decide their behavior with the user); Step 9 (estimator README section) is still open
 
@@ -84,7 +84,7 @@ Planned with the user on 2026-10-23. Each stage builds on the last; nothing here
 | Stage | What | Status |
 |---|---|---|
 | U1 | **Unity replays saved run recordings.** Unity reads the same JSON files as the Swing viewer (format v2) and animates a robot on a 3D field. No harness Java changes needed. | ✅ Done (2026-10-23) |
-| U2 | **Unity live, as display and controller.** The harness runs TeamCode and opens a local socket (`pvi.harness.bridge`); each step it sends the loop snapshot, Unity sends gamepad input back through the D1 gamepad entry point. Unity asks for each step, so runs stay repeatable. | ⬜ |
+| U2 | **Unity live, as display and controller.** The harness runs TeamCode and opens a local socket (`pvi.harness.bridge`); each step it sends the loop snapshot, Unity sends gamepad input back through the D1 gamepad entry point. Unity asks for each step, so runs stay repeatable. | 🟡 Harness side done (message format v1, `unityBridge`); Unity side next |
 | U3 | **Unity becomes the physics.** Behind the `PhysicsBackend` interface (Step 17): wheel powers to Unity, pose (later encoders, Pinpoint) back. Walls, game pieces and pushing become real. | ⬜ |
 
 Stage U1 in steps (Unity side unless marked):
@@ -101,6 +101,29 @@ Stage U1 in steps (Unity side unless marked):
 | U1.7 | Overlays: trail, telemetry screen for the moment, gamepads, rumbles and events (`ReplayPanelText.cs`; gamepads shown as text for now, not pictures) | ✅ Done |
 | U1.8 | Tests (Unity Test Framework): parse a sample recording, conversion numbers, playback timing (18 EditMode tests, **Harness → Run Replay Tests**, each break checked) | ✅ Done |
 | U1.9 | (Harness) README section "Watching a recording in Unity"; a small sample recording the Unity tests can use (README sections; sample `Tests/Samples/teamA-teleop-turn.json`) | ✅ Done |
+| U1.10 | **Standalone Unity replay app** (not started; build only when the user says so): open the Unity replay by double-clicking, without the Unity Editor, like `view.bat`. Sub-plan below | ⬜ |
+
+**U1.10 sub-plan: standalone replay app** (requested by the user 2026-10-23; wait for the go-ahead):
+
+1. **Find recordings outside the Editor.** `RecordingLoader.DefaultFolder` is
+   `Application.dataPath/../../build/recordings`, right in the Editor (`Harness/unity/Assets`) but
+   wrong in a built player (`Build/HarnessReplay_Data`). New rule, in order: a command-line
+   argument (`-recordings <folder>` or a recording file path, via
+   `Environment.GetCommandLineArgs`), else relative to the .exe (`Build/` → `../../build/recordings`),
+   else the Editor path. Add a Unity test that the rule gives the right folder for both layouts.
+2. **Pick files without the Editor.** The "Replays..." button uses `EditorUtility.OpenFilePanel`
+   (Editor only). The built app keeps the in-app **Replay** chooser (it already lists
+   `build/recordings`, and N/P step through them) and opens a `.json` passed on the command line;
+   hide or replace "Replays..." in the player.
+3. **Build a Windows player:** `HarnessReplay.exe` + `HarnessReplay_Data` in `Harness/unity/Build/`
+   (already ignored by git; usually 100+ MB, never commit it). Either from the Editor (Build
+   Profiles → Windows) or headless with `buildUnity.bat` calling
+   `Unity.exe -batchmode -quit -projectPath unity -executeMethod <small Editor build method>`.
+   Building needs Unity installed and signed in (Personal licence); running the .exe needs
+   nothing. The .exe must be rebuilt after Unity script changes.
+4. **Launcher `Harness/unity-view.bat`:** runs the built .exe, passes a dropped `.json` as the
+   argument, and offers to build first if the .exe is missing.
+5. **Docs:** README "Watching a recording in Unity" and `unity/README.md`.
 
 Done when: replaying `viewer-teamA-autonomous.json` in Unity shows the robot about 9.4 in
 (0.24 m) forward at the end, matching the Swing viewer at the same moment.
@@ -146,6 +169,8 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-23 | Planned U1.10, a standalone Unity replay app (double-click, no Editor): recordings-folder rule for the player, in-app file picking, Windows build into `unity/Build/`, `unity-view.bat` launcher (docs only, not started) | Not rerun (no code change) |
+| 2026-10-23 | Stage U2 pieces 1 + 2 (harness side of the live Unity connection): new `bridge` source set (`src/bridge/java`, the core cannot see it) with `BridgeServer` (127.0.0.1:7465, one client, `gradlew unityBridge`, Java agent loaded), `BridgeSession` (hello/load/init/step/play/stop/save/bye; Unity drives the clock; frames in the recording's loop layout, rumbles and events sent once; auto-stop at full time; clear errors), `BridgeOpModes`, `BridgeGamepads`; message format v1 documented in README. Small core additions: `RunRecorder.lastLoop()/loopCount()/events()/header()`, `RunRecordingJson.loopJson/headerJson/rumblesJson/eventsJson/gamepadFrom`, `number/string` and `JsonReader` made public. `BridgeSessionTest` (10) + `BridgeServerTest` (1, real local socket); each of 9 breaks applied on its own failed exactly its test; smoke-tested `gradlew unityBridge` with a separate client (50 steps full forward, 61.4 in) | 188/188 pass |
 | 2026-10-23 | Unity replay GUI made to match the Swing viewer: `HudTheme` (Swing colors and fonts), `HudText` (same words and numbers), `ReplayHud` (header with mission clock, Replay chooser and Replays..., field caption and legend, Vehicle/Position/Auto step/Motors/Driver Station/Events cards, gamepad pictures, playback bar with speed box and slider); dark field and robot like `FieldPainter` (wheels lit by power); top-down view by default, T for 3D. FTC→Unity mapping marked confirmed. Compared side by side with a screenshot of the Swing window. 5 new `HudTextTests`, each checked to fail when broken | Unity 23/23 pass; harness tests not rerun (no Java change) |
 | 2026-10-23 | **Field walls**: `PoseEstimator` stops the robot box at ±72 in at any heading and lets it slide along a wall; `wallHits()`, report line, `withoutWalls()` for off-field tests; each hit saved as a recording event ("Robot hit the +x wall"). Generated tests now check `DriveChecks.assertRobotDoesNotHitAWall` instead of the on-field check (which walls make always pass). 4 `PoseEstimatorTest` + 1 `RealCodeMotionTest` tests | 177/177 pass |
 | 2026-10-23 | Phase 5 step 1: fake motor encoders (`FakeDcMotorEx.step`: counts with power, RUN_TO_POSITION, setVelocity, reset; placeholder 312 RPM motor), fake goBILDA Pinpoint (`FakePinpoint`, driven by the position estimate; added to `RobotConfigs.teamA()` as "pinpoint"), Control Hub battery voltage (`FakeVoltageSensor`), desktop-safe motor type. Runner steps sensors before each call. Real Pedro routes now run; Pedro's pose matches the harness's to 0.01 in. `SensorsTest` (11), each checked to fail when broken | 177/177 pass (with the other sessions' uncommitted walls and viewer work) |

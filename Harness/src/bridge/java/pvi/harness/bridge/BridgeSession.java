@@ -1,0 +1,281 @@
+package pvi.harness.bridge;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import pvi.harness.ds.RumbleRecord;
+import pvi.harness.runtime.JsonReader;
+import pvi.harness.runtime.OpModeRunner;
+import pvi.harness.runtime.RunRecorder;
+import pvi.harness.runtime.RunRecording;
+import pvi.harness.runtime.RunRecordingJson;
+import pvi.harness.runtime.RunResult;
+import pvi.harness.runtime.RunnerRegistry;
+
+/**
+ * One Unity connection's conversation with the harness: takes one message line, does what it
+ * asks, and returns one reply line (see {@link BridgeProtocol} and the README). No sockets here,
+ * so tests can drive it line by line; {@link BridgeServer} just passes lines in and out.
+ *
+ * <p>Each OpMode call happens only when Unity asks for it, on the caller's thread, and simulated
+ * time moves exactly one loop period per call. So the same messages always give exactly the same
+ * replies (Harness/ai-instructions/02-unity-readiness.md §2–§3).</p>
+ */
+public final class BridgeSession {
+
+    /** How far through a run the session is. */
+    private enum Phase {
+        /** Waiting for "hello". */
+        NEW,
+        /** Said hello; waiting for "load". */
+        READY,
+        /** OpMode loaded; waiting for "init". */
+        LOADED,
+        /** INIT done: "step" runs init_loop, "play" presses PLAY. */
+        INITIALIZED,
+        /** PLAY pressed: "step" runs loop. */
+        PLAYING,
+        /** Stopped (or crashed): only "save", "load" and "bye" make sense. */
+        STOPPED,
+    }
+
+    private Phase phase = Phase.NEW;
+    private BridgeOpModes.Entry entry;
+    private OpModeRunner runner;
+    private RunRecorder recorder;
+    private final BridgeGamepads driver = new BridgeGamepads();
+    private final BridgeGamepads operator = new BridgeGamepads();
+    /** How many rumbles and events have already been sent, so each frame carries only new ones. */
+    private int sentRumbles1;
+    private int sentRumbles2;
+    private int sentEvents;
+    /** True once the reply asks the server to close the connection. */
+    private boolean closing;
+
+    /** True after a reply that ends the connection ("goodbye", or a fatal error). */
+    public boolean isClosing() {
+        return closing;
+    }
+
+    /**
+     * Handles one message line from Unity and returns the one reply line (without the "\n").
+     * Never throws: a bad message or a crashing OpMode becomes an "error" reply.
+     */
+    public String handle(String line) {
+        Map<String, Object> message;
+        try {
+            Object parsed = JsonReader.parse(line);
+            if (!(parsed instanceof Map)) {
+                return error("A message must be a JSON object like {\"type\": \"hello\", \"version\": 1}.");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) parsed;
+            message = map;
+        } catch (IllegalArgumentException e) {
+            return error("Not valid JSON: " + e.getMessage());
+        }
+        Object type = message.get("type");
+        if (!(type instanceof String)) {
+            return error("The message has no \"type\".");
+        }
+        try {
+            return switch ((String) type) {
+                case BridgeProtocol.HELLO -> hello(message);
+                case BridgeProtocol.LOAD -> load(message);
+                case BridgeProtocol.INIT -> init();
+                case BridgeProtocol.STEP -> step(message);
+                case BridgeProtocol.PLAY -> play(message);
+                case BridgeProtocol.STOP -> stop();
+                case BridgeProtocol.SAVE -> save(message);
+                case BridgeProtocol.BYE -> bye();
+                default -> error("Unknown message type \"" + type + "\". Known: hello, load, init, step, play, stop, save, bye.");
+            };
+        } catch (IllegalArgumentException e) {
+            // A field with the wrong type, e.g. a gamepad written wrongly.
+            return error(e.getMessage());
+        }
+    }
+
+    // ---- Messages ---------------------------------------------------------------------------------
+
+    private String hello(Map<String, Object> message) {
+        Object version = message.get("version");
+        if (!(version instanceof Double) || ((Double) version).intValue() != BridgeProtocol.VERSION) {
+            closing = true;
+            return error("This harness speaks bridge version " + BridgeProtocol.VERSION + ", but the client sent "
+                    + (version == null ? "no version" : "version " + jsonValue(version)) + ".");
+        }
+        phase = Phase.READY;
+        StringBuilder opModes = new StringBuilder("[");
+        List<BridgeOpModes.Entry> entries = BridgeOpModes.all();
+        for (int i = 0; i < entries.size(); i++) {
+            BridgeOpModes.Entry e = entries.get(i);
+            opModes.append(i == 0 ? "" : ", ").append("{")
+                    .append(field("id", RunRecordingJson.string(e.id()))).append(", ")
+                    .append(field("title", RunRecordingJson.string(e.title()))).append(", ")
+                    .append(field("period", RunRecordingJson.string(e.period().name()))).append("}");
+        }
+        opModes.append("]");
+        return reply(BridgeProtocol.WELCOME,
+                field("version", Integer.toString(BridgeProtocol.VERSION)),
+                field("loopPeriodSeconds", RunRecordingJson.number(OpModeRunner.DEFAULT_LOOP_PERIOD_SECONDS)),
+                field("opModes", opModes.toString()));
+    }
+
+    private String load(Map<String, Object> message) {
+        if (phase == Phase.NEW) {
+            return error("Send \"hello\" first.");
+        }
+        Object id = message.get("opMode");
+        BridgeOpModes.Entry found = id instanceof String ? BridgeOpModes.find((String) id) : null;
+        if (found == null) {
+            return error("Unknown OpMode " + (id == null ? "(none given)" : jsonValue(id)) + ". The \"welcome\" reply lists them.");
+        }
+        // A fresh run: new OpMode, new fake robot, new clock. Earlier runners are forgotten.
+        RunnerRegistry.startTest();
+        entry = found;
+        driver.set(RunRecording.GamepadState.RELEASED);
+        operator.set(RunRecording.GamepadState.RELEASED);
+        runner = new OpModeRunner(entry.opMode().get(), entry.robot().get()).gamepad1(driver).gamepad2(operator);
+        recorder = RunRecorder.attachTo(runner);
+        sentRumbles1 = 0;
+        sentRumbles2 = 0;
+        sentEvents = 0;
+        phase = Phase.LOADED;
+        return reply(BridgeProtocol.LOADED,
+                field("opMode", RunRecordingJson.string(entry.id())),
+                field("matchSeconds", RunRecordingJson.number(entry.period().seconds())),
+                field("header", RunRecordingJson.headerJson(recorder.header())));
+    }
+
+    private String init() {
+        if (phase != Phase.LOADED) {
+            return error(phase == Phase.READY || phase == Phase.NEW ? "Send \"load\" first." : "INIT was already pressed.");
+        }
+        return runCall(() -> runner.init(), Phase.INITIALIZED);
+    }
+
+    private String step(Map<String, Object> message) {
+        if (phase != Phase.INITIALIZED && phase != Phase.PLAYING) {
+            return error("\"step\" works after \"init\" (runs init_loop) or \"play\" (runs loop); the run is "
+                    + phase.name().toLowerCase(Locale.ROOT) + ".");
+        }
+        readGamepads(message);
+        if (phase == Phase.INITIALIZED) {
+            return runCall(() -> runner.initLoop(1), Phase.INITIALIZED);
+        }
+        return runCall(() -> {
+            runner.loop(1);
+            // Like a real match, the run ends when time is up or the OpMode stops itself.
+            if (runner.clock().sinceStart() >= entry.period().seconds() - 1e-9 || runner.isStopRequested()) {
+                runner.stop();
+            }
+        }, Phase.PLAYING);
+    }
+
+    private String play(Map<String, Object> message) {
+        if (phase != Phase.INITIALIZED) {
+            return error(phase == Phase.PLAYING ? "PLAY was already pressed." : "Send \"init\" before \"play\".");
+        }
+        readGamepads(message);
+        return runCall(() -> runner.start(), Phase.PLAYING);
+    }
+
+    private String stop() {
+        if (phase != Phase.INITIALIZED && phase != Phase.PLAYING) {
+            return error("Nothing is running to stop.");
+        }
+        return runCall(() -> runner.stop(), Phase.STOPPED);
+    }
+
+    private String save(Map<String, Object> message) {
+        if (recorder == null) {
+            return error("Nothing to save yet: send \"load\" first.");
+        }
+        Object name = message.get("name");
+        if (!(name instanceof String)) {
+            return error("\"save\" needs a \"name\", e.g. {\"type\": \"save\", \"name\": \"my-drive\"}.");
+        }
+        Path saved = recorder.save((String) name); // refuses names that could leave build/recordings
+        return reply(BridgeProtocol.SAVED, field("path", RunRecordingJson.string(saved.toString())));
+    }
+
+    private String bye() {
+        closing = true;
+        return reply(BridgeProtocol.GOODBYE);
+    }
+
+    // ---- Helpers ----------------------------------------------------------------------------------
+
+    /**
+     * Runs one OpMode call and returns the frame. A crash ends the run (like the Robot Controller,
+     * stop() is not called) and is reported as an error naming the stage.
+     */
+    private String runCall(Runnable call, Phase after) {
+        try {
+            call.run();
+        } catch (RuntimeException | LinkageError e) {
+            phase = Phase.STOPPED;
+            RunResult.Stage stage = runner.stage();
+            return reply(BridgeProtocol.ERROR,
+                    field("message", RunRecordingJson.string(runner.opMode().getClass().getSimpleName() + " crashed during "
+                            + stage + ": " + e)),
+                    field("crashed", "true"));
+        }
+        phase = runner.stage() == RunResult.Stage.STOP ? Phase.STOPPED : after;
+        return frame();
+    }
+
+    /** The newest loop, plus rumbles and events that happened since the last frame. */
+    private String frame() {
+        List<RumbleRecord> rumbles1 = runner.driver1().rumbles();
+        List<RumbleRecord> rumbles2 = runner.driver2().rumbles();
+        List<RunRecording.Event> events = recorder.events();
+        String reply = reply(BridgeProtocol.FRAME,
+                field("loop", RunRecordingJson.loopJson(recorder.lastLoop())),
+                field("gamepad1Rumbles", RunRecordingJson.rumblesJson(rumbles1.subList(sentRumbles1, rumbles1.size()))),
+                field("gamepad2Rumbles", RunRecordingJson.rumblesJson(rumbles2.subList(sentRumbles2, rumbles2.size()))),
+                field("events", RunRecordingJson.eventsJson(events.subList(Math.min(sentEvents, events.size()), events.size()))),
+                field("finished", Boolean.toString(phase == Phase.STOPPED)));
+        sentRumbles1 = rumbles1.size();
+        sentRumbles2 = rumbles2.size();
+        sentEvents = events.size();
+        return reply;
+    }
+
+    private void readGamepads(Map<String, Object> message) {
+        if (message.containsKey("gamepad1")) {
+            driver.set(RunRecordingJson.gamepadFrom(message.get("gamepad1"), "gamepad1"));
+        }
+        if (message.containsKey("gamepad2")) {
+            operator.set(RunRecordingJson.gamepadFrom(message.get("gamepad2"), "gamepad2"));
+        }
+    }
+
+    private static String error(String text) {
+        return reply(BridgeProtocol.ERROR, field("message", RunRecordingJson.string(text)));
+    }
+
+    /** {"type": "...", field, field, ...} on one line. */
+    private static String reply(String type, String... fields) {
+        StringBuilder json = new StringBuilder("{").append(field("type", RunRecordingJson.string(type)));
+        for (String f : fields) {
+            json.append(", ").append(f);
+        }
+        return json.append("}").toString();
+    }
+
+    private static String field(String name, String jsonValue) {
+        return RunRecordingJson.string(name) + ": " + jsonValue;
+    }
+
+    /** A parsed JSON value shown in an error message. */
+    private static String jsonValue(Object value) {
+        if (value instanceof Double d && d == Math.rint(d)) {
+            return Long.toString(d.longValue());
+        }
+        return value instanceof String s ? "\"" + s + "\"" : String.valueOf(value);
+    }
+}

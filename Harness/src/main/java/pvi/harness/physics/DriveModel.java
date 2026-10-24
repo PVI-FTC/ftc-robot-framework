@@ -8,8 +8,9 @@ import java.util.Locale;
  * How fast a particular robot moves at full power, and how big it is.
  *
  * <p>The position estimator multiplies wheel power by these speeds. For example, all wheels
- * at 0.5 power on a robot whose forward speed is 60 in/s means 30 in/s forward. The model
- * assumes speed is proportional to power and changes instantly; see the README for limits.</p>
+ * at 0.5 power on a robot whose forward speed is 60 in/s means 30 in/s forward. With
+ * {@link Dynamics} the robot gets there gradually (momentum); without, speed changes
+ * instantly (the round-number test robots).</p>
  *
  * <p>Use {@link DriveModels} for real robots (values with sources), or
  * {@link #forTesting(String, double, double, double)} for round-number test robots.</p>
@@ -27,6 +28,8 @@ public final class DriveModel {
     private final ModelValue length;
     /** Bumper-to-bumper width, side to side (in). */
     private final ModelValue width;
+    /** How the robot speeds up and slows down, or null to change speed instantly. */
+    private final Dynamics dynamics;
 
     /**
      * @param name    robot name for reports, e.g. "Team A"
@@ -38,6 +41,13 @@ public final class DriveModel {
      */
     public DriveModel(String name, ModelValue forward, ModelValue strafe, ModelValue turn,
                       ModelValue length, ModelValue width) {
+        this(name, forward, strafe, turn, length, width, null);
+    }
+
+    /** Like the other constructor, with momentum ({@code dynamics}, or null for instant speed changes). */
+    public DriveModel(String name, ModelValue forward, ModelValue strafe, ModelValue turn,
+                      ModelValue length, ModelValue width, Dynamics dynamics) {
+        this.dynamics = dynamics;
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("A drive model needs a name.");
         }
@@ -82,6 +92,13 @@ public final class DriveModel {
     public double lengthInches() { return length.value(); }
     /** Robot width in inches. */
     public double widthInches() { return width.value(); }
+    /** How the robot speeds up and slows down, or null if speed changes instantly. */
+    public Dynamics dynamics() { return dynamics; }
+
+    /** The same robot with momentum ({@code dynamics}), or without (null). */
+    public DriveModel withDynamics(Dynamics dynamics) {
+        return new DriveModel(name, forward, strafe, turn, length, width, dynamics);
+    }
 
     /** Forward speed in feet per second, for reports. */
     public double forwardFeetPerSecond() { return DisplayUnit.FEET.fromInches(forward.value()); }
@@ -109,6 +126,7 @@ public final class DriveModel {
         if (!turn.measured()) names.add("turn rate");
         if (!length.measured()) names.add("robot length");
         if (!width.measured()) names.add("robot width");
+        if (dynamics != null) names.addAll(dynamics.unmeasured());
         return names;
     }
 
@@ -125,8 +143,10 @@ public final class DriveModel {
                         + "  strafe speed   %.2f ft/s  = %s%n"
                         + "  turn rate      %s%n"
                         + "  robot length   %s%n"
-                        + "  robot width    %s",
-                name, forwardFeetPerSecond(), forward, strafeFeetPerSecond(), strafe, turn, length, width);
+                        + "  robot width    %s%n"
+                        + "%s",
+                name, forwardFeetPerSecond(), forward, strafeFeetPerSecond(), strafe, turn, length, width,
+                dynamics == null ? "  momentum       none (speed changes instantly)" : dynamics.describe());
     }
 
     /** Short summary, e.g. {@code DriveModel[Team A, unmeasured: [turn rate, ...]]}. */

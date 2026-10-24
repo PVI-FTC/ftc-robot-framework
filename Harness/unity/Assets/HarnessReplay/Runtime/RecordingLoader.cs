@@ -26,11 +26,57 @@ namespace PviHarness.Replay
         public static readonly int[] SupportedVersions = { 1, 2 };
 
         /// <summary>
-        /// Harness/build/recordings, found from this Unity project's folder (Harness/unity),
-        /// so it works on any computer that has the whole repository.
+        /// Where the recordings are: usually Harness/build/recordings, found from wherever this
+        /// app runs, so it works on any computer that has the whole repository. See
+        /// <see cref="ResolveFolder"/> for the rule.
         /// </summary>
         public static string DefaultFolder =>
-            Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "build", "recordings"));
+            ResolveFolder(Environment.GetCommandLineArgs(), Application.dataPath, Application.isEditor);
+
+        /// <summary>
+        /// The recordings folder, in order of preference:
+        /// <list type="number">
+        ///   <item><c>-recordings &lt;folder&gt;</c> on the command line (unity-view.bat passes it);</item>
+        ///   <item>the folder of a <c>.json</c> recording given on the command line (a file dropped on unity-view.bat);</item>
+        ///   <item>in the Unity Editor: Harness/unity/Assets → <c>../../build/recordings</c>;</item>
+        ///   <item>in the built app: Harness/unity/Build/HarnessReplay_Data → <c>../../../build/recordings</c>.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="args">The command line (Environment.GetCommandLineArgs()).</param>
+        /// <param name="dataPath">Application.dataPath: the Assets folder in the Editor, the _Data folder in a built app.</param>
+        /// <param name="isEditor">True when running in the Unity Editor.</param>
+        public static string ResolveFolder(string[] args, string dataPath, bool isEditor)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-recordings", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Path.GetFullPath(args[i + 1]);
+                }
+            }
+            string file = FileFromCommandLine(args);
+            if (file != null)
+            {
+                return Path.GetDirectoryName(Path.GetFullPath(file));
+            }
+            return isEditor
+                ? Path.GetFullPath(Path.Combine(dataPath, "..", "..", "build", "recordings"))
+                : Path.GetFullPath(Path.Combine(dataPath, "..", "..", "..", "build", "recordings"));
+        }
+
+        /// <summary>A <c>.json</c> recording named on the command line (e.g. dropped on unity-view.bat), or null.</summary>
+        public static string FileFromCommandLine(string[] args)
+        {
+            for (int i = 1; i < args.Length; i++)
+            {
+                if (args[i].EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(args[i - 1], "-recordings", StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[i];
+                }
+            }
+            return null;
+        }
 
         /// <summary>Reads and checks a recording file.</summary>
         public static RunRecordingData Load(string path)

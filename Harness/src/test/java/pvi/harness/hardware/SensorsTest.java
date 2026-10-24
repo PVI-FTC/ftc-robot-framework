@@ -263,9 +263,9 @@ class SensorsTest {
      * After the route, Pedro's pose (from the Driver Station screen) must equal the route start
      * moved by exactly what the harness says the robot did.</p>
      *
-     * <p>WHY: Proves Pedro's localization reads the simulated robot correctly (not that it
-     * follows the path well: the robot still changes speed instantly until acceleration is
-     * added, so Pedro's control isn't realistic yet).</p>
+     * <p>WHY: Proves Pedro's localization reads the simulated robot correctly. (How well Pedro
+     * follows the route is checked in {@code PedroRouteTest}, with the robot placed at the
+     * route's real start; here it starts at the field center and may meet a wall.)</p>
      */
     @Test
     void pedroRouteRunsAndPedroSeesWhereTheRobotWent() {

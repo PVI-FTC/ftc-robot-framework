@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.robots.teamA;
 
+import com.pedropathing.follower.FollowerConstants;
+
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
 import com.pedropathing.ftc.localization.constants.PinpointConstants;
 
@@ -21,6 +23,11 @@ public final class TeamAPedroHarnessAccess {
     /** The mecanum constants (speeds, motor names, motor directions) in Team A's recorded configuration. */
     public static MecanumConstants recordedMecanumConstants() {
         return TeamAPedroConfiguration.recordedTeamAConfiguration().getMecanumConstants();
+    }
+
+    /** The follower constants (mass, zero-power accelerations, PIDF) in Team A's recorded configuration. */
+    public static FollowerConstants recordedFollowerConstants() {
+        return TeamAPedroConfiguration.recordedTeamAConfiguration().getFollowerConstants();
     }
 
     /** The Pinpoint constants (configuration name, pod offsets, directions) in Team A's recorded configuration. */

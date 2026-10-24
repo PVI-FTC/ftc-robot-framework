@@ -81,6 +81,21 @@ public class FakeHardwareMap extends HardwareMap {
         return pinpoint;
     }
 
+    /**
+     * Adds a fake USB webcam that sees scripted AprilTags (see {@link FakeWebcam}). Robot code
+     * finds it with {@code hardwareMap.get(WebcamName.class, name)}.
+     */
+    public FakeWebcam addWebcam(String configName) {
+        FakeWebcam webcam = new FakeWebcam(configName);
+        addDevice(configName, webcam);
+        return webcam;
+    }
+
+    /** Returns a previously added fake webcam, or null. */
+    public FakeWebcam webcam(String configName) {
+        return tryGet(FakeWebcam.class, configName);
+    }
+
     /** Returns a previously added fake Pinpoint, or null. */
     public FakePinpoint pinpoint(String configName) {
         return tryGet(FakePinpoint.class, configName);

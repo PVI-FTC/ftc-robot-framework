@@ -89,14 +89,14 @@ namespace PviHarness.Replay
 
             // Everything except the 3D field area is painted over, like the Swing window's panels.
             DrawFrameAroundField(layout);
-            DrawHeader(layout.header, recording, timeline, replay.ShownFileName);
+            DrawHeader(layout.header, recording, timeline, replay.ShownFileName, replay.IsLive);
             DrawChooser(layout.chooser, replay);
             if (recording != null)
             {
                 DrawFieldTexts(layout, recording, timeline);
                 DrawCards(layout.cards, recording, timeline.Index);
                 DrawGamepads(layout.gamepads, recording.loops[timeline.Index]);
-                DrawControls(layout.controls, recording, timeline);
+                DrawControls(layout.controls, recording, timeline, replay);
             }
             else
             {
@@ -126,7 +126,7 @@ namespace PviHarness.Replay
 
         // ---- Header --------------------------------------------------------------------------------
 
-        private void DrawHeader(Rect r, RunRecordingData recording, ReplayTimeline timeline, string fileName)
+        private void DrawHeader(Rect r, RunRecordingData recording, ReplayTimeline timeline, string fileName, bool isLive)
         {
             HudTheme.Fill(r, HudTheme.Panel);
             HudTheme.Fill(new Rect(r.x, r.yMax - 1, r.width, 1), HudTheme.Line);
@@ -147,18 +147,26 @@ namespace PviHarness.Replay
                 HudTheme.Fill(new Rect(centerX - clockWidth / 2f - 46, 21, 30, 1), HudTheme.Line);
                 HudTheme.Fill(new Rect(centerX + clockWidth / 2f + 26, 21, 30, 1), HudTheme.Line);
 
-                string stage = HudText.StageLine(recording, timeline.Index);
+                string stage = HudText.StageLine(recording, timeline.Index, isLive ? "Live" : "Replay");
                 float stageWidth = HudTheme.LabelWidth(stage, 9);
                 float stageX = centerX - stageWidth / 2f + 7;
                 HudTheme.Circle(new Vector2(stageX - 10, 41), 3, StageColor(timeline.Current.stage));
                 HudTheme.Label(stage, stageX, 45, 9, HudTheme.Faint);
             }
 
-            // Right: where the Swing viewer has its Record button, this says it is a replay.
+            // Right: where the Swing viewer has its Record button: "LIVE" with a lit dot, or "3D replay".
             var badge = new Rect(r.xMax - 16 - 120, 15, 120, 28);
-            HudTheme.Hairline(badge, HudTheme.Line);
-            HudTheme.RoundOutline(new Rect(badge.x + 12, badge.y + 9, 10, 10), 5, 1.2f, HudTheme.Muted);
-            HudTheme.Label("3D replay", badge.x + 30, badge.y + 19, 11, HudTheme.Muted);
+            HudTheme.Hairline(badge, isLive ? HudTheme.Green : HudTheme.Line);
+            if (isLive)
+            {
+                HudTheme.Circle(new Vector2(badge.x + 17, badge.y + 14), 5, HudTheme.Green);
+                HudTheme.Label("Live", badge.x + 30, badge.y + 19, 11, HudTheme.Text);
+            }
+            else
+            {
+                HudTheme.RoundOutline(new Rect(badge.x + 12, badge.y + 9, 10, 10), 5, 1.2f, HudTheme.Muted);
+                HudTheme.Label("3D replay", badge.x + 30, badge.y + 19, 11, HudTheme.Muted);
+            }
         }
 
         /// <summary>Amber before PLAY, green while running, grey once stopped (as in the Swing header).</summary>
@@ -183,13 +191,14 @@ namespace PviHarness.Replay
         {
             HudTheme.Fill(r, HudTheme.Background);
             HudTheme.Fill(new Rect(r.x, r.yMax - 1, r.width, 1), HudTheme.Line);
-            HudTheme.Label("Replay", 28, r.y + 30, 10, HudTheme.Muted);
+            HudTheme.Label(replay.IsLive ? "Live" : "Replay", 28, r.y + 30, 10, replay.IsLive ? HudTheme.Green : HudTheme.Muted);
 
             // The dropdown box: shows what is replayed; click to pick another recording.
             var box = new Rect(112, r.y + 10, r.width - 112 - 16 - 104, 28);
             HudTheme.Fill(box, HudTheme.Panel);
             HudTheme.Hairline(box, HudTheme.Line);
-            string shown = replay.ShownFileName == null ? "No recording open" : "Replaying " + replay.ShownFileName;
+            string shown = replay.ShownFileName == null ? "No recording open"
+                : replay.IsLive ? replay.ShownFileName : "Replaying " + replay.ShownFileName;
             HudTheme.DrawText(HudTheme.Ellipsize(shown, HudTheme.Style("normal", 13), box.width - 40), box.x + 9, box.y + 19,
                 HudTheme.Style("normal", 13), HudTheme.Text);
             DrawDownArrow(new Vector2(box.xMax - 16, box.y + 13), HudTheme.Muted);
@@ -200,46 +209,93 @@ namespace PviHarness.Replay
                 if (recordingMenuOpen)
                 {
                     replay.RefreshRecordingList();
+                    replay.RefreshLiveChoices();
                 }
             }
 
-            // "REPLAYS..." opens a file picker (in the editor), like the Swing viewer's button.
+            // "REPLAYS..." opens a file picker, like the Swing viewer's button. Unity's file
+            // picker only exists in the Editor; the built app uses the chooser's list instead.
+#if UNITY_EDITOR
             var button = new Rect(r.xMax - 16 - 92, r.y + 10, 92, 28);
             if (FlatButton(button, "Replays..."))
             {
                 recordingMenuOpen = false;
                 replay.OpenFilePicker();
             }
+#endif
 
+            // Under the box: what is shown, or the live status (what to press, which controllers).
             string showing = replay.ShownFileName == null ? "" : "Showing " + replay.ShownFileName;
-            HudTheme.DrawText(showing, 28, r.y + 56, HudTheme.Style("normal", 12), HudTheme.Muted);
+            Color showingColor = HudTheme.Muted;
+            if (replay.IsLive)
+            {
+                showing = HudText.LiveStatus(replay.Live, replay.LiveSaved);
+                showingColor = replay.Live.Initialized ? HudTheme.Amber : replay.Live.Playing ? HudTheme.Green : HudTheme.Muted;
+                if (replay.Live.ControllerProblem != null)
+                {
+                    showing += "  ·  " + replay.Live.ControllerProblem;
+                    showingColor = HudTheme.Amber;
+                }
+            }
+            if (replay.Notice != null)
+            {
+                showing += "  ·  " + replay.Notice;
+            }
+            HudTheme.DrawText(HudTheme.Ellipsize(showing, HudTheme.Style("normal", 12), r.width - 56 - FieldButtonWidth - 16), 28, r.y + 56,
+                HudTheme.Style("normal", 12), showingColor);
+
+            // The season field (Harness/fields): click, or press G, for the next one.
+            var fieldButton = new Rect(r.xMax - 16 - FieldButtonWidth, r.y + 42, FieldButtonWidth, 22);
+            if (FlatButton(fieldButton, "Field: " + replay.FieldName + "  (G)"))
+            {
+                replay.NextField();
+            }
         }
+
+        private const float FieldButtonWidth = 240;
 
         private void DrawRecordingMenu(Rect chooser, ReplayController replay)
         {
+            // Live entries first (OpModes the harness offers, or how to start it), then recordings.
             List<string> files = replay.RecordingsNewestFirst;
+            List<LiveSession.OpModeChoice> liveChoices = replay.LiveChoices;
+            int liveRows = liveChoices == null ? 1 : liveChoices.Count;
+            int rows = liveRows + files.Count;
             const float rowHeight = 24;
-            var box = new Rect(112, chooser.y + 38, chooser.width - 112 - 16 - 104, 0);
-            float listHeight = Mathf.Min(files.Count, 16) * rowHeight;
-            box.height = Mathf.Max(rowHeight, listHeight);
+            var box = new Rect(112, chooser.y + 38, chooser.width - 112 - 16 - 104, Mathf.Min(rows, 16) * rowHeight);
             HudTheme.Fill(box, HudTheme.Panel);
             HudTheme.Hairline(box, HudTheme.Line);
-            if (files.Count == 0)
-            {
-                HudTheme.DrawText("No recordings in " + RecordingLoader.DefaultFolder, box.x + 9, box.y + 17,
-                    HudTheme.Style("normal", 13), HudTheme.Muted);
-                CloseMenusOnOutsideClick(box);
-                return;
-            }
             recordingMenuScroll = GUI.BeginScrollView(box, recordingMenuScroll,
-                new Rect(0, 0, box.width - 16, files.Count * rowHeight), false, files.Count > 16, GUIStyle.none, GUI.skin.verticalScrollbar);
+                new Rect(0, 0, box.width - 16, rows * rowHeight), false, rows > 16, GUIStyle.none, GUI.skin.verticalScrollbar);
+            float rowWidth = box.width - (rows > 16 ? 16 : 0);
+            GUIStyle text = HudTheme.Style("normal", 13);
+            for (int i = 0; i < liveRows; i++)
+            {
+                var row = new Rect(0, i * rowHeight, rowWidth, rowHeight);
+                if (liveChoices == null)
+                {
+                    HudTheme.DrawText(HudTheme.Ellipsize(replay.LiveUnavailable ?? "Live play: start .\\gradlew.bat unityBridge first",
+                        text, rowWidth - 16), row.x + 8, row.y + 17, text, HudTheme.Faint);
+                    continue;
+                }
+                LiveSession.OpModeChoice choice = liveChoices[i];
+                bool hover = row.Contains(Event.current.mousePosition);
+                HudTheme.Fill(row, hover ? HudTheme.Raised : HudTheme.Panel);
+                HudTheme.DrawText("Live: " + choice.title + "  (" + choice.period + ", controllers)", row.x + 8, row.y + 17, text,
+                    HudTheme.Green);
+                if (Clicked(row))
+                {
+                    recordingMenuOpen = false;
+                    replay.StartLive(choice);
+                }
+            }
             for (int i = 0; i < files.Count; i++)
             {
-                var row = new Rect(0, i * rowHeight, box.width - (files.Count > 16 ? 16 : 0), rowHeight);
-                bool current = replay.ShownFileName == Path.GetFileName(files[i]);
+                var row = new Rect(0, (liveRows + i) * rowHeight, rowWidth, rowHeight);
+                bool current = !replay.IsLive && replay.ShownFileName == Path.GetFileName(files[i]);
                 bool hover = row.Contains(Event.current.mousePosition);
                 HudTheme.Fill(row, current ? HudTheme.Accent : hover ? HudTheme.Raised : HudTheme.Panel);
-                HudTheme.DrawText("Replay: " + Path.GetFileName(files[i]), row.x + 8, row.y + 17, HudTheme.Style("normal", 13),
+                HudTheme.DrawText("Replay: " + Path.GetFileName(files[i]), row.x + 8, row.y + 17, text,
                     current ? HudTheme.Background : HudTheme.Text);
                 if (Clicked(row))
                 {
@@ -547,12 +603,30 @@ namespace PviHarness.Replay
 
         // ---- Controls (the bottom bar) -----------------------------------------------------------
 
-        private void DrawControls(Rect r, RunRecordingData recording, ReplayTimeline timeline)
+        private void DrawControls(Rect r, RunRecordingData recording, ReplayTimeline timeline, ReplayController replay)
         {
             HudTheme.Fill(r, HudTheme.Panel);
             HudTheme.Fill(new Rect(r.x, r.y, r.width, 1), HudTheme.Line);
             float y = r.y + 14;
             float x = 28;
+            LiveSession live = replay.Live;
+            if (live != null && (live.Initialized || live.Playing))
+            {
+                // Live: the harness is running; only PLAY and STOP make sense (like the Swing live drive).
+                if (live.Initialized && FlatButton(new Rect(x, y, 120, 28), "Play (Enter)")) replay.LivePlay();
+                x += 128;
+                if (FlatButton(new Rect(x, y, 120, 28), "Stop (Esc)")) replay.LiveStop();
+                x += 144;
+                GUIStyle liveMono = HudTheme.Style("mono", 13);
+                string liveTime = "T+ " + HudText.Clock(timeline.Current.matchTimeSeconds) + "  /  "
+                    + HudText.Clock(recording.header.period == "AUTONOMOUS" ? 30 : 120);
+                HudTheme.DrawText(liveTime, x, y + 19, liveMono, HudTheme.Text);
+                return;
+            }
+            if (live != null && FlatButton(new Rect(r.xMax - 28 - 92, y, 92, 28), replay.LiveSaved ? "Saved" : "Save"))
+            {
+                if (!replay.LiveSaved) replay.SaveLive();
+            }
             if (FlatButton(new Rect(x, y, 34, 28), "|<")) timeline.Seek(0);
             x += 42;
             if (FlatButton(new Rect(x, y, 34, 28), "<")) timeline.Step(-1);
@@ -585,7 +659,7 @@ namespace PviHarness.Replay
             HudTheme.DrawText(time, x, y + 19, mono, HudTheme.Text);
             x += HudTheme.Width(time, mono) + 24;
 
-            DrawSlider(new Rect(x, y + 2, r.xMax - 28 - x, 24), recording, timeline);
+            DrawSlider(new Rect(x, y + 2, r.xMax - 28 - x - (live != null ? 108 : 0), 24), recording, timeline);
         }
 
         private Rect speedBoxRect;

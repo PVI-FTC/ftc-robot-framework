@@ -4,6 +4,9 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/HarnessReplay/Replay.unity
+    guid: 1cd4587248f2a074186fb7a86afaf348
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

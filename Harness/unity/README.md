@@ -51,6 +51,72 @@ shows the screen **as it was at that moment**, like the Swing viewer. The colors
 To pick a fixed recording instead of the newest, select **Harness Replay** in the scene and set
 **Recording Path** in the Inspector.
 
+## Drive live (Stage U2)
+
+Watch the real TeamCode run **while you drive**, with your game controller:
+
+1. In `Harness\`: `.\gradlew.bat unityBridge` (leave it running).
+2. Plug in the controller (Xbox, PlayStation or Logitech in X mode; USB or Bluetooth).
+3. In Unity, press Play, open the **Replay** chooser and pick **Live: Team A TeleOp** (or another).
+   The header shows **LIVE**; the line under the chooser says what to press and which controller
+   drives each gamepad.
+4. **Enter** = PLAY, **Esc** = STOP (or the buttons in the bottom bar). The run also stops by
+   itself at the end of the match.
+5. **Save** keeps the run in `build\recordings` (as `unity-live-...json`) to replay later, here or
+   in the Swing viewer.
+
+The harness reads the controller (the same code as the Swing viewer's live drive); Unity only
+asks for one OpMode call every 20 ms and draws it. With one controller, its D-pad also works the
+operator's face buttons. If a controller disconnects, every input is released at once and the
+moment shows under Events. **Harness → Live Smoke Test** checks the connection without a
+controller (needs `unityBridge` running) and writes `Harness/build/unity-live-smoke.txt`.
+
+## Season fields
+
+The **Field:** button (right of the Replay chooser) or **G** switches between the plain tiled field
+and each season in `Harness/fields/` (BIOBUZZ 2026–2027, DECODE 2025–2026). Unity remembers the
+choice. `-field biobuzz-2026` on the app's command line picks one at start, and a recording whose
+header has `"field"` opens that one. BIOBUZZ shows:
+- the HIVE frame, with both HIVES in their starting tilt
+- the four FLOWERS
+- the loading zones, gardens and alliance areas
+- all 16 AprilTags under the cells
+
+DECODE shows only its two goal AprilTags (its field parts aren't in the file yet). The file format and
+where every number came from: `Harness/README.md`, "Season field files". The code is `FieldLayout.cs`
+(reading and picking) and `FieldBuilder.BuildSeason` (drawing).
+
+## Open it without the Editor (the Windows app)
+
+The replay also runs as a normal Windows app, `Build/HarnessReplay.exe`, so anyone can watch a
+recording without opening Unity:
+
+- **Double-click `Harness\unity-view.bat`**: opens the newest recording in `build\recordings`.
+- **Drag a recording (`.json`) onto `unity-view.bat`**: opens that one.
+- Live play works the same as in the Editor: start `.\gradlew.bat unityBridge` first.
+
+The app has everything above except **Replays...** (that file box only exists in the Editor): pick
+recordings from the **Replay** chooser or with N / P instead.
+
+**Building it** (once, and again after any change to the Unity scripts): close the Unity Editor
+and double-click `Harness\buildUnity.bat`, or in the Editor use **Harness → Build Windows App**.
+It takes a few minutes and needs Unity installed; running the app needs nothing installed.
+`unity-view.bat` offers to build it if it's missing. `buildUnity.bat` looks for Unity in
+`C:\Program Files\Unity\Hub\Editor\6000.3.14f1\`; set `UNITY_EXE` if it is somewhere else. The
+build's log is `Harness/build/unity-build.log`.
+
+How the app finds the recordings (`RecordingLoader.ResolveFolder`, tested in
+`RecordingFolderTests`), first match wins:
+
+1. `-recordings <folder>` on the command line (`unity-view.bat` always passes `Harness\build\recordings`).
+2. The folder of a `.json` file on the command line.
+3. Next to the app: `Harness/unity/Build/` → `Harness/build/recordings`. In the Editor:
+   `Harness/unity/Assets` → `Harness/build/recordings`.
+
+`Build/` is about 90 MB and ignored by git; never commit it. The build adds four shaders to
+**Project Settings → Graphics → Always Included Shaders**, because the field is built from code and
+a build otherwise leaves them out (the field turns magenta).
+
 ## Tests
 
 **Harness → Run Replay Tests** (or Window → General → Test Runner → EditMode → Run All). The menu

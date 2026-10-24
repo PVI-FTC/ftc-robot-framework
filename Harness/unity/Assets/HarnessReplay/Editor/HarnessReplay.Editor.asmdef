@@ -2,6 +2,7 @@
     "name": "HarnessReplay.Editor",
     "rootNamespace": "PviHarness.Replay.Editor",
     "references": [
+        "HarnessReplay",
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner"
     ],

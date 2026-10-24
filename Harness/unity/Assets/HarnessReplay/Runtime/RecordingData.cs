@@ -36,6 +36,11 @@ namespace PviHarness.Replay
         public PoseData startPose;
         /// <summary>Null if position wasn't tracked.</summary>
         public DriveModelData driveModel;
+        /// <summary>
+        /// Optional, not written by the harness yet: the season field file id ("biobuzz-2026") the
+        /// replay should show. Null means the viewer's own choice.
+        /// </summary>
+        public string field;
     }
 
     /// <summary>A robot position on the FTC field: inches from the center, heading counter-clockwise from +x.</summary>

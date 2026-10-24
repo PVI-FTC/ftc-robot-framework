@@ -406,7 +406,13 @@ between loops so it feels real, so a saved drive replays exactly. In your own te
 `GamepadSource` passed to `runner.gamepad1(...)` / `gamepad2(...)` feeds live input the same way
 (`GamepadSourceTest.java` has examples).
 
-**Turning a drive into a test.** Drive with **Record on** (above), then, from `Harness\`:
+**Turning a drive into a test.** The easiest way: after a drive (or with any run on screen,
+including a practice drive or a replay), click **SAVE AS TEST** next to REPLAYS.... Type a class
+name (it starts as `RecordedTeamATeleOpDrive`) and click OK. A few seconds later the window says
+where the new test went and the command that runs it (**Copy command** puts it on the
+clipboard). It writes exactly the same test as `makeTest` below. The button is off while driving.
+
+Or from the command line: drive with **Record on** (above), then, from `Harness\`:
 
 ```powershell
 .\gradlew.bat makeTest                                                  # the newest drive-*.json
@@ -483,11 +489,66 @@ recordings; the other keys match the viewer window (Space, arrows, Home/End, `[`
 top-down and F to follow the robot. Unity only reads the saved files; nothing connects to the
 harness live yet. Details: [`unity/README.md`](unity/README.md).
 
-### Live connection to Unity (Stage U2, harness side)
+**Without the Unity Editor:** double-click `unity-view.bat` (or drop a `.json` on it) to open the
+replay as a Windows app, `unity\Build\HarnessReplay.exe`. Build that app once with
+`buildUnity.bat` (Editor closed, a few minutes, needs Unity installed), and again after changing
+the Unity scripts. `unity-view.bat` offers to build it when it's missing.
 
-The harness can run TeamCode **live for Unity**: Unity connects, picks an OpMode, sends its
-gamepads, and asks for one OpMode call at a time; the harness answers each with that moment's
-robot state. Start the harness side from `Harness\`:
+### Season field files (`fields/`)
+
+Each FTC season's field is a JSON file in `Harness\fields\`: `biobuzz-2026.json` (BIOBUZZ,
+2026–27) and `decode-2025.json` (DECODE, 2025–26). Unity draws the chosen one on top of the plain
+tiled field (**Field:** button or G). The files are plain data with no Unity in them, so harness
+Java (for example scripted AprilTags) can read the same numbers. **Format version 1:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `format` | string | Always `"pvi-harness-field"` |
+| `version` | int | `1`; goes up whenever the layout changes |
+| `id` | string | The file name without `.json`, e.g. `"biobuzz-2026"` |
+| `name`, `season` | string | `"BIOBUZZ"`, `"2026-2027"` |
+| `sources` | list of strings | Where every number came from (manual version and figures, SDK method) |
+| `frame`, `audienceSide`, `redWall`, `blueWall` | string | The coordinate frame in words. Both seasons are FTC "inverted square" fields: **+x toward the audience, +y from the red wall toward the blue wall**, z up, origin at the field center on the tiles (ftc-docs field coordinate system) |
+| `accuracyNote`, `startingNote` | string | How exact the numbers are; what moving parts start like |
+| `elements` | list | The fixed parts (below) |
+| `aprilTags` | list | The AprilTags (below) |
+
+Each **element**: `id`, `name`; `shape` (`"box"` or `"cylinder"`); `xInches`, `yInches`, `zInches`
+(the part's **center**, z = height above the tiles); `lengthInches` (along +x), `widthInches` (along
++y), `heightInches`; `diameterInches` (cylinders); `tiltDegrees` (a box is tilted first: positive
+raises its +x end), then `headingDegrees` (turned counter-clockwise from +x); `color` (`"#RRGGBB"`);
+`accuracy`: `"nominal"` (the manual's dimensions, ±1 in), `"approximate"` (worked out from the
+manual's figures, can be a few inches off) or `"sdk"`.
+
+Each **AprilTag**: `id` (int), `name`, `sizeInches` (the black square); `cluster` (the SDK's cluster
+name for BIOBUZZ's 4-tag stickers, else null) and `clusterOffsetInches` `{x, y, z}` (the SDK's
+position inside that cluster, copied exactly); `xInches`, `yInches`, `zInches` (the tag's center) and
+`facing` `{x, y, z}` (unit vector the printed side points along), all in the field frame and **null
+when the field position isn't known**; `moves` (true for BIOBUZZ's HIVE tags, which tip with the HIVE:
+their pose is the starting one); `accuracy`. DECODE's tags also keep the SDK's
+`sdkQuaternionWXYZ`.
+
+Where the numbers come from:
+
+- **AprilTag IDs, sizes and cluster offsets:** the FTC SDK (`AprilTagGameDatabase`, Vision 12.0.0),
+  the same library TeamCode uses. DECODE's goal tags (20, 24) are exact; the obelisk tags (21–23)
+  have no field position in the SDK. BIOBUZZ's clusters have no field position in the SDK either,
+  because they move, so their starting positions are worked out from the manual (`approximate`).
+- **BIOBUZZ parts:** Competition Manual TU06, Section 9 (frame, HIVE and CELL, FLOWER, zones) and
+  Figure 10-2 (starting tilt). Tube and pipe sizes aren't in the manual (drawn 1.5 in).
+  Replace `approximate` numbers with official CAD measurements when available.
+- **DECODE parts:** not added yet (needs the DECODE manual or CAD); only its tags are in the file.
+
+An optional `"field": "<id>"` in a run recording's header would make Unity open that field. Unity
+already reads it, but the harness doesn't write it yet (that change needs the recording format
+version to go up).
+
+### Live connection to Unity (Stage U2)
+
+The harness can run TeamCode **live for Unity**: Unity connects, picks an OpMode and asks for one
+OpMode call at a time; the harness runs it, **reads your game controller** (the same controller
+code as the viewer's live drive), and answers with that moment's robot state, which Unity draws.
+Start the harness side from `Harness\`:
 
 ```powershell
 .\gradlew.bat unityBridge                    # listens on 127.0.0.1:7465
@@ -495,10 +556,14 @@ robot state. Start the harness side from `Harness\`:
 ```
 
 It only accepts connections from this computer, serves one client at a time, and keeps running
-for the next client until you press Ctrl+C. The Unity side (U2 piece 3) is not built yet; the
-`BridgeSessionTest` and `BridgeServerTest` tests play Unity's part.
+for the next client until you press Ctrl+C. Then, in Unity (`unity/README.md`), open the Replay
+chooser and pick **Live: Team A TeleOp** (or another): Enter = PLAY, Esc = STOP, then **Save** keeps
+the run in `build\recordings`. Plug the controller in before choosing; with one controller its
+D-pad also works the operator's face buttons, as in the viewer. A controller that disconnects
+releases every input at once and the moment is marked in the run's events.
 
-**Bridge message format, version 1.** A local TCP connection; each message is one line of UTF-8
+**Bridge message format, version 2.** (Version 2 added `input` in `load` and `controllers` /
+`controllerProblem` in `frame`; a version 1 client is refused.) A local TCP connection; each message is one line of UTF-8
 JSON ending in `\n`, with a `type`. Unity sends a request and the harness sends **exactly one
 reply**, then waits: the harness never runs ahead, so **Unity drives the clock** (about one
 `step` per 20 ms of real time) and the same messages always give the same replies. Numbers and
@@ -509,10 +574,10 @@ Unity sends:
 
 | `type` | Other fields | Allowed when | Reply |
 |---|---|---|---|
-| `hello` | `version` (whole number, must be `1`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
-| `load` | `opMode` (string, an `id` from `welcome`) | after `hello`; again any time to start over | `loaded` |
+| `hello` | `version` (whole number, must be `2`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
+| `load` | `opMode` (string, an `id` from `welcome`); `input` (string, optional: `"controllers"` = the harness reads the game controllers, as Unity does; `"messages"` = each `step`/`play` carries the gamepads; default `"messages"`) | after `hello`; again any time to start over | `loaded` |
 | `init` | — | after `load` | `frame` (stage `INIT`) |
-| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before") | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
+| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
 | `play` | `gamepad1`, `gamepad2` (optional) | after `init` | `frame` (stage `START`) |
 | `stop` | — | after `init` or `play` | `frame` (stage `STOP`, `finished: true`) |
 | `save` | `name` (string: letters, digits, `-`, `_`, `.`) | after `load` | `saved` |
@@ -522,15 +587,17 @@ The harness sends:
 
 | `type` | Fields |
 |---|---|
-| `welcome` | `version` (whole number, `1`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
-| `loaded` | `opMode` (string, the id); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `header` (the run recording's header object) |
-| `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself) |
+| `welcome` | `version` (whole number, `2`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
+| `loaded` | `opMode` (string, the id); `input` (string, `"controllers"` or `"messages"`); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `header` (the run recording's header object) |
+| `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself); `controllers` (array of 2 strings saying what drives gamepad 1 and 2, e.g. `["PS5 Controller", "none"]`, or `null` with `"input": "messages"`); `controllerProblem` (string, why controllers don't work, e.g. the library couldn't start; else `null`) |
 | `saved` | `path` (string, the recording file under `build\recordings`) |
 | `goodbye` | — |
 | `error` | `message` (string, what was wrong); `crashed` (boolean, only when the OpMode threw: the run is over, as on the Robot Controller) |
 
-A typical run: `hello` → `load` → `init` → a few `step`s (INIT_LOOP) → `play` → `step` every 20 ms
-with the current gamepads → `stop` (or `finished: true`) → optionally `save` → `bye`. The OpModes
+A typical run: `hello` → `load` (with `"input": "controllers"`) → `init` → a few `step`s
+(INIT_LOOP) → `play` → `step` every 20 ms → `stop` (or `finished: true`) → optionally `save` → `bye`.
+Unity drives the clock, so a run only moves when Unity asks; with real controllers the drive is as
+repeatable as the driver, and its saved recording replays exactly. The OpModes
 Unity can pick are listed in `src/bridge/java/pvi/harness/bridge/BridgeOpModes.java`.
 
 ### Robot configurations (`RobotConfigs`)
@@ -549,6 +616,7 @@ FakeHardwareMap hw = RobotConfigs.teamA();
 hw.addServo("claw");
 hw.addMotor("lift");
 hw.addPinpoint("odometry");
+hw.addWebcam("logitechVisionWebcam");   // sees scripted AprilTags (see "Vision" below)
 ```
 
 Every fake robot also has the Control Hub's **battery voltage** (12.5 V), which Pedro reads:
@@ -558,7 +626,9 @@ Every fake robot also has the Control Hub's **battery voltage** (12.5 V), which 
 
 Before every OpMode call the harness moves the sensors on to match the simulated robot:
 
-- **Motor encoders** count with motor power: full power is about 2796 counts per second
+- **Drive motor encoders** count what the wheels really did (from the physics below), so
+  momentum, braking and walls show up in the counts. **Other motors' encoders** count with motor
+  power: full power is about 2796 counts per second
   (`FakeDcMotorEx.FULL_SPEED_TICKS_PER_SECOND`, a goBILDA 312 RPM motor, **a placeholder** until
   the team gives real numbers; per motor: `motor("lift").setEncoderModel(ticksPerRev, rpm)`).
   As on the robot, positive power counts up whatever the direction, `RUN_TO_POSITION` drives to
@@ -572,9 +642,76 @@ Before every OpMode call the harness moves the sensors on to match the simulated
   `update()`, as on the robot. It doesn't model pod slip or IMU drift.
 
 So **Pedro runs**: pick a route in Team A's "Team A Pedro Paths" menu and Pedro follows it,
-reading the fake Pinpoint every loop (`SensorsTest.java` has an example). How well it follows
-is not realistic yet: the simulated robot still changes speed instantly (no momentum), so Pedro's
-corrections overshoot and the robot wobbles. Acceleration (Step 17) fixes that.
+reading the fake Pinpoint every loop. **Start the robot where the route starts** on the field
+(`PoseEstimator.attachTo(runner, model, wheels, Pose.fromPedro(56, 8, 90))`; `Pose.fromPedro`
+converts Pedro's corner-based coordinates), or the field walls won't be where Pedro thinks they
+are. Placed that way, Team A's routes finish within about a quarter inch (`PedroRouteTest.java`).
+
+**How the robot moves (physics).** Each loop, a physics backend (`PhysicsBackend`) gets the
+wheel powers and moves the robot one step; the harness's own is `MomentumPhysics`:
+
+- **Momentum:** the motors pull the speed toward the commanded speed with a 0.1 s response time,
+  never faster than the 200 in/s² traction limit (turning shares it). Both are **placeholders**
+  (`Dynamics.teamA()`) until measured at the robot.
+- **Zero power:** on FLOAT the robot coasts and slows at Team A's measured rates (Pedro's
+  forward/lateral zero-power accelerations, read live from `TeamAPedroConfiguration`); on
+  BRAKE it stops much sooner. Below 0.25 in/s with no power, friction holds it still.
+- **Walls** stop the robot box and cancel its speed into the wall (see "Field walls").
+- **Order each loop:** the robot moves up to now, then sensors (Pinpoint, encoders) read it,
+  then the OpMode runs, then the new wheel powers are read. So robot code always sees where the
+  robot is now, as on the real robot.
+
+**Placeholders** (response time, traction limit, turn rate, robot size) are listed in every
+report as `TO MEASURE`. [CALIBRATION.md](CALIBRATION.md) is the checklist for measuring them at
+the robot and comparing a real route with the harness.
+
+Round-number test robots (`DriveModel.forTesting`) and `model.withDynamics(null)` change speed
+instantly, which keeps simple math tests exact. Unity's physics can replace the backend later
+(Phase 7, U3).
+
+### Vision: scripted AprilTags
+
+A **fake webcam** sees the AprilTags a script says, so vision code runs without a camera. Robot
+code is unchanged: it still builds a `VisionPortal` and an `AprilTagProcessor` and reads
+`getFreshDetections()`.
+
+```java
+// 1. SCRIPT: which tags the camera sees, and when (seconds after PLAY)
+AprilTagScript tags = new AprilTagScript()
+        .at(1.5).see(21)                                // tag 21, 24 in straight ahead
+        .at(3.0).lose(21)
+        .at(4.0).see(SeenAprilTag.at(22, 2, 30, 5));    // tag 22: 2 in right, 30 ahead, 5 up
+
+// 2. SET UP: add the webcam under the name the robot code looks up
+FakeHardwareMap hw = RobotConfigs.teamA();
+FakeWebcam camera = hw.addWebcam("logitechVisionWebcam").script(tags);
+OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(), hw);
+```
+
+| You want | Write |
+|---|---|
+| A tag comes into view | `.at(1.5).see(21)` (squarely, 24 in straight ahead of the lens) |
+| Exactly where it is | `.see(SeenAprilTag.at(id, rightInches, forwardInches, upInches))` |
+| Turned, tilted | `.see(new SeenAprilTag(id, right, forward, up, yawDeg, pitchDeg, rollDeg))` |
+| A tag leaves the view | `.at(3.0).lose(21)`; every tag: `.loseAll()` |
+| Seen before PLAY | `.duringInit().at(0.5).see(20)` (times after INIT) |
+| A slower camera | `camera.framesPerSecond(15)` (default 30) |
+| What the camera saw | `camera.framesTaken()`, `camera.lastFrameTags()` |
+
+Positions are measured from the camera lens, in inches, in the SDK's `ftcPose` frame: x right,
+y forward, z up. The harness turns them into real SDK detections with the SDK's own math, so
+robot code gets the same `ftcPose` (range, bearing, elevation), tag `metadata` (from the tag
+library the code chose, e.g. DECODE's) and `robotPose` (the robot's field position, from the
+tag's field position and the camera mount given to `setCameraPose`) as on the robot. A tag the
+library doesn't know comes with no pose, as in the SDK.
+
+Like a real camera, the webcam takes a picture **30 times a second** of simulated time, so with
+20 ms loops some loops get `null` from `getFreshDetections()` ("no new picture"). A picture shows
+the tags in view at that moment, with no delay. `AprilTagVisionTest.java` has examples.
+
+Not modelled yet: where the tags are from the robot's position on the field (you script what
+the camera sees, not where the robot is), tags hidden behind things, blur, tag clusters, and the
+phone's built-in cameras.
 
 ---
 
@@ -595,10 +732,10 @@ corrections overshoot and the robot wobbles. Acceleration (Step 17) fixes that.
 |---|---|
 | TeleOps, buttons, state machines, hardware config, crashes, telemetry, rumble events | ✅ Now |
 | Timed autonomous steps, match-timer rumbles (anything using `ElapsedTime`) | ✅ Now |
-| Vision state machine with scripted AprilTags | Phase 4 |
+| Vision state machine with scripted AprilTags (see "Vision: scripted AprilTags") | ✅ Now |
 | Field position (estimated from motor powers), motor encoders | ✅ Now |
 | Pedro paths: they run and Pedro sees the robot's position | ✅ Now |
-| How well Pedro follows a path (needs acceleration / momentum) | Phase 5 (Step 17) |
+| How well Pedro follows a path: each Team A route ends within 1 in / 2° (`PedroRouteTest.java`) | ✅ Now (robot speeds and size still placeholders until calibrated) |
 
 ### About time
 
@@ -647,7 +784,8 @@ src/agent/java/pvi/harness/agent/
   HarnessAgent  Java agent: rewrites clock calls in robot classes as they load
   SimTime       the clock those rewritten calls read
 src/main/java/pvi/harness/
-  hardware/   FakeHardwareMap, FakeDcMotorEx, FakeServo, RobotConfigs
+  hardware/   FakeHardwareMap, FakeDcMotorEx, FakeServo, RobotConfigs,
+              FakeWebcam, AprilTagScript, SeenAprilTag (scripted AprilTags)
   ds/         Driver Station side: FakeTelemetry, GamepadScript, GamepadDriver, rumble records
   runtime/    OpModeRunner, SimClock, RunResult, MatchPeriod, RunRecorder / RunRecording / RunRecordingJson,
               JsonReader (small JSON reader, no library)
@@ -663,6 +801,7 @@ src/viewer/java/pvi/harness/viewer/
   RecordingViewer   main(): opens the window (gradlew viewRecording)
   Scenarios         ready-made runs the dropdown can perform
   ViewerChoices     the dropdown's entries (scenarios, then recordings newest first)
+  SaveAsTest        the "Save as test" button's work, without the window (testable)
 src/test/java/pvi/harness/
   the tests
 unity/
@@ -691,3 +830,12 @@ src/bridge/java/pvi/harness/bridge/
     so the SDK's edge detection (`aWasPressed()` and similar) works as on the robot.
   - After each OpMode call the runner sends unsent telemetry, as the SDK does.
   - `requestOpModeStop()` reports to a harness stand-in for the Robot Controller's OpMode manager.
+  - **Vision:** the harness has its own copies of two SDK classes,
+    `src/main/java/org/firstinspires/ftc/vision/VisionPortal.java` and
+    `.../vision/apriltag/AprilTagProcessorImpl.java` (each starts with `HARNESS FILE, not the
+    FTC SDK`). The real ones need Android, a camera and native code. Java picks the harness's
+    copies because the harness's classes come first on the class path
+    (`AprilTagVisionTest.robotCodeGetsTheHarnessVisionPortal` checks this). Their public
+    methods must match the SDK's `Vision` version in `build.gradle`: check them when the SDK is
+    upgraded. Everything else in the SDK's vision library (builders, tag libraries, detection
+    classes, pose math) is the SDK's own.

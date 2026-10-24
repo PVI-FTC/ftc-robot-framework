@@ -69,6 +69,72 @@ namespace PviHarness.Replay
         }
 
         /// <summary>
+        /// Draws a season's field parts and AprilTags (from a Harness/fields file) under a new
+        /// object, on top of the plain tiled field, and returns that object so it can be removed
+        /// when another field is picked. Tags without a known field position are skipped.
+        /// </summary>
+        public static Transform BuildSeason(Transform parent, FieldLayoutData field)
+        {
+            var root = new GameObject("Season field " + field.id).transform;
+            root.SetParent(parent, false);
+            foreach (FieldElementData element in field.elements)
+            {
+                AddElement(root, element);
+            }
+            foreach (FieldTagData tag in field.aprilTags)
+            {
+                if (tag.HasFieldPose)
+                {
+                    AddTag(root, tag);
+                }
+            }
+            return root;
+        }
+
+        private static void AddElement(Transform root, FieldElementData element)
+        {
+            Color color = FieldLayouts.ParseColor(element.color);
+            Vector3 center = FtcToUnity.Position(element.xInches, element.yInches, FtcToUnity.Meters(element.zInches));
+            GameObject part;
+            if (element.shape == "cylinder")
+            {
+                // Unity's cylinder is 1 across and 2 tall at scale 1.
+                part = Primitive(root, PrimitiveType.Cylinder, element.id, center,
+                    new Vector3(FtcToUnity.Meters(element.diameterInches), FtcToUnity.Meters(element.heightInches) / 2f,
+                        FtcToUnity.Meters(element.diameterInches)), color);
+            }
+            else
+            {
+                // Local +z is the box's length (FTC +x before turning), local x its width.
+                part = Primitive(root, PrimitiveType.Cube, element.id, center,
+                    new Vector3(FtcToUnity.Meters(element.widthInches), FtcToUnity.Meters(element.heightInches),
+                        FtcToUnity.Meters(element.lengthInches)), color);
+                part.transform.localRotation = FtcToUnity.Rotation(element.headingDegrees * Mathf.Deg2Rad, element.tiltDegrees);
+            }
+            if (element.heightInches < 0.5)
+            {
+                // Floor tape and painted areas: flat colors, no shadows, like the field itself.
+                Renderer renderer = part.GetComponent<Renderer>();
+                renderer.material = new Material(Shader.Find("Unlit/Color")) { color = color };
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        /// <summary>An AprilTag: a black square on a white backing, its printed side facing the way the file says.</summary>
+        private static void AddTag(Transform root, FieldTagData tag)
+        {
+            Vector3 facing = FtcToUnity.Direction(tag.facing.x, tag.facing.y, tag.facing.z).normalized;
+            Vector3 up = Mathf.Abs(Vector3.Dot(facing, Vector3.up)) > 0.95f ? Vector3.forward : Vector3.up;
+            var holder = new GameObject("AprilTag " + tag.id).transform;
+            holder.SetParent(root, false);
+            holder.localPosition = FtcToUnity.Position(tag.xInches.Value, tag.yInches.Value, FtcToUnity.Meters(tag.zInches.Value));
+            holder.localRotation = Quaternion.LookRotation(facing, up);
+            float size = FtcToUnity.Meters(tag.sizeInches);
+            Box(holder, "Backing", Vector3.zero, new Vector3(size * 1.3f, size * 1.3f, 0.002f), Color.white, unlit: true);
+            Box(holder, "Tag", new Vector3(0f, 0f, 0.0015f), new Vector3(size, size, 0.001f), Color.black, unlit: true);
+        }
+
+        /// <summary>
         /// Colors the wheels and intake for one loop's motor powers: cyan forward, amber reverse,
         /// brighter the harder they push; dark when stopped. Like the Swing robot drawing.
         /// </summary>
@@ -255,7 +321,13 @@ namespace PviHarness.Replay
         /// </summary>
         private static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 size, Color color, bool unlit = false)
         {
-            GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            return Primitive(parent, PrimitiveType.Cube, name, localPosition, size, color, unlit);
+        }
+
+        private static GameObject Primitive(Transform parent, PrimitiveType type, string name, Vector3 localPosition, Vector3 size,
+            Color color, bool unlit = false)
+        {
+            GameObject box = GameObject.CreatePrimitive(type);
             box.name = name;
             Object.Destroy(box.GetComponent<Collider>());
             box.transform.SetParent(parent, false);

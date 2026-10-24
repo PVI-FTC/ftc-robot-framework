@@ -21,7 +21,7 @@ namespace PviHarness.Replay
         private const int NormalSpeed = 2;
 
         private readonly List<LoopData> loops;
-        private readonly double[] times;
+        private readonly List<double> times = new List<double>();
         private int speedIndex = NormalSpeed;
 
         /// <summary>Starts paused at the first loop, at normal speed.</summary>
@@ -32,18 +32,14 @@ namespace PviHarness.Replay
                 throw new ArgumentException("The recording has no loops to play.");
             }
             loops = recording.loops;
-            times = new double[loops.Count];
-            for (int i = 0; i < loops.Count; i++)
-            {
-                times[i] = loops[i].sinceInitSeconds;
-            }
+            Sync();
             PlayheadSeconds = times[0];
         }
 
         /// <summary>The last loop at or before the playhead: the one whose telemetry, motors and gamepads are shown.</summary>
         public int Index { get; private set; }
         /// <summary>Number of loops.</summary>
-        public int Count => times.Length;
+        public int Count => times.Count;
         /// <summary>The playhead, in seconds since INIT (between loop times while playing).</summary>
         public double PlayheadSeconds { get; private set; }
         /// <summary>True while playing.</summary>
@@ -53,11 +49,23 @@ namespace PviHarness.Replay
         /// <summary>Position of <see cref="Speed"/> in <see cref="Speeds"/>.</summary>
         public int SpeedIndex => speedIndex;
         /// <summary>True when showing the last loop.</summary>
-        public bool AtEnd => Index == times.Length - 1;
+        public bool AtEnd => Index == times.Count - 1;
         /// <summary>The loop shown.</summary>
         public LoopData Current => loops[Index];
         /// <summary>Seconds since INIT of the last loop.</summary>
-        public double EndSeconds => times[times.Length - 1];
+        public double EndSeconds => times[times.Count - 1];
+
+        /// <summary>
+        /// Picks up loops added to the recording since the last call (live play adds one per
+        /// step). The shown loop stays where it is; call <see cref="Seek"/> to follow the newest.
+        /// </summary>
+        public void Sync()
+        {
+            for (int i = times.Count; i < loops.Count; i++)
+            {
+                times.Add(loops[i].sinceInitSeconds);
+            }
+        }
 
         /// <summary>Starts playing. From the end, starts again from the beginning.</summary>
         public void Play()
@@ -113,7 +121,7 @@ namespace PviHarness.Replay
         /// <summary>Shows loop <paramref name="index"/> (kept inside the recording). Keeps playing if it was.</summary>
         public void Seek(int index)
         {
-            Index = Math.Max(0, Math.Min(times.Length - 1, index));
+            Index = Math.Max(0, Math.Min(times.Count - 1, index));
             PlayheadSeconds = times[Index];
         }
 
@@ -204,7 +212,7 @@ namespace PviHarness.Replay
             }
             // Binary search for the last time that is <= seconds (1e-9 absorbs rounding).
             int low = 0;
-            int high = times.Length - 1;
+            int high = times.Count - 1;
             while (low < high)
             {
                 int middle = (low + high + 1) / 2;

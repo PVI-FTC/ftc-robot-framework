@@ -28,11 +28,11 @@ namespace PviHarness.Replay
             return header.opMode + "  ·  " + header.robotConfig + (string.IsNullOrEmpty(fileName) ? "" : "  ·  " + fileName);
         }
 
-        /// <summary>"Replay  ·  TELEOP  ·  LOOP  ·  loop 12 / 401", under the mission clock.</summary>
-        public static string StageLine(RunRecordingData recording, int index)
+        /// <summary>"Replay  ·  TELEOP  ·  LOOP  ·  loop 12 / 401", under the mission clock ("Live" while driving live).</summary>
+        public static string StageLine(RunRecordingData recording, int index, string mode = "Replay")
         {
             LoopData loop = recording.loops[index];
-            return "Replay  ·  " + (recording.header.period == null ? "" : recording.header.period + "  ·  ")
+            return mode + "  ·  " + (recording.header.period == null ? "" : recording.header.period + "  ·  ")
                 + loop.stage + string.Format(Dot, "  ·  loop {0} / {1}", index + 1, recording.loops.Count);
         }
 
@@ -60,6 +60,22 @@ namespace PviHarness.Replay
         public static bool SizeIsPlaceholder(DriveModelData model)
         {
             return model == null || model.length == null || model.width == null || !(model.length.measured && model.width.measured);
+        }
+
+        /// <summary>
+        /// The live status line: what to do next, and which controller drives each gamepad, e.g.
+        /// "INIT: press Enter for PLAY  ·  Gamepad 1: PS5 Controller  ·  Gamepad 2: none".
+        /// </summary>
+        public static string LiveStatus(LiveSession live, bool saved)
+        {
+            string step = live.Initialized ? "INIT: press Enter for PLAY (Esc stops)"
+                : live.Playing ? "Driving: Esc for STOP"
+                : saved ? "Stopped and saved" : "Stopped: Save keeps this run";
+            for (int i = 0; i < live.Controllers.Count; i++)
+            {
+                step += "  ·  Gamepad " + (i + 1) + ": " + live.Controllers[i];
+            }
+            return step;
         }
 
         /// <summary>"frontLeft" -> "FRONT LEFT", the way motor names are labeled.</summary>

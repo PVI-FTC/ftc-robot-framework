@@ -11,21 +11,22 @@ import pvi.harness.physics.MecanumKinematics.RobotVelocity;
 import pvi.harness.runtime.OpModeRunner;
 
 /**
- * Estimates where the robot would be on the field, by adding up small movements every loop
- * ("dead reckoning").
+ * The simulated robot's position: where the robot would be on the field, worked out every loop
+ * from what the wheels were told to do.
  *
- * <p>Each update:</p>
- * <ol>
- *   <li>takes the wheel pushes read at the <b>previous</b> update (those powers were driving
- *       the robot for the whole time since then),</li>
- *   <li>turns them into robot speeds (Step 4 math and the drive model),</li>
- *   <li>turns robot-relative speeds into field directions using the heading, multiplies by
- *       the time since the last update, and adds the small step to the position,</li>
- *   <li>reads the wheels again, ready for the next update.</li>
- * </ol>
+ * <p>The motion itself comes from a {@link PhysicsBackend}: by default the harness's own
+ * {@link MomentumPhysics} (momentum, coasting, field walls), later possibly Unity. This class
+ * reads the drive motors, hands them to the backend one step at a time, and keeps the track,
+ * wall hits and statistics for reports and recordings. It also turns the drive-motor encoders
+ * with the wheels' real motion, so robot code reading encoders sees what the wheels did.</p>
  *
- * <p><b>Assumptions:</b> speed is proportional to power, changes instantly, and the wheels
- * never slip. Short, quick moves will read a little long on a real robot. See the README.</p>
+ * <p>Each loop the runner first calls {@link #advanceTo} (the robot moves, with the wheel
+ * powers set during the last loop, up to "now"), then lets sensors read the result, runs the
+ * OpMode, and finally calls {@link #update} (records the moment and reads the new wheel
+ * powers).</p>
+ *
+ * <p><b>Assumptions:</b> the wheels never slip except at the traction limit, and the robot
+ * moves on a flat, empty field. See the README.</p>
  *
  * <p>Easiest use: {@code PoseEstimator estimator = PoseEstimator.attachTo(runner, DriveModels.teamA());}
  * then run the OpMode and call {@code estimator.printReport()}.</p>
@@ -56,17 +57,17 @@ public final class PoseEstimator {
     public record WallHit(double sinceInitSeconds, double matchTimeSeconds, String wall, Pose pose) {
     }
 
-    /** The robot's speeds and size. */
+    /** The robot's speeds, size and momentum. */
     private final DriveModel model;
-    /** Reads which way each wheel pushes. */
+    /** Reads which way each wheel pushes, and turns the drive encoders. */
     private final WheelReader wheels;
     /** Where the robot started. */
     private final Pose start;
-    /** Where the robot is now (estimated). */
-    private Pose pose;
-    /** Wheel pushes read at the last update; they act until the next update. */
-    private WheelPushes lastPushes = WheelPushes.STOPPED;
-    /** Time of the last update in seconds, or NaN before the first update. */
+    /** What moves the robot. */
+    private final PhysicsBackend physics;
+    /** What the wheels were told at the last update; it acts until the next one. */
+    private PhysicsBackend.DriveCommand lastCommand = PhysicsBackend.DriveCommand.STOPPED;
+    /** Time the robot has been moved up to, in seconds, or NaN before the first update. */
     private double lastTimeSeconds = Double.NaN;
     /** Total length of the path driven, in inches (driving out and back counts both ways). */
     private double distanceInches;
@@ -76,29 +77,32 @@ public final class PoseEstimator {
     private double movingSeconds;
     /** Every pose, one per update, oldest first. */
     private final List<TrackPoint> track = new ArrayList<>();
-    /**
-     * True: the field's walls stop the robot, as on the real field (the default). False: the
-     * robot can drive straight through them, e.g. to test an off-field check.
-     */
-    private boolean walls = true;
-    /** Which walls the robot is pressed against after the last move ("" if none). */
+    /** Which walls the robot was pressed against after the last move ("" if none). */
     private String wallContact = "";
     /** Every time the robot ran into a wall, oldest first. */
     private final List<WallHit> wallHits = new ArrayList<>();
 
     /**
-     * @param model  robot speeds, e.g. {@code DriveModels.teamA()}
+     * An estimate using the harness's own physics ({@link MomentumPhysics}).
+     *
+     * @param model  robot speeds, size and momentum, e.g. {@code DriveModels.teamA()}
      * @param wheels how to read the drive motors, e.g. {@code WheelReader.teamA()}
      * @param start  starting pose, e.g. {@code Pose.ORIGIN} (field center facing +x)
      */
     public PoseEstimator(DriveModel model, WheelReader wheels, Pose start) {
-        if (model == null || wheels == null || start == null) {
-            throw new IllegalArgumentException("A pose estimator needs a drive model, a wheel reader and a start pose.");
+        this(model, wheels, start, model == null || start == null ? null : new MomentumPhysics(model, start));
+    }
+
+    /** An estimate whose motion comes from {@code physics} (for example Unity), already at {@code start}. */
+    public PoseEstimator(DriveModel model, WheelReader wheels, Pose start, PhysicsBackend physics) {
+        if (model == null || wheels == null || start == null || physics == null) {
+            throw new IllegalArgumentException("A pose estimator needs a drive model, a wheel reader, a start pose"
+                    + " and a physics backend.");
         }
         this.model = model;
         this.wheels = wheels;
         this.start = start;
-        this.pose = start;
+        this.physics = physics;
     }
 
     /**
@@ -106,13 +110,21 @@ public final class PoseEstimator {
      * testing a check that the robot stays on the field. Returns this estimator.
      */
     public PoseEstimator withoutWalls() {
-        this.walls = false;
+        if (!(physics instanceof MomentumPhysics momentum)) {
+            throw new IllegalStateException("Only the harness's own physics can turn its walls off.");
+        }
+        momentum.setWalls(false);
         return this;
     }
 
     /** True if the field walls stop the robot (the default). */
     public boolean hasWalls() {
-        return walls;
+        return !(physics instanceof MomentumPhysics momentum) || momentum.hasWalls();
+    }
+
+    /** What moves the robot. */
+    public PhysicsBackend physics() {
+        return physics;
     }
 
     // ---- Step 6: plugging into a runner -------------------------------------------------
@@ -139,113 +151,85 @@ public final class PoseEstimator {
     // ---- Step 5: adding up movement -------------------------------------------------------
 
     /**
-     * Moves the estimate forward to {@code timeSeconds}, then reads the wheels for next time.
+     * Moves the robot forward to {@code timeSeconds} with the wheel powers read at the last
+     * {@link #update}, and turns the drive encoders with the wheels' real motion. Calling it
+     * again for the same time does nothing.
      *
-     * @param hardwareMap      the fake robot to read motors from
+     * @param hardwareMap      the fake robot (its drive encoders are turned), or null
      * @param timeSeconds      a steadily increasing time, e.g. seconds since INIT
-     * @param matchTimeSeconds the time to label this point with in the track (seconds after PLAY)
+     * @param matchTimeSeconds the time to label a wall hit with (seconds after PLAY)
      */
-    public void update(FakeHardwareMap hardwareMap, double timeSeconds, double matchTimeSeconds) {
-        if (!Double.isNaN(lastTimeSeconds)) {
-            double dt = timeSeconds - lastTimeSeconds;
-            if (dt < 0) {
-                throw new IllegalArgumentException("Time went backwards: from " + lastTimeSeconds
-                        + " s to " + timeSeconds + " s.");
-            }
-            String before = wallContact;
-            move(lastPushes, dt);
-            // A new wall contact (not just staying against the same wall) is a hit.
-            if (!wallContact.isEmpty() && !wallContact.equals(before)) {
-                wallHits.add(new WallHit(timeSeconds, matchTimeSeconds, wallContact, pose));
-            }
+    public void advanceTo(FakeHardwareMap hardwareMap, double timeSeconds, double matchTimeSeconds) {
+        if (Double.isNaN(lastTimeSeconds)) {
+            return;   // nothing to move until the wheels have been read once
         }
-        // These pushes drive the robot from now until the next update.
-        lastPushes = wheels.read(hardwareMap);
+        double dt = timeSeconds - lastTimeSeconds;
+        if (dt < 0) {
+            throw new IllegalArgumentException("Time went backwards: from " + lastTimeSeconds
+                    + " s to " + timeSeconds + " s.");
+        }
+        if (dt == 0) {
+            return;
+        }
+        Pose before = physics.state().pose();
+        physics.step(lastCommand, dt);
+        PhysicsBackend.State now = physics.state();
         lastTimeSeconds = timeSeconds;
-        track.add(new TrackPoint(timeSeconds, matchTimeSeconds, pose));
-    }
 
-    /** Adds the movement caused by {@code pushes} acting for {@code dt} seconds. */
-    private void move(WheelPushes pushes, double dt) {
-        RobotVelocity v = MecanumKinematics.toVelocity(MecanumKinematics.toChassisPower(pushes), model);
-        double headingChange = v.counterClockwiseRadiansPerSecond() * dt;
-
-        // Use the heading halfway through the step: more accurate when driving while turning.
-        double midHeading = pose.headingRadians() + headingChange / 2.0;
-        double cos = Math.cos(midHeading);
-        double sin = Math.sin(midHeading);
-
-        // Turn robot-relative motion into field directions. The robot's "forward" points
-        // along (cos, sin) and its "left" along (-sin, cos).
-        double dx = (v.forwardInchesPerSecond() * cos - v.leftInchesPerSecond() * sin) * dt;
-        double dy = (v.forwardInchesPerSecond() * sin + v.leftInchesPerSecond() * cos) * dt;
-
-        Pose moved = new Pose(pose.xInches() + dx, pose.yInches() + dy, pose.headingRadians() + headingChange);
-        if (walls) {
-            moved = keepInsideWalls(moved);
-            dx = moved.xInches() - pose.xInches();
-            dy = moved.yInches() - pose.yInches();
+        // A new wall contact (not just staying against the same wall) is a hit.
+        String contactBefore = wallContact;
+        wallContact = now.wallContact();
+        if (!wallContact.isEmpty() && !wallContact.equals(contactBefore)) {
+            wallHits.add(new WallHit(timeSeconds, matchTimeSeconds, wallContact, now.pose()));
         }
-        pose = moved;
-
         // Statistics for the report.
-        distanceInches += Math.hypot(dx, dy);
+        distanceInches += Math.hypot(now.pose().xInches() - before.xInches(), now.pose().yInches() - before.yInches());
+        RobotVelocity v = now.velocity();
         double speed = v.speedInchesPerSecond();
         maxSpeedInchesPerSecond = Math.max(maxSpeedInchesPerSecond, speed);
         if (speed > MOVING_THRESHOLD_INCHES_PER_SECOND
                 || Math.abs(v.counterClockwiseRadiansPerSecond()) > MOVING_THRESHOLD_INCHES_PER_SECOND) {
             movingSeconds += dt;
         }
+        // The drive encoders turn with what the wheels really did.
+        if (hardwareMap != null) {
+            wheels.turnEncoders(hardwareMap, wheelMotion(v));
+        }
     }
 
     /**
-     * The field walls: if any part of the robot box would be past a wall, moves the robot back
-     * so the box just touches it. Only the blocked direction is stopped, so a robot driving at
-     * an angle into a wall slides along it, like a real robot pushing on the wall. Sets
-     * {@link #wallContact}.
+     * Moves the robot forward to {@code timeSeconds} (see {@link #advanceTo}), records the
+     * moment in the track, then reads the wheels: those powers drive the robot until the next
+     * update.
      *
-     * <p>How far the box reaches from its center depends on the heading: a robot turned 45
-     * degrees reaches further than one facing straight ahead.</p>
-     *
-     * <p>The box size comes from the drive model. Team A's length and width are still
-     * placeholders (18 × 18 in, the FTC maximum) until they are measured (Step 10), so where the
-     * robot stops against a wall is only as exact as those numbers.</p>
+     * @param hardwareMap      the fake robot to read motors from
+     * @param timeSeconds      a steadily increasing time, e.g. seconds since INIT
+     * @param matchTimeSeconds the time to label this point with in the track (seconds after PLAY)
      */
-    private Pose keepInsideWalls(Pose p) {
-        double cos = Math.abs(Math.cos(p.headingRadians()));
-        double sin = Math.abs(Math.sin(p.headingRadians()));
-        double halfLength = model.lengthInches() / 2.0;
-        double halfWidth = model.widthInches() / 2.0;
-        double reachX = cos * halfLength + sin * halfWidth;
-        double reachY = sin * halfLength + cos * halfWidth;
-        double limitX = Pose.FIELD_HALF_WIDTH_INCHES - reachX;
-        double limitY = Pose.FIELD_HALF_WIDTH_INCHES - reachY;
+    public void update(FakeHardwareMap hardwareMap, double timeSeconds, double matchTimeSeconds) {
+        advanceTo(hardwareMap, timeSeconds, matchTimeSeconds);
+        lastCommand = new PhysicsBackend.DriveCommand(wheels.read(hardwareMap), wheels.isBraking(hardwareMap));
+        lastTimeSeconds = timeSeconds;
+        track.add(new TrackPoint(timeSeconds, matchTimeSeconds, pose()));
+    }
 
-        double x = p.xInches();
-        double y = p.yInches();
-        List<String> touching = new ArrayList<>();
-        if (limitX > 0 && x > limitX) {
-            x = limitX;
-            touching.add("+x");
-        } else if (limitX > 0 && x < -limitX) {
-            x = -limitX;
-            touching.add("-x");
-        }
-        if (limitY > 0 && y > limitY) {
-            y = limitY;
-            touching.add("+y");
-        } else if (limitY > 0 && y < -limitY) {
-            y = -limitY;
-            touching.add("-y");
-        }
-        wallContact = String.join("/", touching);
-        return touching.isEmpty() ? p : new Pose(x, y, p.headingRadians());
+    /**
+     * How fast each wheel is really turning (a fraction of full speed, forward positive), from
+     * the robot's speed: the mecanum mixing in reverse.
+     */
+    private WheelPushes wheelMotion(RobotVelocity v) {
+        return MecanumKinematics.toWheelPushes(new MecanumKinematics.ChassisPower(
+                v.forwardInchesPerSecond() / model.forwardInchesPerSecond(),
+                -v.leftInchesPerSecond() / model.strafeInchesPerSecond(),
+                -v.counterClockwiseRadiansPerSecond() / model.turnRadiansPerSecond()));
     }
 
     // ---- Results ------------------------------------------------------------------------
 
     /** Where the robot is now (estimated). */
-    public Pose pose() { return pose; }
+    public Pose pose() { return physics.state().pose(); }
+    /** How the robot is moving now, in its own frame (forward, left, counter-clockwise). */
+    public RobotVelocity velocity() { return physics.state().velocity(); }
     /** Where the robot started. */
     public Pose start() { return start; }
     /** The drive model used for the estimate. */
@@ -291,6 +275,7 @@ public final class PoseEstimator {
         String measured = model.isFullyMeasured()
                 ? "all values measured"
                 : String.join(", ", model.unmeasured()) + " TO MEASURE";
+        Pose pose = pose();
         double straightLine = unit.fromInches(start.distanceInchesTo(pose));
         return String.format(Locale.ROOT,
                 "Estimated travel (%s model; %s)%n"
@@ -306,7 +291,7 @@ public final class PoseEstimator {
 
     /** "none hit", "hit 2 times (first: -x wall at 3.24 s)", or "off (the robot can leave the field)". */
     private String wallSummary() {
-        if (!walls) {
+        if (!hasWalls()) {
             return "off (the robot can leave the field)";
         }
         if (wallHits.isEmpty()) {

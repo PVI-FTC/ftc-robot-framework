@@ -71,9 +71,11 @@ class PositionReportTest {
 
         DriveModel teamA = DriveModels.teamA();
         Pose end = estimator.pose();
-        // One 20 ms loop of slack at each stick change: about 1.3 in forward, 1.0 in sideways.
-        assertEquals(teamA.forwardInchesPerSecond(), end.xInches(), 1.5, "forward part");
-        assertEquals(-teamA.strafeInchesPerSecond(), end.yInches(), 1.5, "strafe part (right is -y)");
+        // About one second at each full speed. Momentum costs a little while speeding up and
+        // gives some back while braking, so allow 10%.
+        assertEquals(teamA.forwardInchesPerSecond(), end.xInches(), 0.1 * teamA.forwardInchesPerSecond(), "forward part");
+        assertEquals(-teamA.strafeInchesPerSecond(), end.yInches(), 0.1 * teamA.strafeInchesPerSecond(),
+                "strafe part (right is -y)");
         assertEquals(0.0, end.headingDegrees(), 1e-6, "no turning");
     }
 }

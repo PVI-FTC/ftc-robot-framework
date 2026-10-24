@@ -40,8 +40,9 @@ class DriveModelTest {
     /**
      * WHAT: Team A's model clearly flags the values that are still placeholders.
      *
-     * <p>HOW: Turn rate and robot size were not measured (Step 0). They must be listed as
-     * unmeasured, and the printed description must say "TO MEASURE" next to them.</p>
+     * <p>HOW: Turn rate and robot size were not measured (Step 0), nor were the momentum's
+     * response time and traction limit (Step 17). They must be listed as unmeasured, and the
+     * printed description must say "TO MEASURE" next to them.</p>
      *
      * <p>WHY: Estimates built on guesses must never look like measured results. This label
      * travels into every report until the team measures the real values.</p>
@@ -50,7 +51,8 @@ class DriveModelTest {
     void teamAModelFlagsWhatStillNeedsMeasuring() {
         DriveModel teamA = DriveModels.teamA();
 
-        assertEquals(List.of("turn rate", "robot length", "robot width"), teamA.unmeasured());
+        assertEquals(List.of("turn rate", "robot length", "robot width", "response time", "maximum acceleration"),
+                teamA.unmeasured());
         assertFalse(teamA.isFullyMeasured());
         assertEquals(180.0, teamA.turnDegreesPerSecond(), TOLERANCE);
         assertEquals(18.0, teamA.lengthInches(), TOLERANCE);

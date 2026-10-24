@@ -56,10 +56,12 @@ class RealCodeMotionTest {
         runner.run(1.0, 1.5).assertNoException();
 
         // CHECK
+        // Half a second at the full turn rate. Momentum loses a little while the turn speeds up
+        // and gives some back while it brakes, so allow 10%.
         double turnDegreesPerSecond = DriveModels.teamA().turnDegreesPerSecond();
         Pose end = estimator.pose();
         assertEquals(-0.5 * turnDegreesPerSecond, end.headingDegrees(),
-                turnDegreesPerSecond * ONE_LOOP_SECONDS + 1e-6, "clockwise turn (negative heading)");
+                0.1 * 0.5 * turnDegreesPerSecond, "clockwise turn (negative heading)");
         assertEquals(0.0, end.xInches(), 1e-6, "no forward movement while turning");
         assertEquals(0.0, end.yInches(), 1e-6, "no sideways movement while turning");
     }
@@ -134,12 +136,26 @@ class RealCodeMotionTest {
         runner.stop();
         Pose atStop = estimator.pose();
 
-        // One more second passes after STOP. Whatever the wheels are doing now acts for that second.
-        estimator.update(runner.hardwareMap(), runner.clock().sinceInit() + 1.0, runner.clock().sinceStart() + 1.0);
+        // Two more seconds pass after STOP, in 20 ms steps, with whatever the wheels are doing now.
+        double t = runner.clock().sinceInit();
+        double m = runner.clock().sinceStart();
+        Pose afterOneSecond = null;
+        for (int i = 1; i <= 100; i++) {
+            estimator.update(runner.hardwareMap(), t + i * ONE_LOOP_SECONDS, m + i * ONE_LOOP_SECONDS);
+            if (i == 50) {
+                afterOneSecond = estimator.pose();
+            }
+        }
 
-        // CHECK
-        assertTrue(atStop.xInches() > 50.0, "the robot should have been driving before STOP: " + atStop);
-        assertEquals(atStop, estimator.pose(), "the robot kept moving after STOP");
+        // CHECK: the power is off, so the robot brakes to a stop (momentum carries it a little
+        // further, like a real robot), then stays put.
+        assertTrue(atStop.xInches() > 40.0, "the robot should have been driving before STOP: " + atStop);
+        for (String motor : new String[] {"frontLeft", "frontRight", "rearLeft", "rearRight"}) {
+            assertEquals(0.0, runner.hardwareMap().motor(motor).getPower(), 0.0, motor + " has no power after STOP");
+        }
+        double braking = afterOneSecond.xInches() - atStop.xInches();
+        assertTrue(braking >= 0 && braking < 15.0, "stops within a short braking distance, went " + braking + " in");
+        assertEquals(afterOneSecond, estimator.pose(), "the robot kept moving long after STOP");
     }
 
     /**
@@ -187,7 +203,9 @@ class RealCodeMotionTest {
         Pose nearTheWall = Pose.inches(Pose.FIELD_HALF_WIDTH_INCHES - teamA.lengthInches() / 2.0 - gapInches, 0.0, 0.0);
         OpModeRunner runner = new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA());
         // The walls would stop the robot; turn them off so it can cross and the check can fire.
-        PoseEstimator estimator = PoseEstimator.attachTo(runner, teamA, WheelReader.teamA(), nearTheWall).withoutWalls();
+        // Instant speed changes (no momentum) keep the expected crossing time simple to work out.
+        PoseEstimator estimator = PoseEstimator.attachTo(runner, teamA.withDynamics(null), WheelReader.teamA(),
+                nearTheWall).withoutWalls();
 
         // RUN
         runner.run(MatchPeriod.AUTONOMOUS).assertNoException();

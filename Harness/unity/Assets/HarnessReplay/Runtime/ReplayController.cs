@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Unity.Collections;
 using UnityEngine;
@@ -7,23 +8,30 @@ using UnityEngine;
 namespace PviHarness.Replay
 {
     /// <summary>
-    /// Replays a harness run recording in 3D (Stage U1), in a window laid out like the Swing
-    /// viewer: header with the mission clock, a recording chooser, the field, the "mission
-    /// control" cards and gamepads on the right, and the playback bar at the bottom
-    /// (<see cref="ReplayHud"/>). Put it on one empty GameObject (the Replay scene already has it)
-    /// and press Play: it builds the field, opens the newest recording in Harness/build/recordings
-    /// (or <see cref="recordingPath"/>), and plays it back.
+    /// Shows harness runs in 3D, in a window laid out like the Swing viewer: header with the
+    /// mission clock, a chooser, the field, the "mission control" cards and gamepads on the right,
+    /// and the playback bar at the bottom (<see cref="ReplayHud"/>). Put it on one empty GameObject
+    /// (the Replay scene already has it) and press Play.
     ///
-    /// <para>Keys: Space play/pause, Left/Right one loop, Shift+Left/Right one second, Home/End,
-    /// [ and ] slower/faster, N/P newer/older recording, T top-down / 3D view, F follow the robot.
-    /// In 3D view, right-drag turns the camera and scroll zooms.</para>
+    /// <para><b>Replay</b> (Stage U1): opens the newest recording in Harness/build/recordings (or
+    /// <see cref="recordingPath"/>) and plays it back. Keys: Space play/pause, Left/Right one loop,
+    /// Shift+Left/Right one second, Home/End, [ and ] slower/faster, N/P newer/older recording.</para>
     ///
-    /// <para>It only reads the saved file. Nothing here talks to the harness (that is Stage U2).</para>
+    /// <para><b>Live</b> (Stage U2): pick "Live: ..." in the chooser while <c>gradlew unityBridge</c>
+    /// runs. The harness runs the real TeamCode and reads the game controllers; Unity asks for one
+    /// OpMode call every 20 ms (<see cref="LivePacer"/>) and draws each one. Enter = PLAY, Esc = STOP,
+    /// then Save keeps the run as a recording.</para>
+    ///
+    /// <para>Always: T top-down / 3D view, F follow the robot, G next season field (Harness/fields);
+    /// in 3D view right-drag turns the camera and scroll zooms.</para>
     /// </summary>
     public sealed class ReplayController : MonoBehaviour
     {
         [Tooltip("A recording to open. Leave empty to open the newest file in Harness/build/recordings.")]
         [SerializeField] private string recordingPath = "";
+
+        [Tooltip("The port gradlew unityBridge listens on (7465 unless started with -Pport=...).")]
+        [SerializeField] private int bridgePort = TcpBridgeTransport.DefaultPort;
 
         private FieldBuilder.Built scene;
         private Camera replayCamera;
@@ -34,21 +42,55 @@ namespace PviHarness.Replay
         private string shownFile;
         private List<string> recordingsNewestFirst = new List<string>();
 
+        // Season fields (Harness/fields/*.json) and the one drawn now.
+        private const string FieldPreferenceKey = "HarnessReplay.field";
+        private List<FieldLayoutData> fields = new List<FieldLayoutData>();
+        private string fieldId = FieldLayouts.PlainFieldId;
+        private Transform seasonRoot;
+
+        // Live play.
+        private LiveSession live;
+        private readonly LivePacer pacer = new LivePacer();
+        private string liveTitle;
+
         // Trail: every recorded pose as a Unity position, and how many belong to loops up to each index.
         private NativeArray<Vector3> trailPoints;
-        private int[] trailCountUpTo;
+        private int trailPointCount;
+        private readonly List<int> trailCountUpTo = new List<int>();
         private int trailShownIndex = -1;
 
-        /// <summary>The recording being shown, or null if none could be opened.</summary>
+        /// <summary>The recording being shown (a live run grows step by step), or null if none.</summary>
         public RunRecordingData Recording => recording;
         /// <summary>The playback state (null until a recording is open).</summary>
         public ReplayTimeline Timeline => timeline;
-        /// <summary>The shown file's name, e.g. "viewer-teamA-autonomous.json", or null.</summary>
-        public string ShownFileName => shownFile == null ? null : Path.GetFileName(shownFile);
-        /// <summary>Why the last recording couldn't be opened, or null.</summary>
+        /// <summary>What is shown: a file name like "viewer-teamA-autonomous.json", "Live: Team A TeleOp", or null.</summary>
+        public string ShownFileName => live != null ? "Live: " + liveTitle : shownFile == null ? null : Path.GetFileName(shownFile);
+        /// <summary>Why the last action failed (open, connect, step), or null.</summary>
         public string ErrorMessage { get; private set; }
+        /// <summary>A short note for the user, e.g. where a live run was saved, or null.</summary>
+        public string Notice { get; private set; }
         /// <summary>The recordings in Harness/build/recordings, newest first (for the chooser).</summary>
         public List<string> RecordingsNewestFirst => recordingsNewestFirst;
+
+        /// <summary>True while a live run is shown (running, or stopped and not yet replaced).</summary>
+        public bool IsLive => live != null;
+        /// <summary>The live session (null when not live), for the panels.</summary>
+        public LiveSession Live => live;
+        /// <summary>The OpModes the harness offered the last time the chooser asked, or null if it wasn't running.</summary>
+        public List<LiveSession.OpModeChoice> LiveChoices { get; private set; }
+        /// <summary>Why the live choices couldn't be listed (usually: the harness side isn't running), or null.</summary>
+        public string LiveUnavailable { get; private set; }
+        /// <summary>True once the live run has been saved.</summary>
+        public bool LiveSaved { get; private set; }
+        /// <summary>The season field drawn now: its name ("BIOBUZZ 2026-2027"), or "Plain field".</summary>
+        public string FieldName
+        {
+            get
+            {
+                FieldLayoutData field = fields.Find(f => f.id == fieldId);
+                return field == null ? "Plain field" : field.name + " " + field.season;
+            }
+        }
 
         private void Start()
         {
@@ -62,13 +104,25 @@ namespace PviHarness.Replay
             scene = FieldBuilder.Build(transform, 18f, 18f);
             orbit.followTarget = scene.robot;
 
+            var fieldProblems = new List<string>();
+            fields = FieldLayouts.LoadAll(FieldLayouts.DefaultFolder, fieldProblems);
+            fieldProblems.ForEach(p => Debug.LogWarning("[HarnessReplay] " + p));
+            // "-field <id>" on the command line, else the field picked last time.
+            string startField = FieldLayouts.FieldFromCommandLine(Environment.GetCommandLineArgs())
+                ?? PlayerPrefs.GetString(FieldPreferenceKey, "");
+            ShowField(FieldLayouts.Pick(null, startField, fields.ConvertAll(f => f.id)));
+
             RefreshRecordingList();
+            // A recording named in the Inspector, else one given on the command line (dropped on
+            // unity-view.bat), else the newest one.
+            string fromCommandLine = RecordingLoader.FileFromCommandLine(Environment.GetCommandLineArgs());
             string first = !string.IsNullOrWhiteSpace(recordingPath) ? recordingPath
-                : recordingsNewestFirst.Count > 0 ? recordingsNewestFirst[0] : null;
+                : fromCommandLine ?? (recordingsNewestFirst.Count > 0 ? recordingsNewestFirst[0] : null);
             if (first == null)
             {
                 ErrorMessage = "No recordings in " + RecordingLoader.DefaultFolder + ".\nRun the harness tests "
-                    + "(.\\gradlew.bat test) or save a run from the Swing viewer, then press N.";
+                    + "(.\\gradlew.bat test), save a run from the Swing viewer, or pick \"Live: ...\" above "
+                    + "while .\\gradlew.bat unityBridge runs.";
             }
             else
             {
@@ -78,11 +132,14 @@ namespace PviHarness.Replay
 
         private void OnDestroy()
         {
+            EndLive(null);
             if (trailPoints.IsCreated)
             {
                 trailPoints.Dispose();
             }
         }
+
+        // ---- Replay -------------------------------------------------------------------------------
 
         /// <summary>Opens a recording file and shows its first moment. On failure, keeps the old one and shows why.</summary>
         public void Open(string path)
@@ -98,23 +155,9 @@ namespace PviHarness.Replay
                 Debug.LogWarning("[HarnessReplay] " + e.Message);
                 return;
             }
-            int speed = timeline?.SpeedIndex ?? -1;
-            recording = loaded;
-            timeline = new ReplayTimeline(recording);
-            if (speed >= 0)
-            {
-                timeline.SetSpeedIndex(speed);
-            }
+            EndLive(null);
             shownFile = path;
-            ErrorMessage = null;
-
-            DriveModelData model = recording.header.driveModel;
-            float length = model != null && model.length != null ? (float)model.length.value : 18f;
-            float width = model != null && model.width != null ? (float)model.width.value : 18f;
-            FieldBuilder.RebuildRobot(transform, scene, length, width);
-            orbit.followTarget = scene.robot;
-            PrepareTrail();
-            ShowPlayhead();
+            Show(loaded);
         }
 
         /// <summary>Reads the recordings folder again (the chooser does this each time it opens).</summary>
@@ -135,26 +178,195 @@ namespace PviHarness.Replay
 #endif
         }
 
-        private void PrepareTrail()
+        /// <summary>Shows a recording (a file, or a live run that will keep growing) from its first moment.</summary>
+        private void Show(RunRecordingData shown)
         {
-            if (trailPoints.IsCreated)
+            int speed = timeline?.SpeedIndex ?? -1;
+            recording = shown;
+            timeline = new ReplayTimeline(recording);
+            if (speed >= 0)
             {
-                trailPoints.Dispose();
+                timeline.SetSpeedIndex(speed);
             }
-            var points = new List<Vector3>();
-            trailCountUpTo = new int[recording.loops.Count];
-            for (int i = 0; i < recording.loops.Count; i++)
+            ErrorMessage = null;
+            DriveModelData model = recording.header.driveModel;
+            float length = model != null && model.length != null ? (float)model.length.value : 18f;
+            float width = model != null && model.width != null ? (float)model.width.value : 18f;
+            FieldBuilder.RebuildRobot(transform, scene, length, width);
+            orbit.followTarget = scene.robot;
+            if (recording.header.field != null)
             {
-                PoseData pose = recording.loops[i].pose;
-                if (pose != null)
-                {
-                    points.Add(FtcToUnity.Position(pose.xInches, pose.yInches, 0.004f));
-                }
-                trailCountUpTo[i] = points.Count;
+                ShowField(FieldLayouts.Pick(recording.header.field, fieldId, fields.ConvertAll(f => f.id)));
             }
-            trailPoints = new NativeArray<Vector3>(points.ToArray(), Allocator.Persistent);
-            trailShownIndex = -1;
+            ResetTrail();
+            AddTrailPoints();
+            ShowPlayhead();
         }
+
+        // ---- Season field -------------------------------------------------------------------------
+
+        /// <summary>Switches to the next season field (plain, then each file by id) and remembers it. Key G.</summary>
+        public void NextField()
+        {
+            var ids = new List<string> { FieldLayouts.PlainFieldId };
+            ids.AddRange(fields.ConvertAll(f => f.id));
+            int next = (ids.IndexOf(fieldId) + 1) % ids.Count;
+            ShowField(ids[next]);
+            PlayerPrefs.SetString(FieldPreferenceKey, fieldId);
+        }
+
+        /// <summary>Draws a season field by id (or only the plain field), replacing the one shown.</summary>
+        private void ShowField(string id)
+        {
+            if (seasonRoot != null)
+            {
+                Destroy(seasonRoot.gameObject);
+                seasonRoot = null;
+            }
+            FieldLayoutData field = fields.Find(f => f.id == id);
+            fieldId = field == null ? FieldLayouts.PlainFieldId : field.id;
+            if (field != null)
+            {
+                seasonRoot = FieldBuilder.BuildSeason(transform, field);
+            }
+        }
+
+        // ---- Live ---------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Asks the harness which OpModes it can run (the chooser calls this when it opens). If the
+        /// harness side isn't running, <see cref="LiveUnavailable"/> says how to start it.
+        /// </summary>
+        public void RefreshLiveChoices()
+        {
+            if (live != null && live.OpModes.Count > 0)
+            {
+                LiveChoices = live.OpModes;
+                LiveUnavailable = null;
+                return;
+            }
+            try
+            {
+                using (var probe = new LiveSession(new TcpBridgeTransport(bridgePort, 300)))
+                {
+                    probe.Hello();
+                    LiveChoices = probe.OpModes;
+                    LiveUnavailable = null;
+                }
+            }
+            catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException || e is BridgeErrorException)
+            {
+                LiveChoices = null;
+                LiveUnavailable = "Live play: start .\\gradlew.bat unityBridge in Harness\\ first (" + e.Message + ")";
+            }
+        }
+
+        /// <summary>Connects to the harness, loads the OpMode (the harness reads the controllers) and presses INIT.</summary>
+        public void StartLive(LiveSession.OpModeChoice choice)
+        {
+            EndLive(null);
+            LiveSession session = null;
+            try
+            {
+                session = new LiveSession(new TcpBridgeTransport(bridgePort));
+                session.Hello();
+                session.Load(choice.id);
+                session.Init();
+            }
+            catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException || e is BridgeErrorException)
+            {
+                session?.Dispose();
+                ErrorMessage = "Could not start live play: " + e.Message;
+                return;
+            }
+            live = session;
+            liveTitle = choice.title;
+            LiveSaved = false;
+            Notice = null;
+            shownFile = null;
+            pacer.Reset();
+            Show(live.Recording);
+        }
+
+        /// <summary>Presses PLAY in a live run (Enter).</summary>
+        public void LivePlay()
+        {
+            LiveCall(() => live.Play());
+        }
+
+        /// <summary>Presses STOP in a live run (Esc).</summary>
+        public void LiveStop()
+        {
+            LiveCall(() => live.Stop());
+        }
+
+        /// <summary>Saves the live run as a recording in Harness/build/recordings.</summary>
+        public void SaveLive()
+        {
+            if (live == null)
+            {
+                return;
+            }
+            string name = "unity-live-" + live.OpModeId + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            try
+            {
+                string path = live.Save(name);
+                LiveSaved = true;
+                Notice = "Saved " + Path.GetFileName(path) + " (in build\\recordings; replay it from the chooser)";
+            }
+            catch (Exception e) when (e is IOException || e is BridgeErrorException)
+            {
+                ErrorMessage = "Could not save: " + e.Message;
+            }
+        }
+
+        /// <summary>Runs one live request; on a lost connection or an OpMode crash, ends live play and keeps the run on screen.</summary>
+        private void LiveCall(Action call)
+        {
+            if (live == null)
+            {
+                return;
+            }
+            try
+            {
+                call();
+            }
+            catch (BridgeErrorException e)
+            {
+                // A refused request, or the OpMode crashed (then the run is over but stays on screen).
+                ErrorMessage = e.Message;
+            }
+            catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException)
+            {
+                EndLive("Lost the harness connection (is .\\gradlew.bat unityBridge still running?): " + e.Message);
+            }
+            SyncLive();
+        }
+
+        /// <summary>Picks up new live loops: the timeline and trail grow, and the newest moment is shown.</summary>
+        private void SyncLive()
+        {
+            timeline.Sync();
+            timeline.Seek(timeline.Count - 1);
+            AddTrailPoints();
+        }
+
+        /// <summary>Leaves live mode (closing the connection). The run stays on screen as a recording.</summary>
+        private void EndLive(string why)
+        {
+            if (live == null)
+            {
+                return;
+            }
+            live.Dispose();
+            live = null;
+            if (why != null)
+            {
+                ErrorMessage = why;
+            }
+        }
+
+        // ---- Every frame ------------------------------------------------------------------------
 
         private void Update()
         {
@@ -167,7 +379,19 @@ namespace PviHarness.Replay
             {
                 return;
             }
-            timeline.Advance(Time.unscaledDeltaTime);
+            if (live != null && (live.Initialized || live.Playing))
+            {
+                // Live: one OpMode call per 20 ms of real time. Simulated time stays exact.
+                int steps = pacer.StepsDue(Time.unscaledDeltaTime);
+                for (int i = 0; i < steps && live != null && !live.Finished; i++)
+                {
+                    LiveCall(() => live.Step());
+                }
+            }
+            else
+            {
+                timeline.Advance(Time.unscaledDeltaTime);
+            }
             ShowPlayhead();
         }
 
@@ -182,9 +406,9 @@ namespace PviHarness.Replay
                 scene.robot.SetPositionAndRotation(position, rotation);
             }
             FieldBuilder.ShowPowers(scene, timeline.Current);
-            if (timeline.Index != trailShownIndex)
+            if (timeline.Index != trailShownIndex || timeline.Index >= trailCountUpTo.Count - 1)
             {
-                int count = trailCountUpTo[timeline.Index];
+                int count = trailCountUpTo[Math.Min(timeline.Index, trailCountUpTo.Count - 1)];
                 scene.trail.positionCount = count;
                 if (count > 0)
                 {
@@ -193,6 +417,49 @@ namespace PviHarness.Replay
                 trailShownIndex = timeline.Index;
             }
         }
+
+        // ---- Trail --------------------------------------------------------------------------------
+
+        private void ResetTrail()
+        {
+            trailPointCount = 0;
+            trailCountUpTo.Clear();
+            trailShownIndex = -1;
+        }
+
+        /// <summary>Adds trail points for loops not yet added (all of a file at once; a live run step by step).</summary>
+        private void AddTrailPoints()
+        {
+            for (int i = trailCountUpTo.Count; i < recording.loops.Count; i++)
+            {
+                PoseData pose = recording.loops[i].pose;
+                if (pose != null)
+                {
+                    EnsureTrailCapacity(trailPointCount + 1);
+                    trailPoints[trailPointCount++] = FtcToUnity.Position(pose.xInches, pose.yInches, 0.004f);
+                }
+                trailCountUpTo.Add(trailPointCount);
+            }
+        }
+
+        /// <summary>Grows the trail's point store (doubling), keeping the points so far.</summary>
+        private void EnsureTrailCapacity(int needed)
+        {
+            if (trailPoints.IsCreated && trailPoints.Length >= needed)
+            {
+                return;
+            }
+            int capacity = Math.Max(needed, trailPoints.IsCreated ? trailPoints.Length * 2 : 8192);
+            var bigger = new NativeArray<Vector3>(capacity, Allocator.Persistent);
+            if (trailPoints.IsCreated)
+            {
+                NativeArray<Vector3>.Copy(trailPoints, bigger, trailPointCount);
+                trailPoints.Dispose();
+            }
+            trailPoints = bigger;
+        }
+
+        // ---- Keys and panels ----------------------------------------------------------------------
 
         /// <summary>Opens the next newer (step -1) or older (step +1) recording in the folder.</summary>
         private void OpenNeighbour(int step)
@@ -220,12 +487,30 @@ namespace PviHarness.Replay
             {
                 return;
             }
+            bool liveRunning = live != null && (live.Initialized || live.Playing);
             bool used = true;
             switch (e.keyCode)
             {
-                case KeyCode.N: OpenNeighbour(-1); break;
-                case KeyCode.P: OpenNeighbour(+1); break;
-                default: used = timeline != null && HandlePlaybackKey(e); break;
+                case KeyCode.Return:
+                case KeyCode.KeypadEnter:
+                    if (live != null && live.Initialized) LivePlay(); else used = false;
+                    break;
+                case KeyCode.Escape:
+                    if (liveRunning) LiveStop(); else used = false;
+                    break;
+                case KeyCode.N:
+                    if (!liveRunning) OpenNeighbour(-1);
+                    break;
+                case KeyCode.P:
+                    if (!liveRunning) OpenNeighbour(+1);
+                    break;
+                case KeyCode.G:
+                    NextField();
+                    break;
+                default:
+                    // While a live run is going, the timeline always follows the newest moment.
+                    used = !liveRunning && timeline != null && HandlePlaybackKey(e);
+                    break;
             }
             if (used)
             {

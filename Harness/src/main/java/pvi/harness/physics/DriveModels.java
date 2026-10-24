@@ -26,6 +26,8 @@ public final class DriveModels {
      *   <li><b>Turn rate:</b> not recorded anywhere. 180 °/s placeholder.</li>
      *   <li><b>Size:</b> physical dimensions are unverified (PEDRO_ROBOT_SETUP_REFERENCE.md).
      *       18 × 18 in is the FTC maximum starting size.</li>
+     *   <li><b>Momentum:</b> {@link Dynamics#teamA()}: coasting from Pedro's zero-power
+     *       acceleration tuners; response time and traction limit are placeholders.</li>
      * </ul>
      */
     public static DriveModel teamA() {
@@ -40,6 +42,7 @@ public final class DriveModels {
                 ModelValue.placeholder(18.0, ModelValue.INCHES,
                         "unverified; FTC maximum starting size. Measure bumper to bumper"),
                 ModelValue.placeholder(18.0, ModelValue.INCHES,
-                        "unverified; FTC maximum starting size. Measure bumper to bumper"));
+                        "unverified; FTC maximum starting size. Measure bumper to bumper"),
+                Dynamics.teamA());
     }
 }

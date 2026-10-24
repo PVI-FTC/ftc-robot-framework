@@ -1,6 +1,7 @@
 package pvi.harness.physics;
 
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple.Direction;
 
 import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
@@ -90,6 +91,42 @@ public final class WheelReader {
                 push(hardwareMap, frontRightName, frontRightForward),
                 push(hardwareMap, rearLeftName, rearLeftForward),
                 push(hardwareMap, rearRightName, rearRightForward));
+    }
+
+    /**
+     * True if the drive motors brake at zero power (BRAKE, or not chosen yet, which the SDK
+     * treats as BRAKE); false if any of them is on FLOAT, so the robot coasts.
+     */
+    public boolean isBraking(FakeHardwareMap hardwareMap) {
+        for (String name : new String[] {frontLeftName, frontRightName, rearLeftName, rearRightName}) {
+            FakeDcMotorEx motor = hardwareMap.motor(name);
+            if (motor != null && motor.getZeroPowerBehavior() == DcMotor.ZeroPowerBehavior.FLOAT) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Turns the drive motors' encoders with what each wheel is really doing ({@code motion}:
+     * a fraction of full speed, forward positive, from the physics). The encoder then counts
+     * the wheel's real turning, whatever power the code set (a wheel pushed by a wall or slowed
+     * by momentum still counts correctly).
+     */
+    public void turnEncoders(FakeHardwareMap hardwareMap, WheelPushes motion) {
+        turnEncoder(hardwareMap, frontLeftName, frontLeftForward, motion.frontLeft());
+        turnEncoder(hardwareMap, frontRightName, frontRightForward, motion.frontRight());
+        turnEncoder(hardwareMap, rearLeftName, rearLeftForward, motion.rearLeft());
+        turnEncoder(hardwareMap, rearRightName, rearRightForward, motion.rearRight());
+    }
+
+    /** One wheel: forward motion means turning the way {@code drivesForward} drives forward. */
+    private static void turnEncoder(FakeHardwareMap hardwareMap, String name, Direction drivesForward, double motion) {
+        FakeDcMotorEx motor = hardwareMap.motor(name);
+        if (motor != null) {
+            // The shaft's own turning, in the sense a FORWARD motor reports as positive.
+            motor.setPhysicalSpeed(motion * sign(drivesForward));
+        }
     }
 
     /** Works out one wheel's push using the formula in the class description. */

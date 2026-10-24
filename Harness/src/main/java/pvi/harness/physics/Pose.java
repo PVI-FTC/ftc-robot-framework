@@ -53,6 +53,24 @@ public record Pose(double xInches, double yInches, double headingRadians) {
         return inches(DisplayUnit.FEET.toInches(xFeet), DisplayUnit.FEET.toInches(yFeet), headingDegrees);
     }
 
+    /**
+     * A pose given in Pedro Pathing's field coordinates, in this (FTC) field frame.
+     *
+     * <p>Pedro measures from a field corner, 0 to 144 in, with its heading 90° turned from
+     * FTC's. Pedro's own {@code FTCCoordinates.convertFromPedro} does the same: FTC x = Pedro
+     * y - 72, FTC y = 72 - Pedro x, heading - 90°. Use it to start the simulated robot where a
+     * Pedro route expects it, so the field walls are where Pedro thinks they are.</p>
+     */
+    public static Pose fromPedro(double xInches, double yInches, double headingDegrees) {
+        return inches(yInches - FIELD_HALF_WIDTH_INCHES, FIELD_HALF_WIDTH_INCHES - xInches, headingDegrees - 90.0);
+    }
+
+    /** This pose in Pedro Pathing's field coordinates, as {x, y, heading in degrees}: the inverse of {@link #fromPedro}. */
+    public double[] toPedro() {
+        return new double[] {FIELD_HALF_WIDTH_INCHES - yInches, xInches + FIELD_HALF_WIDTH_INCHES,
+                Math.toDegrees(headingRadians) + 90.0};
+    }
+
     // ---- Reading in other units ------------------------------------------------------------
 
     /** x in feet. */

@@ -1,9 +1,11 @@
 package pvi.harness.bridge;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import pvi.harness.ds.RumbleRecord;
 import pvi.harness.runtime.JsonReader;
@@ -13,6 +15,11 @@ import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunRecordingJson;
 import pvi.harness.runtime.RunResult;
 import pvi.harness.runtime.RunnerRegistry;
+import pvi.harness.viewer.ControllerPoller;
+import pvi.harness.viewer.ControllerReading;
+import pvi.harness.viewer.HeldKeys;
+import pvi.harness.viewer.JamepadControllers;
+import pvi.harness.viewer.LiveGamepads;
 
 /**
  * One Unity connection's conversation with the harness: takes one message line, does what it
@@ -21,7 +28,13 @@ import pvi.harness.runtime.RunnerRegistry;
  *
  * <p>Each OpMode call happens only when Unity asks for it, on the caller's thread, and simulated
  * time moves exactly one loop period per call. So the same messages always give exactly the same
- * replies (Harness/ai-instructions/02-unity-readiness.md §2–§3).</p>
+ * replies (Harness/ai-instructions/02-unity-readiness.md §2–§3). With {@code "input":
+ * "controllers"} the gamepads come from real controllers, so a live drive is only as repeatable
+ * as the driver; its recording (save) replays exactly.</p>
+ *
+ * <p><b>Controllers.</b> The harness reads them with the same code the Swing viewer's live drive
+ * uses ({@link LiveGamepads}, Jamepad), with no keyboard: a controller that disconnects releases
+ * every input in the same loop, and the moment is marked in the recording.</p>
  */
 public final class BridgeSession {
 
@@ -53,6 +66,31 @@ public final class BridgeSession {
     private int sentEvents;
     /** True once the reply asks the server to close the connection. */
     private boolean closing;
+    /** Makes the controller reader when a run asks for {@code "input": "controllers"}. */
+    private final Supplier<ControllerPoller> controllerFactory;
+    /** The controller reader for this run, or null when Unity sends the gamepads. */
+    private ControllerPoller controllers;
+    /** Gamepads from the controllers, or null when Unity sends the gamepads. */
+    private LiveGamepads liveGamepads;
+
+    /** A session that reads real controllers (Jamepad) when a run asks for them. */
+    public BridgeSession() {
+        this(JamepadControllers::new);
+    }
+
+    /** A session with its own controller reader, e.g. a fake one in tests. */
+    BridgeSession(Supplier<ControllerPoller> controllerFactory) {
+        this.controllerFactory = controllerFactory;
+    }
+
+    /** Lets go of the controllers. The server calls this when the client disconnects. */
+    public void close() {
+        if (controllers != null) {
+            controllers.close();
+            controllers = null;
+            liveGamepads = null;
+        }
+    }
 
     /** True after a reply that ends the connection ("goodbye", or a fatal error). */
     public boolean isClosing() {
@@ -68,7 +106,8 @@ public final class BridgeSession {
         try {
             Object parsed = JsonReader.parse(line);
             if (!(parsed instanceof Map)) {
-                return error("A message must be a JSON object like {\"type\": \"hello\", \"version\": 1}.");
+                return error("A message must be a JSON object like {\"type\": \"hello\", \"version\": "
+                        + BridgeProtocol.VERSION + "}.");
             }
             @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) parsed;
@@ -133,12 +172,26 @@ public final class BridgeSession {
         if (found == null) {
             return error("Unknown OpMode " + (id == null ? "(none given)" : jsonValue(id)) + ". The \"welcome\" reply lists them.");
         }
+        Object input = message.getOrDefault("input", "messages");
+        if (!"messages".equals(input) && !"controllers".equals(input)) {
+            return error("\"input\" must be \"controllers\" (the harness reads the game controllers) or "
+                    + "\"messages\" (each step carries the gamepads), not " + jsonValue(input) + ".");
+        }
         // A fresh run: new OpMode, new fake robot, new clock. Earlier runners are forgotten.
         RunnerRegistry.startTest();
+        close();
         entry = found;
         driver.set(RunRecording.GamepadState.RELEASED);
         operator.set(RunRecording.GamepadState.RELEASED);
-        runner = new OpModeRunner(entry.opMode().get(), entry.robot().get()).gamepad1(driver).gamepad2(operator);
+        runner = new OpModeRunner(entry.opMode().get(), entry.robot().get());
+        if ("controllers".equals(input)) {
+            controllers = controllerFactory.get();
+            // No keyboard here: an empty one means a missing controller presses nothing.
+            liveGamepads = new LiveGamepads(new HeldKeys(), controllers, this::controllerChanged);
+            runner.gamepad1(liveGamepads.gamepad1()).gamepad2(liveGamepads.gamepad2());
+        } else {
+            runner.gamepad1(driver).gamepad2(operator);
+        }
         recorder = RunRecorder.attachTo(runner);
         sentRumbles1 = 0;
         sentRumbles2 = 0;
@@ -146,6 +199,7 @@ public final class BridgeSession {
         phase = Phase.LOADED;
         return reply(BridgeProtocol.LOADED,
                 field("opMode", RunRecordingJson.string(entry.id())),
+                field("input", RunRecordingJson.string(liveGamepads == null ? "messages" : "controllers")),
                 field("matchSeconds", RunRecordingJson.number(entry.period().seconds())),
                 field("header", RunRecordingJson.headerJson(recorder.header())));
     }
@@ -204,6 +258,7 @@ public final class BridgeSession {
 
     private String bye() {
         closing = true;
+        close();
         return reply(BridgeProtocol.GOODBYE);
     }
 
@@ -238,7 +293,10 @@ public final class BridgeSession {
                 field("gamepad1Rumbles", RunRecordingJson.rumblesJson(rumbles1.subList(sentRumbles1, rumbles1.size()))),
                 field("gamepad2Rumbles", RunRecordingJson.rumblesJson(rumbles2.subList(sentRumbles2, rumbles2.size()))),
                 field("events", RunRecordingJson.eventsJson(events.subList(Math.min(sentEvents, events.size()), events.size()))),
-                field("finished", Boolean.toString(phase == Phase.STOPPED)));
+                field("finished", Boolean.toString(phase == Phase.STOPPED)),
+                field("controllers", controllerStatus()),
+                field("controllerProblem", controllers == null || controllers.problem() == null ? "null"
+                        : RunRecordingJson.string(controllers.problem())));
         sentRumbles1 = rumbles1.size();
         sentRumbles2 = rumbles2.size();
         sentEvents = events.size();
@@ -246,12 +304,39 @@ public final class BridgeSession {
     }
 
     private void readGamepads(Map<String, Object> message) {
+        if (liveGamepads != null && (message.containsKey("gamepad1") || message.containsKey("gamepad2"))) {
+            throw new IllegalArgumentException("This run reads the game controllers (\"input\": \"controllers\"), so "
+                    + "steps must not carry gamepads. Load with \"input\": \"messages\" to send them.");
+        }
         if (message.containsKey("gamepad1")) {
             driver.set(RunRecordingJson.gamepadFrom(message.get("gamepad1"), "gamepad1"));
         }
         if (message.containsKey("gamepad2")) {
             operator.set(RunRecordingJson.gamepadFrom(message.get("gamepad2"), "gamepad2"));
         }
+    }
+
+    /**
+     * What drives each gamepad, e.g. ["PS5 Controller", "none"], or null when Unity sends the
+     * gamepads. "none" means no controller in that slot (it presses nothing).
+     */
+    private String controllerStatus() {
+        if (liveGamepads == null) {
+            return "null";
+        }
+        List<String> names = new ArrayList<>();
+        for (String status : liveGamepads.status()) {
+            String name = status.equals("keyboard") ? "none" : status.replace(" + keyboard", "");
+            names.add(RunRecordingJson.string(name));
+        }
+        return "[" + String.join(", ", names) + "]";
+    }
+
+    /** A controller connected or disconnected: mark it in the recording (Unity sees it in the next frame). */
+    private void controllerChanged(int gamepadNumber, ControllerReading reading, boolean connected) {
+        recorder.note("Gamepad " + gamepadNumber + ": " + (connected
+                ? (reading.type().isBlank() ? "controller" : reading.type()) + " connected"
+                : "controller disconnected; inputs released"));
     }
 
     private static String error(String text) {

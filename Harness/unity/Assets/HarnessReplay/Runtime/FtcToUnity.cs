@@ -56,6 +56,21 @@ namespace PviHarness.Replay
             return Quaternion.Euler(0f, YawDegrees(headingRadians), 0f);
         }
 
+        /// <summary>
+        /// The rotation for a field part (from a season field file): tilted first (positive raises
+        /// the part's +x end, its local +z here), then turned to the FTC heading.
+        /// </summary>
+        public static Quaternion Rotation(double headingRadians, double tiltDegrees)
+        {
+            return Rotation(headingRadians) * Quaternion.Euler(-(float)tiltDegrees, 0f, 0f);
+        }
+
+        /// <summary>An FTC direction (x, y, z up) as a Unity direction (x, y up, z). Not scaled.</summary>
+        public static Vector3 Direction(double x, double y, double z)
+        {
+            return new Vector3((float)x, (float)z, (float)y);
+        }
+
         /// <summary>A recorded pose as a Unity position (on the floor, or at a height) and rotation.</summary>
         public static void Pose(PoseData pose, float heightMeters, out Vector3 position, out Quaternion rotation)
         {

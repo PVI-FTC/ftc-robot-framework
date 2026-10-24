@@ -11,6 +11,7 @@ import pvi.harness.ds.GamepadScript;
 import pvi.harness.ds.GamepadSource;
 import pvi.harness.agent.SimTime;
 import pvi.harness.hardware.FakeHardwareMap;
+import pvi.harness.hardware.FakeWebcam;
 import pvi.harness.physics.DriveModel;
 import pvi.harness.physics.DriveModels;
 import pvi.harness.physics.Pose;
@@ -362,9 +363,13 @@ public class OpModeRunner {
     private void cycle(Runnable opModeCall) {
         // If a test uses two runners, robot code follows whichever one is running now.
         SimTime.install(clock::nanoTime);
-        // 0. Sensors catch up with how the robot moved since the last call: motor encoders turn
-        //    with the power they had, and the Pinpoint moves to the estimated pose.
+        // 0. The robot moves up to now (physics, with the wheel powers from the last call), then
+        //    sensors catch up: drive encoders turn with the wheels' real motion, other motors'
+        //    encoders with their power, and the Pinpoint moves to the robot's new pose.
         double now = clock.sinceInit();
+        if (positionEstimator != null) {
+            positionEstimator.advanceTo(hardwareMap, now, clock.hasStarted() ? clock.sinceStart() : 0.0);
+        }
         hardwareMap.stepSensors(positionEstimator == null ? null : positionEstimator.pose(),
                 sensorsSteppedAt < 0 ? 0.0 : now - sensorsSteppedAt);
         sensorsSteppedAt = now;
@@ -372,6 +377,8 @@ public class OpModeRunner {
         double sinceStart = clock.hasStarted() ? clock.sinceStart() : -1.0;
         driver1.deliver(clock.sinceInit(), sinceStart);
         driver2.deliver(clock.sinceInit(), sinceStart);
+        // Scripted AprilTag cameras follow simulated time.
+        FakeWebcam.stepAll(hardwareMap, clock.sinceInit(), sinceStart);
         // The SDK keeps OpMode.time = seconds since INIT; some OpModes read it.
         opMode.time = clock.sinceInit();
 

@@ -15,21 +15,25 @@ package pvi.harness.bridge;
  *       always give exactly the same replies.</li>
  *   <li>Robot state comes back in the run recording's own layout (one "loop" entry per step),
  *       so Unity reads it with the same classes it uses for saved recordings.</li>
+ *   <li>Who drives the gamepads is chosen in "load": {@code "input": "controllers"} means the
+ *       harness reads the real game controllers plugged into this computer (decided by the user,
+ *       2026-10-24: Unity only displays); {@code "input": "messages"} means Unity sends them in
+ *       each "step" (useful for scripted clients and tests). Version 2 added this.</li>
  * </ul>
  *
  * <pre>
  *   Unity                          harness
- *   hello {version: 1}       -->
+ *   hello {version: 2}       -->
  *                            <--   welcome {opModes: [...]}
- *   load {opMode: "teamA-teleop"} -->
+ *   load {opMode: "teamA-teleop", input: "controllers"} -->
  *                            <--   loaded {header: {...}}
  *   init                     -->
  *                            <--   frame {loop: {...}}          (INIT)
- *   step {gamepad1: {...}}   -->
+ *   step                     -->
  *                            <--   frame {loop: {...}}          (INIT_LOOP, repeat)
  *   play                     -->
  *                            <--   frame {loop: {...}}          (START)
- *   step {gamepad1: {...}}   -->
+ *   step                     -->
  *                            <--   frame {loop: {...}}          (LOOP, repeat; finished at the end of the match)
  *   stop                     -->
  *                            <--   frame {loop: {...}, finished: true}   (STOP)
@@ -41,7 +45,7 @@ package pvi.harness.bridge;
  */
 public final class BridgeProtocol {
     /** Message format version. Raise it (and update the README) whenever any message changes. */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
     /** The port the harness listens on unless told otherwise. */
     public static final int DEFAULT_PORT = 7465;
 

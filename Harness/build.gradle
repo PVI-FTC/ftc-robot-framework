@@ -152,6 +152,10 @@ dependencies {
     testImplementation sourceSets.viewer.output
     // The Unity bridge uses the core, and tests check it (with a fake client, no Unity needed).
     bridgeImplementation sourceSets.main.output
+    // For Unity live play the harness reads the game controllers (decided 2026-10-24), with the
+    // viewer's controller code (no window is opened) and Jamepad, the same version as the viewer.
+    bridgeImplementation sourceSets.viewer.output
+    bridgeImplementation 'com.badlogicgames.jamepad:jamepad:2.30.0.0'
     testImplementation sourceSets.bridge.output
 
     // Jamepad (SDL): reads USB and wireless game controllers for live driving in the viewer.

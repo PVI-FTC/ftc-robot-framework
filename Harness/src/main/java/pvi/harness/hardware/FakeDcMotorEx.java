@@ -82,6 +82,11 @@ public class FakeDcMotorEx implements DcMotorEx {
     private int setPowerCalls;
     /** True to simulate swapped power wires (see setMiswired). */
     private boolean miswired;
+    /**
+     * How fast the shaft is really turning, as a fraction of full speed in the FORWARD sense,
+     * when the harness's physics knows (drive wheels); null to work it out from the power.
+     */
+    private Double physicalSpeed;
 
     /**
      * @param name configuration name the robot code looks up, e.g. "frontLeft"
@@ -149,8 +154,27 @@ public class FakeDcMotorEx implements DcMotorEx {
      * Turns the motor for {@code seconds} of simulated time and updates the encoder. Called by
      * the runner after every loop (see the class comment for the rules).
      */
+    /**
+     * Sets how fast the shaft is really turning (a fraction of full speed, positive = the way a
+     * FORWARD motor turns on positive power), or null to go back to working it out from the
+     * power. The harness's physics sets this for drive motors, so their encoders follow the
+     * wheels' real motion (momentum, walls) instead of the power.
+     */
+    public void setPhysicalSpeed(Double fractionOfFullSpeed) {
+        this.physicalSpeed = fractionOfFullSpeed;
+    }
+
     public void step(double seconds) {
         double speed;
+        if (physicalSpeed != null && mode != RunMode.STOP_AND_RESET_ENCODER && mode != RunMode.RUN_TO_POSITION) {
+            // The physics says how the wheel really turned; the encoder reports it in the
+            // code's direction (REVERSE counts the other way), whatever the wiring.
+            speed = physicalSpeed * fullSpeedTicksPerSecond * (direction == Direction.REVERSE ? -1 : 1);
+            exactPosition += speed * seconds;
+            currentPosition = (int) Math.round(exactPosition);
+            velocityTicksPerSecond = speed;
+            return;
+        }
         if (!enabled || mode == RunMode.STOP_AND_RESET_ENCODER) {
             speed = 0.0;
         } else if (mode == RunMode.RUN_TO_POSITION) {

@@ -4,9 +4,11 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -31,13 +33,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
+import pvi.harness.recorded.RecordedTestWriter;
 import pvi.harness.runtime.MatchPeriod;
 import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunRecordingJson;
@@ -101,6 +106,8 @@ public final class ViewerWindow extends JFrame {
     private final JComboBox<ViewerChoices.Choice> choiceBox = new JComboBox<>();
     /** Opens the replay picker (saved recordings). */
     private final JButton replaysButton = new JButton();
+    /** Turns the run on screen into a new test file (like gradlew makeTest). */
+    private final JButton saveTestButton = new JButton();
     /** What the dropdown shows when nothing in it is picked (while replaying a recording). */
     private String choicePlaceholder = "";
     /** One line under the dropdown describing what is shown. */
@@ -243,6 +250,19 @@ public final class ViewerWindow extends JFrame {
         replaysButton.addActionListener(e -> openReplayPicker());
         replayControls.add(replaysButton);
 
+        Theme.flat(saveTestButton);
+        saveTestButton.setText(Theme.label("Save as test"));
+        saveTestButton.setToolTipText("Turn the run on screen into a new test in src\\test\\java\\pvi\\harness\\recorded"
+                + " (like gradlew makeTest)");
+        saveTestButton.setFocusable(false);
+        saveTestButton.addActionListener(e -> saveShownRunAsTest());
+        replayControls.add(saveTestButton);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttons.setBackground(Theme.BACKGROUND);
+        buttons.add(saveTestButton);
+        buttons.add(replaysButton);
+
         JLabel caption = new JLabel(Theme.label("Drive / run"));
         caption.setFont(Theme.labelFont(10f));
         caption.setForeground(Theme.MUTED);
@@ -253,7 +273,7 @@ public final class ViewerWindow extends JFrame {
         bar.setBackground(Theme.BACKGROUND);
         bar.add(caption, BorderLayout.WEST);
         bar.add(choiceBox, BorderLayout.CENTER);
-        bar.add(replaysButton, BorderLayout.EAST);
+        bar.add(buttons, BorderLayout.EAST);
         bar.add(choiceDescription, BorderLayout.SOUTH);
         bar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
@@ -476,6 +496,87 @@ public final class ViewerWindow extends JFrame {
         }
     }
 
+    // ---- Save as test ---------------------------------------------------------------------------
+
+    /**
+     * Asks for a class name, then writes the run on screen as a new test (see {@link SaveAsTest}).
+     * Not while driving. Saving runs the OpMode once more, so it happens off the Swing thread
+     * and the controls are off until it finishes.
+     */
+    private void saveShownRunAsTest() {
+        if (liveDrive != null) {
+            return;
+        }
+        RunRecording recording = view.recording();
+        String className = askClassName(SaveAsTest.suggestedClassName(recording));
+        if (className == null) {
+            return;   // cancelled
+        }
+        String source = shownName;
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        choiceBox.setEnabled(false);
+        replayControls.forEach(control -> control.setEnabled(false));
+        choiceDescription.setText("Saving " + className + ".java (runs the OpMode once more)...");
+        new SwingWorker<Path, Void>() {
+            @Override
+            protected Path doInBackground() {
+                return SaveAsTest.save(recording, className, source,
+                        RecordedTestWriter.DEFAULT_FOLDER, RecordedTestWriter.TEAMCODE_SOURCES);
+            }
+
+            @Override
+            protected void done() {
+                setCursor(Cursor.getDefaultCursor());
+                choiceBox.setEnabled(true);
+                replayControls.forEach(control -> control.setEnabled(true));
+                try {
+                    showSavedTest(get());
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    choiceDescription.setText("Could not save the test.");
+                    JOptionPane.showMessageDialog(ViewerWindow.this, cause.getMessage(), "Could not save the test",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+    }
+
+    /** The "Save as test" dialog. Returns the chosen class name, or null if cancelled. */
+    private String askClassName(String suggested) {
+        JTextField nameField = new JTextField(suggested, 28);
+        JPanel panel = new JPanel(new BorderLayout(0, 6));
+        panel.add(new JLabel("Test class name:"), BorderLayout.NORTH);
+        panel.add(nameField, BorderLayout.CENTER);
+        panel.add(new JLabel("<html>Saved in src\\test\\java\\pvi\\harness\\recorded.<br>"
+                + "Never replaces a file: a second one becomes ...2.</html>"), BorderLayout.SOUTH);
+        while (true) {
+            int answer = JOptionPane.showConfirmDialog(this, panel, "Save as test",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (answer != JOptionPane.OK_OPTION) {
+                return null;
+            }
+            String problem = SaveAsTest.problemWithClassName(nameField.getText());
+            if (problem == null) {
+                return nameField.getText().trim();
+            }
+            JOptionPane.showMessageDialog(this, problem, "Save as test", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    /** Says where the new test went and how to run it, with a button to copy the command. */
+    private void showSavedTest(Path file) {
+        String command = SaveAsTest.runCommand(file);
+        choiceDescription.setText("Saved a new test: " + file.getFileName());
+        String[] buttons = {"Copy command", "OK"};
+        int answer = JOptionPane.showOptionDialog(this,
+                "Saved " + file.getFileName() + " in " + file.toAbsolutePath().getParent()
+                        + "\n\nRun it from Harness\\ with:\n" + command,
+                "Saved as test", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, buttons, buttons[1]);
+        if (answer == 0) {
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(command), null);
+        }
+    }
+
     // ---- Live keyboard driving ------------------------------------------------------------------
 
     /** Starts driving {@code option} live: INIT now, Enter = PLAY, Esc = STOP and save. */
@@ -562,11 +663,11 @@ public final class ViewerWindow extends JFrame {
                 Path saved = saveDrive(option, recording);
                 display(recording, saved.getFileName().toString());
                 choiceDescription.setText("Drove " + option.title() + "; saved as " + saved.getFileName()
-                        + ". Press Space to replay it.");
+                        + ". Press Space to replay it, or Save as test.");
             } else {
                 display(recording, "practice drive (not saved)");
                 choiceDescription.setText("Practice drive with " + option.title() + " was not saved. Turn on"
-                        + " Record before pressing Enter to save one. Press Space to replay it now.");
+                        + " Record before pressing Enter to save one. Press Space to replay it now, or Save as test.");
             }
         }
         if (error != null) {

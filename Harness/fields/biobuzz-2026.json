@@ -1,0 +1,69 @@
+{
+  "format": "pvi-harness-field",
+  "version": 1,
+  "id": "biobuzz-2026",
+  "name": "BIOBUZZ",
+  "season": "2026-2027",
+  "sources": [
+    "FTC BIOBUZZ Competition Manual, version TU06, Section 9 ARENA (figures 9-2, 9-4, 9-8 to 9-12, 9-15 to 9-17) and Figure 10-2",
+    "FTC SDK Vision 12.0.0, AprilTagGameDatabase.getBioBuzzTagLibrary() (tag IDs, sizes and positions inside each cluster)",
+    "FTC field coordinate system (ftc-docs): BIOBUZZ has the red alliance on the left as seen from the audience, the same 'inverted square' layout as DECODE"
+  ],
+  "frame": "FTC field frame, inches: origin at the field center on the tiles, +x toward the audience, +y from the red wall toward the blue wall, z up. Heading counter-clockwise from +x seen from above.",
+  "audienceSide": "+x",
+  "redWall": "-y",
+  "blueWall": "+y",
+  "accuracyNote": "The manual's numbers are nominal (+/- 1 in). 'nominal' parts use the manual's dimensions directly. 'approximate' parts are worked out from the manual's figures and can be a few inches off; replace them with numbers from the official field CAD when it is available. Pipe and tube sizes are not in the manual and are drawn 1.5 in.",
+  "startingNote": "The HIVES tip during a match. Cells, arms and their AprilTags are given in the starting position (Figure 10-2): red audience cell up, red far cell down; blue far cell up, blue audience cell down. Each HIVE is tilted 30 degrees.",
+  "elements": [
+    { "id": "red-alliance-area", "name": "Red ALLIANCE AREA (outside the field)", "shape": "box", "xInches": 0, "yInches": -99, "zInches": 0.05, "lengthInches": 97, "widthInches": 54, "heightInches": 0.1, "color": "#3A1517", "accuracy": "nominal" },
+    { "id": "blue-alliance-area", "name": "Blue ALLIANCE AREA (outside the field)", "shape": "box", "xInches": 0, "yInches": 99, "zInches": 0.05, "lengthInches": 97, "widthInches": 54, "heightInches": 0.1, "color": "#15213D", "accuracy": "nominal" },
+
+    { "id": "red-loading-zone-inner", "name": "Red LOADING ZONE tape, inner side", "shape": "box", "xInches": -36, "yInches": -62, "zInches": 0.05, "lengthInches": 23, "widthInches": 2, "heightInches": 0.1, "color": "#E0322B", "accuracy": "nominal" },
+    { "id": "red-loading-zone-far", "name": "Red LOADING ZONE tape, far end", "shape": "box", "xInches": -46.5, "yInches": -67.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 9, "heightInches": 0.1, "color": "#E0322B", "accuracy": "nominal" },
+    { "id": "red-loading-zone-near", "name": "Red LOADING ZONE tape, audience end", "shape": "box", "xInches": -25.5, "yInches": -67.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 9, "heightInches": 0.1, "color": "#E0322B", "accuracy": "nominal" },
+    { "id": "blue-loading-zone-inner", "name": "Blue LOADING ZONE tape, inner side", "shape": "box", "xInches": 36, "yInches": 62, "zInches": 0.05, "lengthInches": 23, "widthInches": 2, "heightInches": 0.1, "color": "#2F6BFF", "accuracy": "nominal" },
+    { "id": "blue-loading-zone-far", "name": "Blue LOADING ZONE tape, far end", "shape": "box", "xInches": 25.5, "yInches": 67.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 9, "heightInches": 0.1, "color": "#2F6BFF", "accuracy": "nominal" },
+    { "id": "blue-loading-zone-near", "name": "Blue LOADING ZONE tape, audience end", "shape": "box", "xInches": 46.5, "yInches": 67.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 9, "heightInches": 0.1, "color": "#2F6BFF", "accuracy": "nominal" },
+    { "id": "red-garden", "name": "Red GARDEN (audience wall, red corner)", "shape": "box", "xInches": 71, "yInches": -60.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 23, "heightInches": 0.1, "color": "#E0322B", "accuracy": "nominal" },
+    { "id": "blue-garden", "name": "Blue GARDEN (far wall, blue corner)", "shape": "box", "xInches": -71, "yInches": 60.5, "zInches": 0.05, "lengthInches": 2, "widthInches": 23, "heightInches": 0.1, "color": "#2F6BFF", "accuracy": "nominal" },
+
+    { "id": "frame-red-leg-far", "name": "HIVE frame leg (red side, far)", "shape": "box", "xInches": -9.74, "yInches": -24.73, "zInches": 21.98, "lengthInches": 48.07, "widthInches": 1.5, "heightInches": 1.5, "tiltDegrees": 66.1, "color": "#8A939C", "accuracy": "approximate" },
+    { "id": "frame-red-leg-near", "name": "HIVE frame leg (red side, audience)", "shape": "box", "xInches": 9.74, "yInches": -24.73, "zInches": 21.98, "lengthInches": 48.07, "widthInches": 1.5, "heightInches": 1.5, "tiltDegrees": -66.1, "color": "#8A939C", "accuracy": "approximate" },
+    { "id": "frame-blue-leg-far", "name": "HIVE frame leg (blue side, far)", "shape": "box", "xInches": -9.74, "yInches": 24.73, "zInches": 21.98, "lengthInches": 48.07, "widthInches": 1.5, "heightInches": 1.5, "tiltDegrees": 66.1, "color": "#8A939C", "accuracy": "approximate" },
+    { "id": "frame-blue-leg-near", "name": "HIVE frame leg (blue side, audience)", "shape": "box", "xInches": 9.74, "yInches": 24.73, "zInches": 21.98, "lengthInches": 48.07, "widthInches": 1.5, "heightInches": 1.5, "tiltDegrees": -66.1, "color": "#8A939C", "accuracy": "approximate" },
+    { "id": "frame-red-base", "name": "HIVE frame base (red side)", "shape": "box", "xInches": 0, "yInches": -24.73, "zInches": 0.75, "lengthInches": 38.95, "widthInches": 1.5, "heightInches": 1.5, "color": "#8A939C", "accuracy": "nominal" },
+    { "id": "frame-blue-base", "name": "HIVE frame base (blue side)", "shape": "box", "xInches": 0, "yInches": 24.73, "zInches": 0.75, "lengthInches": 38.95, "widthInches": 1.5, "heightInches": 1.5, "color": "#8A939C", "accuracy": "nominal" },
+    { "id": "frame-crossbar", "name": "HIVE frame crossbar (pivot axis, 43.95 in up)", "shape": "box", "xInches": 0, "yInches": 0, "zInches": 43.95, "lengthInches": 1.5, "widthInches": 49.46, "heightInches": 1.5, "color": "#8A939C", "accuracy": "nominal" },
+
+    { "id": "red-hive-arm", "name": "Red HIVE arm between its cells", "shape": "box", "xInches": 0, "yInches": -12.75, "zInches": 43.95, "lengthInches": 18.84, "widthInches": 2, "heightInches": 2, "tiltDegrees": 30, "color": "#B9C2CB", "accuracy": "approximate" },
+    { "id": "red-cell-far", "name": "Red CELL, far side (AprilTags 30-33), tilted down", "shape": "box", "xInches": -15.77, "yInches": -12.75, "zInches": 40.38, "lengthInches": 12.04, "widthInches": 20, "heightInches": 16, "tiltDegrees": 30, "color": "#C8302A", "accuracy": "approximate" },
+    { "id": "red-cell-audience", "name": "Red CELL, audience side (AprilTags 34-37), tilted up", "shape": "box", "xInches": 10.97, "yInches": -12.75, "zInches": 55.82, "lengthInches": 12.04, "widthInches": 20, "heightInches": 16, "tiltDegrees": 30, "color": "#C8302A", "accuracy": "approximate" },
+    { "id": "blue-hive-arm", "name": "Blue HIVE arm between its cells", "shape": "box", "xInches": 0, "yInches": 12.75, "zInches": 43.95, "lengthInches": 18.84, "widthInches": 2, "heightInches": 2, "tiltDegrees": -30, "color": "#B9C2CB", "accuracy": "approximate" },
+    { "id": "blue-cell-far", "name": "Blue CELL, far side (AprilTags 42-45), tilted up", "shape": "box", "xInches": -10.97, "yInches": 12.75, "zInches": 55.82, "lengthInches": 12.04, "widthInches": 20, "heightInches": 16, "tiltDegrees": -30, "color": "#2D55C8", "accuracy": "approximate" },
+    { "id": "blue-cell-audience", "name": "Blue CELL, audience side (AprilTags 38-41), tilted down", "shape": "box", "xInches": 15.77, "yInches": 12.75, "zInches": 40.38, "lengthInches": 12.04, "widthInches": 20, "heightInches": 16, "tiltDegrees": -30, "color": "#2D55C8", "accuracy": "approximate" },
+
+    { "id": "flower-far", "name": "FLOWER on the far wall", "shape": "cylinder", "xInches": -67.5, "yInches": -24, "zInches": 10.75, "diameterInches": 5, "heightInches": 21.5, "color": "#D9A84A", "accuracy": "approximate" },
+    { "id": "flower-blue-wall", "name": "FLOWER on the blue wall", "shape": "cylinder", "xInches": -24, "yInches": 67.5, "zInches": 10.75, "diameterInches": 5, "heightInches": 21.5, "color": "#D9A84A", "accuracy": "approximate" },
+    { "id": "flower-red-wall", "name": "FLOWER on the red wall", "shape": "cylinder", "xInches": 24, "yInches": -67.5, "zInches": 10.75, "diameterInches": 5, "heightInches": 21.5, "color": "#D9A84A", "accuracy": "approximate" },
+    { "id": "flower-audience", "name": "FLOWER on the audience wall", "shape": "cylinder", "xInches": 67.5, "yInches": 24, "zInches": 10.75, "diameterInches": 5, "heightInches": 21.5, "color": "#D9A84A", "accuracy": "approximate" }
+  ],
+  "aprilTags": [
+    { "id": 30, "name": "RED SCORING", "cluster": "RED SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": -6.5, "y": 7.1874, "z": -5.622 }, "xInches": -11.77, "yInches": -6.25, "zInches": 33.45, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 31, "name": "RED SCORING", "cluster": "RED SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": -2.75, "y": 7.1874, "z": -5.622 }, "xInches": -11.77, "yInches": -10.0, "zInches": 33.45, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 32, "name": "RED SCORING", "cluster": "RED SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": 2.75, "y": 7.1874, "z": -5.622 }, "xInches": -11.77, "yInches": -15.5, "zInches": 33.45, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 33, "name": "RED SCORING", "cluster": "RED SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": 6.5, "y": 7.1874, "z": -5.622 }, "xInches": -11.77, "yInches": -19.25, "zInches": 33.45, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 34, "name": "RED AUDIENCE", "cluster": "RED AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": -6.5, "y": 7.1874, "z": -5.622 }, "xInches": 14.97, "yInches": -19.25, "zInches": 48.89, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 35, "name": "RED AUDIENCE", "cluster": "RED AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": -2.75, "y": 7.1874, "z": -5.622 }, "xInches": 14.97, "yInches": -15.5, "zInches": 48.89, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 36, "name": "RED AUDIENCE", "cluster": "RED AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": 2.75, "y": 7.1874, "z": -5.622 }, "xInches": 14.97, "yInches": -10.0, "zInches": 48.89, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 37, "name": "RED AUDIENCE", "cluster": "RED AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": 6.5, "y": 7.1874, "z": -5.622 }, "xInches": 14.97, "yInches": -6.25, "zInches": 48.89, "facing": { "x": 0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 38, "name": "BLUE AUDIENCE", "cluster": "BLUE AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": -6.5, "y": 7.1874, "z": -5.622 }, "xInches": 11.77, "yInches": 6.25, "zInches": 33.45, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 39, "name": "BLUE AUDIENCE", "cluster": "BLUE AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": -2.75, "y": 7.1874, "z": -5.622 }, "xInches": 11.77, "yInches": 10.0, "zInches": 33.45, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 40, "name": "BLUE AUDIENCE", "cluster": "BLUE AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": 2.75, "y": 7.1874, "z": -5.622 }, "xInches": 11.77, "yInches": 15.5, "zInches": 33.45, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 41, "name": "BLUE AUDIENCE", "cluster": "BLUE AUDIENCE", "sizeInches": 3.25, "clusterOffsetInches": { "x": 6.5, "y": 7.1874, "z": -5.622 }, "xInches": 11.77, "yInches": 19.25, "zInches": 33.45, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 42, "name": "BLUE SCORING", "cluster": "BLUE SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": -6.5, "y": 7.1874, "z": -5.622 }, "xInches": -14.97, "yInches": 19.25, "zInches": 48.89, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 43, "name": "BLUE SCORING", "cluster": "BLUE SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": -2.75, "y": 7.1874, "z": -5.622 }, "xInches": -14.97, "yInches": 15.5, "zInches": 48.89, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 44, "name": "BLUE SCORING", "cluster": "BLUE SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": 2.75, "y": 7.1874, "z": -5.622 }, "xInches": -14.97, "yInches": 10.0, "zInches": 48.89, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" },
+    { "id": 45, "name": "BLUE SCORING", "cluster": "BLUE SCORING", "sizeInches": 3.25, "clusterOffsetInches": { "x": 6.5, "y": 7.1874, "z": -5.622 }, "xInches": -14.97, "yInches": 6.25, "zInches": 48.89, "facing": { "x": -0.5, "y": 0, "z": -0.866 }, "moves": true, "accuracy": "approximate" }
+  ]
+}

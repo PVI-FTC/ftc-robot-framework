@@ -134,8 +134,10 @@ Planned as steps D1–D6 in [`Harness/PROGRESS.md`](../PROGRESS.md#drive-and-rec
   2026-10-18) lives in the viewer. It reaches the robot code only through the core's single
   gamepad input entry point (D1). It never sets `Gamepad` fields directly from the window's
   thread.
-- Jamepad is a dependency of the `viewer` source set only. The core and tests that don't drive
-  live must build and run without it, and without a controller plugged in.
+- Jamepad is a dependency of the `viewer` source set, and of the `bridge` source set (the user
+  decided on 2026-10-24 that for Unity live play the harness reads the controllers and Unity only
+  displays; the bridge reuses the viewer's controller classes, never a window). The core and tests
+  that don't drive live must build and run without it, and without a controller plugged in.
 - Waiting to match real time while someone drives happens in the viewer, as in §4. Simulated time
   still moves exactly one loop period per step, so a recorded drive replays exactly.
 - If a controller disconnects, release every input, mark the moment in the recording and tell the

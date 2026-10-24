@@ -64,6 +64,7 @@ public final class BridgeServer {
                 }
             }
             System.out.println("Client disconnected.");
+            session.close();
         } catch (IOException e) {
             // A client that vanishes mid-run is not a reason to stop serving others.
             System.out.println("Client connection ended: " + e.getMessage());

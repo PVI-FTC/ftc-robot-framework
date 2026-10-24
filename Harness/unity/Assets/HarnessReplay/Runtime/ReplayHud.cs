@@ -241,7 +241,8 @@ namespace PviHarness.Replay
             {
                 showing += "  ·  " + replay.Notice;
             }
-            HudTheme.DrawText(HudTheme.Ellipsize(showing, HudTheme.Style("normal", 12), r.width - 56 - FieldButtonWidth - 16), 28, r.y + 56,
+            HudTheme.DrawText(HudTheme.Ellipsize(showing, HudTheme.Style("normal", 12),
+                r.width - 56 - FieldButtonWidth - PhysicsButtonWidth - 24), 28, r.y + 56,
                 HudTheme.Style("normal", 12), showingColor);
 
             // The season field (Harness/fields): click, or press G, for the next one.
@@ -250,9 +251,17 @@ namespace PviHarness.Replay
             {
                 replay.NextField();
             }
+
+            // Who moves the robot in the next live run: the harness's physics or Unity's (U).
+            var physicsButton = new Rect(fieldButton.x - 8 - PhysicsButtonWidth, r.y + 42, PhysicsButtonWidth, 22);
+            if (FlatButton(physicsButton, "Physics: " + (replay.UnityPhysicsChosen ? "Unity" : "Harness") + "  (U)"))
+            {
+                replay.TogglePhysics();
+            }
         }
 
         private const float FieldButtonWidth = 240;
+        private const float PhysicsButtonWidth = 170;
 
         private void DrawRecordingMenu(Rect chooser, ReplayController replay)
         {

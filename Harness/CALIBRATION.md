@@ -83,6 +83,23 @@ These are the momentum values: how quickly the robot speeds up.
    - it stops short near walls: the robot size is off (step 1), or the start position is wrong.
 4. Write down the comparison (date, route, robot result, harness result) in PROGRESS.md's log.
 
+### Route times and end errors to compare (for step 3)
+
+The harness numbers come from `PedroRouteTest`, which prints them each run (for example
+`DECODE Route finished 12.86 s after PLAY, ended 0.095 in and 0.03 deg from its target`). The
+time is from PLAY until the Driver Station first shows **Sequence Complete: true**. Fill in the
+robot columns at the robot, timing the same way. The harness numbers are from before
+calibration (placeholder robot size, response time and traction), so rerun the test after
+steps 1-3 and update them.
+
+| Route | Harness time (s) | Harness end error | Robot time (s) | Robot end error | Date |
+|---|---|---|---|---|---|
+| LP-11 Pilot (24 in) | 0.96 | 0.24 in, 0.0° | | | |
+| DECODE Route | 12.86 | 0.10 in, 0.0° | | | |
+| Curving Test | 19.56 | 0.25 in, 1.6° | | | |
+
+Harness numbers measured 2026-10-24.
+
 ## A helper OpMode that would make this easier (not added)
 
 A helper OpMode would make steps 2 and 3 a button press, but it would live in `TeamCode/`, which

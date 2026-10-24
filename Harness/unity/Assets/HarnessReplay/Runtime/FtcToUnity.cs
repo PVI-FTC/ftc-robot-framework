@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace PviHarness.Replay
@@ -63,6 +64,19 @@ namespace PviHarness.Replay
         public static Quaternion Rotation(double headingRadians, double tiltDegrees)
         {
             return Rotation(headingRadians) * Quaternion.Euler(-(float)tiltDegrees, 0f, 0f);
+        }
+
+        /// <summary>Meters as inches (the other way from <see cref="Meters"/>).</summary>
+        public static double Inches(double meters)
+        {
+            return meters / MetersPerInch;
+        }
+
+        /// <summary>A Unity yaw (degrees, clockwise from +z) as an FTC heading (radians, counter-clockwise from +x), -π to π.</summary>
+        public static double HeadingRadians(float yawDegrees)
+        {
+            double heading = (90.0 - yawDegrees) * Mathf.Deg2Rad;
+            return Math.Atan2(Math.Sin(heading), Math.Cos(heading));
         }
 
         /// <summary>An FTC direction (x, y, z up) as a Unity direction (x, y up, z). Not scaled.</summary>

@@ -6,6 +6,9 @@ time. No robot, Control Hub or Driver Station needed.
 The harness is its own project. It reads `../TeamCode/src/main/java` but never changes it, and it is
 not part of the robot build. Nothing here gets deployed to the robot.
 
+**New here?** Start with [GETTING_STARTED.md](GETTING_STARTED.md): run the tests, drive on
+screen, turn a drive into a test and read a failing test, in five short steps.
+
 ---
 
 ## 1. What you need
@@ -221,8 +224,8 @@ The recorder only watches, so a test passes or fails the same with or without it
 always saves exactly the same bytes. A 30 s autonomous is about 0.8 MB. `RunRecordingTest.java`
 has examples.
 
-**Run recording format, version 2.** (Version 2 added `events`. Version 1 files, without
-`events`, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
+**Run recording format, version 3.** (Version 2 added `events`, version 3 added each loop's
+`aprilTags`. Older files, without them, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
 decimal places and written with a dot, without trailing zeros (`0.2`, `1`, `-3.141593`). Field
 names match the `RunRecording` record components. Devices are arrays of `{name, ...}` objects, not
 name-to-value maps, because some readers (Unity's JsonUtility) can't read maps. Distances are in
@@ -242,7 +245,7 @@ Top level:
 
 | Field | Type | Unit | Meaning |
 |---|---|---|---|
-| `version` | whole number | — | Format version, `2`. It goes up whenever any field changes. |
+| `version` | whole number | — | Format version, `3`. It goes up whenever any field changes. |
 | `distanceUnit` | string | — | Always `"inches"`. |
 | `angleUnit` | string | — | Always `"radians"`. |
 | `timeUnit` | string | — | Always `"seconds"`. |
@@ -277,6 +280,7 @@ loop (one OpMode call):
 | `telemetry` | array of `{lines, log}` | — | Every telemetry screen sent during this call, in order (usually one, sometimes none). `lines` and `log` are arrays of strings, as the Driver Station shows them. |
 | `gamepad1` | gamepad | — | The driver's gamepad as the OpMode saw it during this call. |
 | `gamepad2` | gamepad | — | The operator's gamepad as the OpMode saw it during this call. |
+| `aprilTags` | array of AprilTag | — | The tags in each fake webcam's latest picture, i.e. what robot code could detect during this call (version 3). Empty with no webcam. |
 
 gamepad:
 
@@ -289,6 +293,12 @@ gamepad:
 
 pose: `xInches`, `yInches` (numbers, inches, FTC field frame: origin at the field center, edges at
 ±72) and `headingRadians` (number, counter-clockwise from +x, -π to +π).
+
+AprilTag: `camera` (string, the webcam's configuration name), `id` (whole number), and where the
+tag is from the camera lens, as the SDK's `ftcPose`: `rightInches`, `forwardInches`, `upInches`
+(numbers, inches; x right, y forward, z up) and `yawDegrees`, `pitchDegrees`, `rollDegrees`
+(numbers, degrees, as the SDK reports them). Range along the floor is `hypot(right, forward)` and
+bearing (left positive) is `atan2(-right, forward)`.
 
 event: `sinceInitSeconds` (number, seconds since INIT), `matchTimeSeconds` (number, seconds after
 PLAY, `0` if before PLAY), `text` (string, what happened, e.g. `"Gamepad 1: controller
@@ -451,10 +461,12 @@ and fonts all live in `Theme.java`):
 - **Field:** a dark field with a hairline grid, the robot as a wireframe box (cyan edge =
   front) with its **four mecanum wheels** (each fills toward the front in cyan or the back in
   amber as far as its power, so a wheel spinning the wrong way stands out) and its **intake**
-  across the front (cyan with inward chevrons while taking in, amber while ejecting), a white heading arrow, and the path so far in cyan. The legend under it turns amber
+  across the front (cyan with inward chevrons while taking in, amber while ejecting), a white heading arrow, and the path so far in cyan. When the robot hits a wall, that wall **flashes red** for 0.4 s. The legend under it turns amber
   while the robot's size is a placeholder.
 - **Telemetry column:** cards for the vehicle, the **position** (large X, Y and heading), the
-  autonomous step, a **gauge** for every motor (-1 to 1, filled from the center) and servo, the
+  **motion** (speed in in/s, turn rate, and a bar showing how hard the robot is speeding up or
+  slowing down, full at Team A's 200 in/s² traction limit; worked out from the recorded
+  positions, so momentum shows), the autonomous step, a **gauge** for every motor (-1 to 1, filled from the center) and servo, the
   Driver Station screen **as it was at that moment**, and events (rumbles, controller
   connects and disconnects). While driving live, a LIVE card (what to press, recording,
   controllers) and the key layout come first.
@@ -543,7 +555,7 @@ An optional `"field": "<id>"` in a run recording's header would make Unity open 
 already reads it, but the harness doesn't write it yet (that change needs the recording format
 version to go up).
 
-### Live connection to Unity (Stage U2)
+### Live connection to Unity (Stages U2 and U3)
 
 The harness can run TeamCode **live for Unity**: Unity connects, picks an OpMode and asks for one
 OpMode call at a time; the harness runs it, **reads your game controller** (the same controller
@@ -562,8 +574,21 @@ the run in `build\recordings`. Plug the controller in before choosing; with one 
 D-pad also works the operator's face buttons, as in the viewer. A controller that disconnects
 releases every input at once and the moment is marked in the run's events.
 
-**Bridge message format, version 2.** (Version 2 added `input` in `load` and `controllers` /
-`controllerProblem` in `frame`; a version 1 client is refused.) A local TCP connection; each message is one line of UTF-8
+**Unity's physics (Stage U3).** Set Unity's **Physics:** button (or press U) to **Unity** before
+choosing a live OpMode. Unity's physics engine then moves the robot instead of the harness's own
+`MomentumPhysics`:
+- Speeding up, slowing down and coasting follow the same rules (`DriveLaw.cs`, a copy of
+  `MomentumPhysics`).
+- The walls and the shown season field's solid parts (BIOBUZZ HIVE frame, FLOWERS) really stop the
+  robot, and it slides along them.
+- Everything that reads the robot's position sees Unity's result, through the `PhysicsBackend` seam
+  (`RemotePhysics` in `src/bridge`): the encoders, the Pinpoint, the recording and the wall-hit events.
+- The harness's own physics stays the default, and every test uses it.
+
+**Bridge message format, version 3.** (Version 2 added `input` in `load` and `controllers` /
+`controllerProblem` in `frame`. Version 3 added `physics` in `load`, `physics` / `robotPhysics` in
+`loaded`, `driveCommand` in `frame`, and `physicsState` in `step` / `play`. An older client is
+refused.) A local TCP connection; each message is one line of UTF-8
 JSON ending in `\n`, with a `type`. Unity sends a request and the harness sends **exactly one
 reply**, then waits: the harness never runs ahead, so **Unity drives the clock** (about one
 `step` per 20 ms of real time) and the same messages always give the same replies. Numbers and
@@ -574,11 +599,11 @@ Unity sends:
 
 | `type` | Other fields | Allowed when | Reply |
 |---|---|---|---|
-| `hello` | `version` (whole number, must be `2`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
-| `load` | `opMode` (string, an `id` from `welcome`); `input` (string, optional: `"controllers"` = the harness reads the game controllers, as Unity does; `"messages"` = each `step`/`play` carries the gamepads; default `"messages"`) | after `hello`; again any time to start over | `loaded` |
+| `hello` | `version` (whole number, must be `3`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
+| `load` | `opMode` (string, an `id` from `welcome`); `input` (string, optional: `"controllers"` = the harness reads the game controllers, as Unity does; `"messages"` = each `step`/`play` carries the gamepads; default `"messages"`); `physics` (string, optional: `"harness"` = the harness's own physics moves the robot, the default; `"unity"` = Unity's physics does, see `physicsState`) | after `hello`; again any time to start over | `loaded` |
 | `init` | — | after `load` | `frame` (stage `INIT`) |
-| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
-| `play` | `gamepad1`, `gamepad2` (optional) | after `init` | `frame` (stage `START`) |
+| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`); `physicsState` (object, **required with `"physics": "unity"`, refused otherwise**: where Unity's physics put the robot after running the last frame's `driveCommand` for one loop period: `xInches`, `yInches` (numbers, field frame), `headingRadians` (number, counter-clockwise from +x), `forwardInchesPerSecond`, `leftInchesPerSecond`, `counterClockwiseRadiansPerSecond` (numbers, the robot's own frame), `wallContact` (string: `"+x"`, `"-x"`, `"+y"`, `"-y"`, two joined like `"+x/-y"`, or `""`)) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
+| `play` | `gamepad1`, `gamepad2` (optional); `physicsState` (as for `step`) | after `init` | `frame` (stage `START`) |
 | `stop` | — | after `init` or `play` | `frame` (stage `STOP`, `finished: true`) |
 | `save` | `name` (string: letters, digits, `-`, `_`, `.`) | after `load` | `saved` |
 | `bye` | — | any time | `goodbye`, then the connection closes |
@@ -587,15 +612,19 @@ The harness sends:
 
 | `type` | Fields |
 |---|---|
-| `welcome` | `version` (whole number, `2`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
-| `loaded` | `opMode` (string, the id); `input` (string, `"controllers"` or `"messages"`); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `header` (the run recording's header object) |
-| `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself); `controllers` (array of 2 strings saying what drives gamepad 1 and 2, e.g. `["PS5 Controller", "none"]`, or `null` with `"input": "messages"`); `controllerProblem` (string, why controllers don't work, e.g. the library couldn't start; else `null`) |
+| `welcome` | `version` (whole number, `3`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
+| `loaded` | `opMode` (string, the id); `input` (string, `"controllers"` or `"messages"`); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `physics` (string, `"harness"` or `"unity"`); `robotPhysics` (object, or `null` when the robot isn't tracked: `forwardInchesPerSecond`, `strafeInchesPerSecond`, `turnRadiansPerSecond`, `lengthInches`, `widthInches`, and the momentum numbers `responseTimeSeconds`, `maxAccelerationInchesPerSecondSquared`, `forwardCoastInchesPerSecondSquared`, `lateralCoastInchesPerSecondSquared` (each `null` for a robot without momentum), and `start` `{xInches, yInches, headingRadians}`); `header` (the run recording's header object) |
+| `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself); `controllers` (array of 2 strings saying what drives gamepad 1 and 2, e.g. `["PS5 Controller", "none"]`, or `null` with `"input": "messages"`); `controllerProblem` (string, why controllers don't work, e.g. the library couldn't start; else `null`); `driveCommand` (object, what the drive wheels are told after this call, for Unity's physics: `frontLeft`, `frontRight`, `rearLeft`, `rearRight` (numbers -1 to 1, after motor direction) and `braking` (boolean: the drive motors brake at zero power); `null` without drive motors) |
 | `saved` | `path` (string, the recording file under `build\recordings`) |
 | `goodbye` | — |
 | `error` | `message` (string, what was wrong); `crashed` (boolean, only when the OpMode threw: the run is over, as on the Robot Controller) |
 
 A typical run: `hello` → `load` (with `"input": "controllers"`) → `init` → a few `step`s
 (INIT_LOOP) → `play` → `step` every 20 ms → `stop` (or `finished: true`) → optionally `save` → `bye`.
+With `"physics": "unity"`, before each `step` and `play` Unity runs its physics for one
+`loopPeriodSeconds` with the newest frame's `driveCommand` and sends the result as `physicsState`.
+The harness's position estimate takes that state at the same point in the loop where its own
+physics would step, so sensors, the OpMode and the recording see it in the usual order.
 Unity drives the clock, so a run only moves when Unity asks; with real controllers the drive is as
 repeatable as the driver, and its saved recording replays exactly. The OpModes
 Unity can pick are listed in `src/bridge/java/pvi/harness/bridge/BridgeOpModes.java`.
@@ -647,27 +676,83 @@ reading the fake Pinpoint every loop. **Start the robot where the route starts**
 converts Pedro's corner-based coordinates), or the field walls won't be where Pedro thinks they
 are. Placed that way, Team A's routes finish within about a quarter inch (`PedroRouteTest.java`).
 
-**How the robot moves (physics).** Each loop, a physics backend (`PhysicsBackend`) gets the
-wheel powers and moves the robot one step; the harness's own is `MomentumPhysics`:
+### How motion is simulated, start to finish
 
-- **Momentum:** the motors pull the speed toward the commanded speed with a 0.1 s response time,
-  never faster than the 200 in/s² traction limit (turning shares it). Both are **placeholders**
-  (`Dynamics.teamA()`) until measured at the robot.
-- **Zero power:** on FLOAT the robot coasts and slows at Team A's measured rates (Pedro's
-  forward/lateral zero-power accelerations, read live from `TeamAPedroConfiguration`); on
-  BRAKE it stops much sooner. Below 0.25 in/s with no power, friction holds it still.
-- **Walls** stop the robot box and cancel its speed into the wall (see "Field walls").
-- **Order each loop:** the robot moves up to now, then sensors (Pinpoint, encoders) read it,
-  then the OpMode runs, then the new wheel powers are read. So robot code always sees where the
-  robot is now, as on the real robot.
+There is no real robot, so the harness has to work out where the robot would be. It does that
+in small steps: **one step per OpMode call**, every 20 ms of simulated time. This is what happens
+in each step, in order (`OpModeRunner.cycle`):
 
-**Placeholders** (response time, traction limit, turn rate, robot size) are listed in every
-report as `TO MEASURE`. [CALIBRATION.md](CALIBRATION.md) is the checklist for measuring them at
-the robot and comparing a real route with the harness.
+```
+        ┌──────────────────────────────────────────────────────────────────────┐
+        │ 0. PHYSICS   the robot moves up to "now" with the wheel powers it was  │
+        │              given last step (PoseEstimator → MomentumPhysics)         │
+        │    SENSORS   drive encoders and the Pinpoint read where it is now      │
+        │ 1. GAMEPADS  scripted or live input for this moment; cameras step too │
+        │ 2. OPMODE    your code runs: init / init_loop / start / loop / stop    │
+        │ 3. TELEMETRY anything the OpMode didn't send yet is sent               │
+        │ 4. ESTIMATOR this moment goes in the track, and the NEW wheel powers   │
+        │              are read (they drive the robot during the next step)      │
+        │    RECORDER  rumbles and the run recording note what happened          │
+        │ 5. CLOCK     simulated time moves on 20 ms                             │
+        └───────────────────────────── repeat ─────────────────────────────────┘
+```
 
-Round-number test robots (`DriveModel.forTesting`) and `model.withDynamics(null)` change speed
-instantly, which keeps simple math tests exact. Unity's physics can replace the backend later
-(Phase 7, U3).
+Why this order? On a real robot, the robot keeps moving while your code runs, and the sensors
+tell your code where it is **now**. So the harness first moves the robot, then lets the sensors
+read it, then runs your code. Your code's new motor powers take effect from the next step on.
+
+**The physics (`MomentumPhysics`).** Each step it gets the four wheel powers and works out the
+robot's new speed and position:
+
+1. **What the wheels ask for.** The mecanum math turns four wheel powers into "forward",
+   "sideways" and "turn" speeds, using the robot's full-power speeds (Team A: 62.6 in/s forward,
+   49.8 in/s sideways, from Pedro's tuning).
+2. **Momentum.** The real speed doesn't jump there; it moves toward it. The motors close about
+   63% of the gap every 0.1 s (the *response time*), and the tires can't speed the robot up or
+   slow it down faster than 200 in/s² before they slip (the *traction limit*). Turning shares
+   that limit.
+3. **Zero power.** If the motors are on **FLOAT**, the robot coasts and friction slows it at Team
+   A's measured rates (42.5 in/s² forward, 50.6 in/s² sideways, from Pedro's zero-power tuners).
+   On **BRAKE** it stops much sooner. Below 0.25 in/s with no power, friction holds it still.
+4. **Battery.** A motor's speed is about proportional to its voltage, so the wheels push in
+   proportion to the battery: at 11 V the robot is 88% as fast as at the 12.5 V its speeds were
+   measured at. Set a tired battery with `hardwareMap.batteryVoltage().setVoltage(11.0)`, or one
+   that drops during the match with `.setSag(0.5)` (volts per minute of simulated time). Pedro's
+   voltage compensation, if a team turns it on, reads the same battery.
+5. **Moving.** The robot moves by its average speed over the step, turned to the field using the
+   heading halfway through the step.
+6. **Walls.** If any part of the robot box would be past a wall (±72 in), the robot is moved back
+   so it just touches, and its speed into the wall is cancelled. Driving into a wall at an angle,
+   it slides along it. Each new hit is recorded ("Robot hit the +x wall").
+
+**The sensors** read the physics, so they agree with each other:
+
+- **Drive motor encoders** count what each wheel really turned, worked out back from the robot's
+  real speed. A wheel slowed by momentum, or a robot stopped by a wall, shows in the counts.
+- **The Pinpoint** reports the robot's position and heading the way a correctly set-up Pinpoint
+  would, measured from where the code reset it or set its position.
+- **Other motors** (intake, lift) aren't part of the drive, so their encoders count from their
+  power.
+
+**What is still a guess.** These values are **placeholders**, shown as `TO MEASURE` in every
+report, until the team measures them on the real robot ([CALIBRATION.md](CALIBRATION.md)):
+
+| Value | Placeholder | Where |
+|---|---|---|
+| Turn rate | 180 °/s | `DriveModels.teamA()` |
+| Robot length and width | 18 × 18 in | `DriveModels.teamA()` |
+| Response time | 0.1 s | `Dynamics.teamA()` |
+| Traction limit | 200 in/s² | `Dynamics.teamA()` |
+| Battery voltage the speeds were measured at | 12.5 V | `DriveModels.teamA()` |
+| Other motors' encoders | goBILDA 312 RPM | `FakeDcMotorEx` |
+
+**What isn't simulated.** Wheel slip below the traction limit, bumps, other robots, game
+pieces, voltage dips from heavy load (only steady sag), pod slip and IMU drift in the Pinpoint.
+
+**For tests.** Round-number test robots (`DriveModel.forTesting`) and `model.withDynamics(null)`
+change speed instantly, so simple math tests stay exact. The physics sits behind the
+`PhysicsBackend` interface (wheel powers in, position and speed out, one step at a time), so
+Unity's physics can replace it later (Phase 7, U3).
 
 ### Vision: scripted AprilTags
 
@@ -708,6 +793,10 @@ library doesn't know comes with no pose, as in the SDK.
 Like a real camera, the webcam takes a picture **30 times a second** of simulated time, so with
 20 ms loops some loops get `null` from `getFreshDetections()` ("no new picture"). A picture shows
 the tags in view at that moment, with no delay. `AprilTagVisionTest.java` has examples.
+
+A run recording saves the tags in each picture (`aprilTags`, below), and the viewer's side
+panel shows a **Tags in view** card (id, range, bearing, camera) when you replay a run that saw
+any tag.
 
 Not modelled yet: where the tags are from the robot's position on the field (you script what
 the camera sees, not where the robot is), tags hidden behind things, blur, tag clusters, and the

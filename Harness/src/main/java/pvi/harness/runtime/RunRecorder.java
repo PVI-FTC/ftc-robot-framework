@@ -14,6 +14,8 @@ import pvi.harness.ds.TelemetryFrame;
 import pvi.harness.hardware.FakeDcMotorEx;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.FakeServo;
+import pvi.harness.hardware.FakeWebcam;
+import pvi.harness.hardware.SeenAprilTag;
 import pvi.harness.physics.PoseEstimator;
 
 /**
@@ -71,6 +73,7 @@ public final class RunRecorder {
         FakeHardwareMap hardwareMap = runner.hardwareMap();
         List<RunRecording.MotorState> motors = new ArrayList<>();
         List<RunRecording.ServoState> servos = new ArrayList<>();
+        List<RunRecording.AprilTagState> aprilTags = new ArrayList<>();
         for (String name : hardwareMap.deviceNames()) {
             FakeDcMotorEx motor = hardwareMap.motor(name);
             if (motor != null) {
@@ -79,6 +82,15 @@ public final class RunRecorder {
             FakeServo servo = hardwareMap.servo(name);
             if (servo != null) {
                 servos.add(new RunRecording.ServoState(name, servo.getPosition()));
+            }
+            // The tags in each webcam's latest picture: what robot code could detect this call.
+            FakeWebcam webcam = hardwareMap.webcam(name);
+            if (webcam != null && webcam.isInUse()) {
+                for (SeenAprilTag tag : webcam.lastFrameTags()) {
+                    aprilTags.add(new RunRecording.AprilTagState(name, tag.id(), tag.rightInches(),
+                            tag.forwardInches(), tag.upInches(), tag.yawDegrees(), tag.pitchDegrees(),
+                            tag.rollDegrees()));
+                }
             }
         }
 
@@ -101,7 +113,8 @@ public final class RunRecorder {
                 runner.stage(),
                 estimator == null ? null : estimator.pose(),
                 motors, servos, autoStep, screens,
-                gamepadState(runner.opMode().gamepad1), gamepadState(runner.opMode().gamepad2)));
+                gamepadState(runner.opMode().gamepad1), gamepadState(runner.opMode().gamepad2),
+                aprilTags));
     }
 
     /** Copies a gamepad's buttons and sticks into plain data. */

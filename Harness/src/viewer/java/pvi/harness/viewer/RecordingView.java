@@ -24,6 +24,22 @@ public final class RecordingView {
     private final int[] posesUpTo;
     /** The robot's size, from the recording's drive model. */
     private final FieldPainter.RobotBox box;
+    /** For each loop index: how the robot was moving, worked out from the recorded poses. */
+    private final Motion[] motions;
+
+    /**
+     * How the robot was moving at one moment, worked out from where it was in neighbouring loops
+     * (the recording saves positions, not speeds).
+     *
+     * @param speedInchesPerSecond    speed over the ground
+     * @param speedChangePerSecond    how fast that speed is changing, in in/s²: positive while
+     *                                speeding up, negative while slowing down
+     * @param turnDegreesPerSecond    turn rate, counter-clockwise positive
+     */
+    public record Motion(double speedInchesPerSecond, double speedChangePerSecond, double turnDegreesPerSecond) {
+        /** Not moving (or position not tracked). */
+        public static final Motion STILL = new Motion(0, 0, 0);
+    }
 
     /** Prepares a recording for drawing. It must have at least one loop. */
     public RecordingView(RunRecording recording) {
@@ -40,6 +56,56 @@ public final class RecordingView {
             posesUpTo[i] = poses.size();
         }
         box = FieldPainter.RobotBox.of(recording.header().driveModel());
+        motions = workOutMotions(loops);
+    }
+
+    /**
+     * Speed, change of speed and turn rate for every loop, from the poses: each loop's movement
+     * since the one before, divided by the time between them.
+     */
+    private static Motion[] workOutMotions(List<RunRecording.LoopRecord> loops) {
+        Motion[] result = new Motion[loops.size()];
+        result[0] = Motion.STILL;
+        for (int i = 1; i < loops.size(); i++) {
+            RunRecording.LoopRecord before = loops.get(i - 1);
+            RunRecording.LoopRecord now = loops.get(i);
+            double dt = now.sinceInitSeconds() - before.sinceInitSeconds();
+            if (now.pose() == null || before.pose() == null || dt <= 0) {
+                result[i] = dt <= 0 ? result[i - 1] : Motion.STILL;
+                continue;
+            }
+            double speed = Math.hypot(now.pose().xInches() - before.pose().xInches(),
+                    now.pose().yInches() - before.pose().yInches()) / dt;
+            double turn = Math.toDegrees(Math.IEEEremainder(
+                    now.pose().headingRadians() - before.pose().headingRadians(), 2 * Math.PI)) / dt;
+            result[i] = new Motion(speed, (speed - result[i - 1].speedInchesPerSecond()) / dt, turn);
+        }
+        return result;
+    }
+
+    /** How the robot was moving at loop {@code index}. */
+    public Motion motion(int index) {
+        checkIndex(index);
+        return motions[index];
+    }
+
+    /** Text at the start of the event the recorder adds for a wall hit ("Robot hit the +x wall"). */
+    static final String WALL_HIT_EVENT = "Robot hit the ";
+
+    /**
+     * Which wall the robot hit during the {@code seconds} before loop {@code index} ("+x", "-y",
+     * "+x/-y" in a corner), or null if it hit none then. Used to flash the wall on the field.
+     */
+    public String wallHitWithin(int index, double seconds) {
+        double now = loop(index).sinceInitSeconds();
+        String wall = null;
+        for (RunRecording.Event event : recording.events()) {
+            if (event.text().startsWith(WALL_HIT_EVENT) && event.sinceInitSeconds() <= now + 1e-9
+                    && event.sinceInitSeconds() > now - seconds) {
+                wall = event.text().substring(WALL_HIT_EVENT.length()).replace(" wall", "").trim();
+            }
+        }
+        return wall;
     }
 
     /** The recording being shown. */

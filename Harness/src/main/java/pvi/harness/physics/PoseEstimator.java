@@ -208,7 +208,15 @@ public final class PoseEstimator {
      */
     public void update(FakeHardwareMap hardwareMap, double timeSeconds, double matchTimeSeconds) {
         advanceTo(hardwareMap, timeSeconds, matchTimeSeconds);
-        lastCommand = new PhysicsBackend.DriveCommand(wheels.read(hardwareMap), wheels.isBraking(hardwareMap));
+        // A motor's speed is about proportional to its battery voltage, so a tired battery
+        // pushes the wheels less hard than the same power on a fresh one.
+        double scale = model.voltageScale(hardwareMap.batteryVoltage().getVoltage());
+        WheelPushes pushes = wheels.read(hardwareMap);
+        if (scale != 1.0) {
+            pushes = new WheelPushes(pushes.frontLeft() * scale, pushes.frontRight() * scale,
+                    pushes.rearLeft() * scale, pushes.rearRight() * scale);
+        }
+        lastCommand = new PhysicsBackend.DriveCommand(pushes, wheels.isBraking(hardwareMap));
         lastTimeSeconds = timeSeconds;
         track.add(new TrackPoint(timeSeconds, matchTimeSeconds, pose()));
     }

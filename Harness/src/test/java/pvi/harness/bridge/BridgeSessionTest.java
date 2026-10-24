@@ -39,7 +39,7 @@ class BridgeSessionTest {
 
     /** hello + load, ready for "init". */
     private void connectAndLoad(String opMode) {
-        assertEquals("welcome", send("{\"type\": \"hello\", \"version\": 2}").get("type"));
+        assertEquals("welcome", send("{\"type\": \"hello\", \"version\": 3}").get("type"));
         assertEquals("loaded", send("{\"type\": \"load\", \"opMode\": \"" + opMode + "\"}").get("type"));
     }
 
@@ -67,16 +67,16 @@ class BridgeSessionTest {
     // ---- Handshake ------------------------------------------------------------------------------
 
     /**
-     * WHAT: "hello" with version 2 gets "welcome" listing the OpModes Unity can run.
+     * WHAT: "hello" with version 3 gets "welcome" listing the OpModes Unity can run.
      * WHY: Unity builds its menu from this list, and must know both sides speak the same version.
      */
     @Test
     @SuppressWarnings("unchecked")
     void helloListsTheOpModes() {
-        Map<String, Object> welcome = send("{\"type\": \"hello\", \"version\": 2, \"client\": \"test\"}");
+        Map<String, Object> welcome = send("{\"type\": \"hello\", \"version\": 3, \"client\": \"test\"}");
 
         assertEquals("welcome", welcome.get("type"));
-        assertEquals(2.0, welcome.get("version"));
+        assertEquals(3.0, welcome.get("version"));
         assertEquals(0.02, welcome.get("loopPeriodSeconds"));
         List<Object> opModes = (List<Object>) welcome.get("opModes");
         Map<String, Object> first = (Map<String, Object>) opModes.get(0);
@@ -95,7 +95,7 @@ class BridgeSessionTest {
 
         assertEquals("error", reply.get("type"));
         String message = (String) reply.get("message");
-        assertTrue(message.contains("version 2") && message.contains("version 99"), message);
+        assertTrue(message.contains("version 3") && message.contains("version 99"), message);
         assertTrue(session.isClosing());
     }
 
@@ -220,10 +220,10 @@ class BridgeSessionTest {
         Map<String, Object> frame = send("{\"type\": \"init\"}");
 
         assertEquals(List.of("type", "loop", "gamepad1Rumbles", "gamepad2Rumbles", "events", "finished", "controllers",
-                "controllerProblem"),
+                "controllerProblem", "driveCommand"),
                 List.copyOf(frame.keySet()));
         assertEquals(List.of("sinceInitSeconds", "matchTimeSeconds", "stage", "pose", "motors", "servos", "autoStep",
-                "telemetry", "gamepad1", "gamepad2"), List.copyOf(loop(frame).keySet()));
+                "telemetry", "gamepad1", "gamepad2", "aprilTags"), List.copyOf(loop(frame).keySet()));
     }
 
     /**
@@ -261,7 +261,7 @@ class BridgeSessionTest {
         assertTrue(message(send("not json")).contains("Not valid JSON"));
         assertTrue(message(send("[1, 2]")).contains("JSON object"));
         assertTrue(message(send("{\"type\": \"jump\"}")).contains("Unknown message type"));
-        send("{\"type\": \"hello\", \"version\": 2}");
+        send("{\"type\": \"hello\", \"version\": 3}");
         assertTrue(message(send("{\"type\": \"step\"}")).contains("after \"init\""));
         assertTrue(message(send("{\"type\": \"load\", \"opMode\": \"nope\"}")).contains("Unknown OpMode \"nope\""));
         send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}");
@@ -290,7 +290,7 @@ class BridgeSessionTest {
      */
     @Test
     void sameMessagesGiveTheSameReplies() {
-        List<String> script = new ArrayList<>(List.of("{\"type\": \"hello\", \"version\": 2}",
+        List<String> script = new ArrayList<>(List.of("{\"type\": \"hello\", \"version\": 3}",
                 "{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}", "{\"type\": \"init\"}", "{\"type\": \"play\"}"));
         for (int i = 0; i < 56; i++) {
             script.add("{\"type\": \"step\", \"gamepad1\": " + (i % 20 < 10 ? FORWARD : RELEASED) + "}");

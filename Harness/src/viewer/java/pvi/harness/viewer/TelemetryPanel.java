@@ -37,6 +37,8 @@ public final class TelemetryPanel extends JComponent implements Scrollable {
     static final int WIDTH = 400;
     private static final int PAD = 14;
     private static final int CARD_GAP = 10;
+    /** Speed change (in/s²) that fills the Motion card's bar: Team A's traction limit. */
+    static final double ACCELERATION_GAUGE_FULL = 200.0;
 
     private RecordingView view;
     private int index;
@@ -146,10 +148,40 @@ public final class TelemetryPanel extends JComponent implements Scrollable {
                     String.format(Locale.ROOT, "%.1f", pose.headingDegrees()), "deg");
         }) + CARD_GAP;
 
+        // Motion: how fast the robot is going and whether it is speeding up or slowing down
+        // (worked out from the recorded positions, so momentum shows).
+        if (pose != null) {
+            RecordingView.Motion motion = view.motion(index);
+            y = card(g, "Motion", y, width, 58 + 24, (top) -> {
+                bigReadout(g, PAD + 12, top, "Speed",
+                        String.format(Locale.ROOT, "%.1f", motion.speedInchesPerSecond()), "in/s");
+                bigReadout(g, PAD + 12 + width / 2, top, "Turning",
+                        String.format(Locale.ROOT, "%.0f", motion.turnDegreesPerSecond()), "deg/s");
+                double change = motion.speedChangePerSecond();
+                String label = Math.abs(change) < 1 ? "Steady" : change > 0 ? "Speeding up" : "Slowing down";
+                gaugeRow(g, top + 60, width, label, change / ACCELERATION_GAUGE_FULL, true,
+                        String.format(Locale.ROOT, "%+.0f", change));
+            }) + CARD_GAP;
+        }
+
         if (loop.autoStep() != null) {
             y = card(g, "Auto step", y, width, 28, (top) ->
                     text(g, ellipsize(g, loop.autoStep(), Theme.text(15f), width - 24), PAD + 12, top + 20,
                             Theme.text(15f), Theme.ACCENT)) + CARD_GAP;
+        }
+
+        // AprilTags the camera saw at this moment (only for runs that ever saw one).
+        if (hasAprilTags(recording)) {
+            List<String> tags = aprilTagLines(loop);
+            y = card(g, "Tags in view", y, width, tags.size() * 17 + 2, (top) -> {
+                int lineY = top + 13;
+                Font mono = Theme.mono(12f);
+                for (String line : tags) {
+                    text(g, ellipsize(g, line, mono, width - 24), PAD + 12, lineY, mono,
+                            loop.aprilTags().isEmpty() ? Theme.MUTED : Theme.ACCENT);
+                    lineY += 17;
+                }
+            }) + CARD_GAP;
         }
 
         // Motors and servos: a gauge each.
@@ -197,6 +229,34 @@ public final class TelemetryPanel extends JComponent implements Scrollable {
             }
         });
         return y + PAD;
+    }
+
+    /** True if any loop of the recording saw an AprilTag, so the "Tags in view" card is worth showing. */
+    static boolean hasAprilTags(RunRecording recording) {
+        for (RunRecording.LoopRecord loop : recording.loops()) {
+            if (!loop.aprilTags().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * One line per AprilTag in view at this moment: its id, range along the floor and bearing
+     * (left is positive), as the SDK's ftcPose would give them, and the camera. "none" if no tag.
+     */
+    static List<String> aprilTagLines(RunRecording.LoopRecord loop) {
+        if (loop.aprilTags().isEmpty()) {
+            return List.of("none");
+        }
+        List<String> lines = new java.util.ArrayList<>();
+        for (RunRecording.AprilTagState tag : loop.aprilTags()) {
+            double rangeInches = Math.hypot(tag.rightInches(), tag.forwardInches());
+            double bearingDegrees = Math.toDegrees(Math.atan2(-tag.rightInches(), tag.forwardInches()));
+            lines.add(String.format(Locale.ROOT, "Tag %-3d %6.1f in %+6.1f deg  %s",
+                    tag.id(), rangeInches, bearingDegrees, tag.camera()));
+        }
+        return lines;
     }
 
     /** The live-drive cards: status (headline in color) and the key layout. */

@@ -76,7 +76,7 @@ namespace PviHarness.Replay
     }
 
     /// <summary>
-    /// A live run over the harness bridge (Stage U2, message format v2; see Harness/README.md,
+    /// A live run over the harness bridge (Stages U2 and U3, message format v3; see Harness/README.md,
     /// "Live connection to Unity"). Each call sends one message and waits for its reply. The run's
     /// <see cref="Recording"/> grows by one loop per frame, in exactly the saved-recording layout,
     /// so the replay screen shows it with no changes.
@@ -84,11 +84,15 @@ namespace PviHarness.Replay
     /// <para>The harness reads the game controllers (<c>"input": "controllers"</c>, the user's
     /// choice); Unity only asks for each step and draws. Unity drives the clock: nothing moves
     /// unless <see cref="Step"/> is called, about every 20 ms (<see cref="LivePacer"/>).</para>
+    ///
+    /// <para>With <c>"physics": "unity"</c> (Stage U3) Unity's physics moves the robot: each frame
+    /// brings the wheels' <see cref="LastDriveCommand"/>; Unity runs its physics one loop with it
+    /// (<see cref="UnityRobotPhysics"/>) and sends the result with the next step or play.</para>
     /// </summary>
     public sealed class LiveSession : IDisposable
     {
         /// <summary>The message format this client speaks.</summary>
-        public const int ProtocolVersion = 2;
+        public const int ProtocolVersion = 3;
 
         /// <summary>One OpMode the harness offers.</summary>
         public sealed class OpModeChoice
@@ -116,6 +120,14 @@ namespace PviHarness.Replay
         public bool Initialized { get; private set; }
         /// <summary>True after PLAY, until finished.</summary>
         public bool Playing { get; private set; }
+        /// <summary>True if the run was loaded with Unity's physics moving the robot.</summary>
+        public bool UnityPhysics { get; private set; }
+        /// <summary>The robot's speeds, size and start for Unity's physics (from "loaded"), or null.</summary>
+        public RobotPhysicsData RobotPhysics { get; private set; }
+        /// <summary>What the wheels were told in the newest frame (all off before the first).</summary>
+        public DriveCommandData LastDriveCommand { get; private set; } = DriveCommandData.Stopped;
+        /// <summary>Seconds per OpMode call, from "welcome" (0.02 unless the harness says otherwise).</summary>
+        public double LoopPeriodSeconds { get; private set; } = 0.02;
 
         /// <summary>Starts a session on a transport (the TCP connection, or a fake one in tests).</summary>
         public LiveSession(IBridgeTransport transport)
@@ -128,13 +140,24 @@ namespace PviHarness.Replay
         {
             JObject welcome = Send(new JObject { ["type"] = "hello", ["version"] = ProtocolVersion, ["client"] = "Unity" }, "welcome");
             OpModes = welcome["opModes"]?.ToObject<List<OpModeChoice>>() ?? new List<OpModeChoice>();
+            LoopPeriodSeconds = welcome["loopPeriodSeconds"]?.Value<double>() ?? 0.02;
         }
 
-        /// <summary>Loads an OpMode with the harness reading the controllers; starts a new, empty recording.</summary>
-        public void Load(string opModeId)
+        /// <summary>
+        /// Loads an OpMode with the harness reading the controllers; starts a new, empty recording.
+        /// With <paramref name="unityPhysics"/>, Unity's physics moves the robot (Stage U3).
+        /// </summary>
+        public void Load(string opModeId, bool unityPhysics = false)
         {
-            JObject loaded = Send(new JObject { ["type"] = "load", ["opMode"] = opModeId, ["input"] = "controllers" }, "loaded");
+            JObject loaded = Send(new JObject
+            {
+                ["type"] = "load", ["opMode"] = opModeId, ["input"] = "controllers",
+                ["physics"] = unityPhysics ? "unity" : "harness",
+            }, "loaded");
             OpModeId = opModeId;
+            UnityPhysics = (string)loaded["physics"] == "unity";
+            RobotPhysics = loaded["robotPhysics"]?.Type == JTokenType.Object ? loaded["robotPhysics"].ToObject<RobotPhysicsData>() : null;
+            LastDriveCommand = DriveCommandData.Stopped;
             Recording = new RunRecordingData { header = loaded["header"].ToObject<HeaderData>() };
             Finished = false;
             Initialized = false;
@@ -148,16 +171,19 @@ namespace PviHarness.Replay
             Initialized = !Finished;
         }
 
-        /// <summary>One OpMode call: init_loop before PLAY, loop after.</summary>
-        public void Step()
+        /// <summary>
+        /// One OpMode call: init_loop before PLAY, loop after. With Unity's physics, pass where it
+        /// put the robot after running <see cref="LastDriveCommand"/> for one loop.
+        /// </summary>
+        public void Step(PhysicsStateData physicsState = null)
         {
-            Frame(new JObject { ["type"] = "step" });
+            Frame(WithPhysics(new JObject { ["type"] = "step" }, physicsState));
         }
 
-        /// <summary>Presses PLAY.</summary>
-        public void Play()
+        /// <summary>Presses PLAY (with Unity's physics, pass its newest state as for <see cref="Step"/>).</summary>
+        public void Play(PhysicsStateData physicsState = null)
         {
-            Frame(new JObject { ["type"] = "play" });
+            Frame(WithPhysics(new JObject { ["type"] = "play" }, physicsState));
             Initialized = false;
             Playing = !Finished;
         }
@@ -203,11 +229,22 @@ namespace PviHarness.Replay
             Controllers = frame["controllers"] is JArray names ? names.ToObject<List<string>>() : new List<string>();
             ControllerProblem = frame["controllerProblem"]?.Type == JTokenType.String ? (string)frame["controllerProblem"] : null;
             Finished = frame["finished"]?.Value<bool>() ?? false;
+            LastDriveCommand = frame["driveCommand"]?.Type == JTokenType.Object
+                ? frame["driveCommand"].ToObject<DriveCommandData>() : DriveCommandData.Stopped;
             if (Finished)
             {
                 Playing = false;
                 Initialized = false;
             }
+        }
+
+        private static JObject WithPhysics(JObject request, PhysicsStateData physicsState)
+        {
+            if (physicsState != null)
+            {
+                request["physicsState"] = JObject.FromObject(physicsState);
+            }
+            return request;
         }
 
         private static void AddAll<T>(List<T> into, JToken items)

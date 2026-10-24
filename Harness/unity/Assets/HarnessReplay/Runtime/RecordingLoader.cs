@@ -23,7 +23,7 @@ namespace PviHarness.Replay
     public static class RecordingLoader
     {
         /// <summary>The format versions this project can read.</summary>
-        public static readonly int[] SupportedVersions = { 1, 2 };
+        public static readonly int[] SupportedVersions = { 1, 2, 3 };
 
         /// <summary>
         /// Where the recordings are: usually Harness/build/recordings, found from wherever this
@@ -112,7 +112,7 @@ namespace PviHarness.Replay
             if (!SupportedVersions.Contains(data.header.version))
             {
                 throw new RecordingFormatException(name + " is format version " + data.header.version
-                    + ", but this project reads versions " + string.Join(" and ", SupportedVersions)
+                    + ", but this project reads versions " + string.Join(", ", SupportedVersions)
                     + ". Update the Unity replay code (and Harness/README.md) for the new version.");
             }
             if (data.loops == null || data.loops.Count == 0)

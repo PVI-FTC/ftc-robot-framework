@@ -28,6 +28,9 @@ public final class DriveModels {
      *       18 × 18 in is the FTC maximum starting size.</li>
      *   <li><b>Momentum:</b> {@link Dynamics#teamA()}: coasting from Pedro's zero-power
      *       acceleration tuners; response time and traction limit are placeholders.</li>
+     *   <li><b>Battery:</b> the speeds were measured at some battery voltage that wasn't
+     *       written down; 12.5 V (a charged battery) is the placeholder, so a lower battery
+     *       slows the robot in proportion.</li>
      * </ul>
      */
     public static DriveModel teamA() {
@@ -43,6 +46,9 @@ public final class DriveModels {
                         "unverified; FTC maximum starting size. Measure bumper to bumper"),
                 ModelValue.placeholder(18.0, ModelValue.INCHES,
                         "unverified; FTC maximum starting size. Measure bumper to bumper"),
-                Dynamics.teamA());
+                Dynamics.teamA())
+                .withSpeedVoltage(ModelValue.placeholder(12.5, ModelValue.VOLTS,
+                        "not recorded; battery voltage when Pedro's velocity tuners ran. Write it down next"
+                                + " time the tuners run"));
     }
 }

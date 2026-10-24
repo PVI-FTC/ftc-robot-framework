@@ -19,11 +19,16 @@ package pvi.harness.bridge;
  *       harness reads the real game controllers plugged into this computer (decided by the user,
  *       2026-10-24: Unity only displays); {@code "input": "messages"} means Unity sends them in
  *       each "step" (useful for scripted clients and tests). Version 2 added this.</li>
+ *   <li>Who moves the robot is chosen in "load" too (version 3, Stage U3): {@code "physics":
+ *       "harness"} (the default) uses the harness's own physics; {@code "physics": "unity"} means
+ *       Unity's physics moves the robot. Then each frame carries the wheels' {@code driveCommand},
+ *       Unity runs its physics for one loop with it, and sends the result as {@code physicsState}
+ *       in its next "step" or "play" ({@link RemotePhysics}).</li>
  * </ul>
  *
  * <pre>
  *   Unity                          harness
- *   hello {version: 2}       -->
+ *   hello {version: 3}       -->
  *                            <--   welcome {opModes: [...]}
  *   load {opMode: "teamA-teleop", input: "controllers"} -->
  *                            <--   loaded {header: {...}}
@@ -45,7 +50,7 @@ package pvi.harness.bridge;
  */
 public final class BridgeProtocol {
     /** Message format version. Raise it (and update the README) whenever any message changes. */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
     /** The port the harness listens on unless told otherwise. */
     public static final int DEFAULT_PORT = 7465;
 

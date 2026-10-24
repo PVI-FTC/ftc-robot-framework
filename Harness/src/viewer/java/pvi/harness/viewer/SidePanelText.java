@@ -33,6 +33,9 @@ public final class SidePanelText {
         lines.add(String.format(Locale.ROOT, "Match time: %.2f s   (since INIT %.2f s)",
                 loop.matchTimeSeconds(), loop.sinceInitSeconds()));
         lines.add("Robot: " + (loop.pose() == null ? "position not tracked" : loop.pose().toString()));
+        if (loop.pose() != null) {
+            lines.add("Motion: " + motionText(view.motion(index)));
+        }
         lines.add("Auto step: " + (loop.autoStep() == null ? "-" : loop.autoStep()));
 
         lines.add("");
@@ -115,5 +118,13 @@ public final class SidePanelText {
                     gamepad, count, latest.totalDurationMs(), latest.pulses(), latest.pulses() == 1 ? "" : "s",
                     latest.matchTimeSeconds()));
         }
+    }
+
+    /** "41.3 in/s, speeding up (+120 in/s^2), turning 0 deg/s". */
+    static String motionText(RecordingView.Motion motion) {
+        double change = motion.speedChangePerSecond();
+        String trend = Math.abs(change) < 1 ? "steady" : change > 0 ? "speeding up" : "slowing down";
+        return String.format(Locale.ROOT, "%.1f in/s, %s (%+.0f in/s^2), turning %.0f deg/s",
+                motion.speedInchesPerSecond(), trend, change, motion.turnDegreesPerSecond());
     }
 }

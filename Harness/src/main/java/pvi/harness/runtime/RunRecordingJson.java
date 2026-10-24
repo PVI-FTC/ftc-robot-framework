@@ -135,7 +135,7 @@ public final class RunRecordingJson {
         List<RunRecording.LoopRecord> loops = new ArrayList<>();
         List<Object> loopItems = array(top.get("loops"), "loops");
         for (int i = 0; i < loopItems.size(); i++) {
-            loops.add(readLoop(loopItems.get(i), "loops[" + i + "]"));
+            loops.add(readLoop(loopItems.get(i), "loops[" + i + "]", version));
         }
         // Version 1 files have no events.
         List<RunRecording.Event> events = version >= 2 ? readEvents(top.get("events"), "events") : List.of();
@@ -145,7 +145,7 @@ public final class RunRecordingJson {
                 events);
     }
 
-    private static RunRecording.LoopRecord readLoop(Object value, String where) {
+    private static RunRecording.LoopRecord readLoop(Object value, String where, int version) {
         Map<String, Object> loop = object(value, where);
         List<RunRecording.MotorState> motors = new ArrayList<>();
         List<Object> motorItems = array(loop.get("motors"), where + ".motors");
@@ -172,6 +172,21 @@ public final class RunRecordingJson {
             screens.add(new RunRecording.TelemetryScreen(texts(screen.get("lines"), at + ".lines"),
                     texts(screen.get("log"), at + ".log")));
         }
+        // Versions 1 and 2 have no aprilTags.
+        List<RunRecording.AprilTagState> aprilTags = new ArrayList<>();
+        List<Object> tagItems = version >= 3 ? array(loop.get("aprilTags"), where + ".aprilTags") : List.of();
+        for (int i = 0; i < tagItems.size(); i++) {
+            String at = where + ".aprilTags[" + i + "]";
+            Map<String, Object> t = object(tagItems.get(i), at);
+            aprilTags.add(new RunRecording.AprilTagState(text(t.get("camera"), at + ".camera"),
+                    whole(t.get("id"), at + ".id"),
+                    decimal(t.get("rightInches"), at + ".rightInches"),
+                    decimal(t.get("forwardInches"), at + ".forwardInches"),
+                    decimal(t.get("upInches"), at + ".upInches"),
+                    decimal(t.get("yawDegrees"), at + ".yawDegrees"),
+                    decimal(t.get("pitchDegrees"), at + ".pitchDegrees"),
+                    decimal(t.get("rollDegrees"), at + ".rollDegrees")));
+        }
         String stage = optionalText(loop.get("stage"), where + ".stage");
         return new RunRecording.LoopRecord(
                 decimal(loop.get("sinceInitSeconds"), where + ".sinceInitSeconds"),
@@ -182,7 +197,8 @@ public final class RunRecordingJson {
                 optionalText(loop.get("autoStep"), where + ".autoStep"),
                 screens,
                 readGamepad(loop.get("gamepad1"), where + ".gamepad1"),
-                readGamepad(loop.get("gamepad2"), where + ".gamepad2"));
+                readGamepad(loop.get("gamepad2"), where + ".gamepad2"),
+                aprilTags);
     }
 
     private static RunRecording.GamepadState readGamepad(Object value, String where) {
@@ -459,6 +475,21 @@ public final class RunRecordingJson {
         }
         telemetry.append("]");
 
+        StringBuilder aprilTags = new StringBuilder("[");
+        for (int i = 0; i < loop.aprilTags().size(); i++) {
+            RunRecording.AprilTagState t = loop.aprilTags().get(i);
+            aprilTags.append(i == 0 ? "" : ", ").append("{")
+                    .append(field("camera", string(t.camera()))).append(", ")
+                    .append(field("id", Integer.toString(t.id()))).append(", ")
+                    .append(field("rightInches", number(t.rightInches()))).append(", ")
+                    .append(field("forwardInches", number(t.forwardInches()))).append(", ")
+                    .append(field("upInches", number(t.upInches()))).append(", ")
+                    .append(field("yawDegrees", number(t.yawDegrees()))).append(", ")
+                    .append(field("pitchDegrees", number(t.pitchDegrees()))).append(", ")
+                    .append(field("rollDegrees", number(t.rollDegrees()))).append("}");
+        }
+        aprilTags.append("]");
+
         return "{"
                 + field("sinceInitSeconds", number(loop.sinceInitSeconds())) + ", "
                 + field("matchTimeSeconds", number(loop.matchTimeSeconds())) + ", "
@@ -469,7 +500,8 @@ public final class RunRecordingJson {
                 + field("autoStep", loop.autoStep() == null ? "null" : string(loop.autoStep())) + ", "
                 + field("telemetry", telemetry.toString()) + ", "
                 + field("gamepad1", gamepad(loop.gamepad1())) + ", "
-                + field("gamepad2", gamepad(loop.gamepad2()))
+                + field("gamepad2", gamepad(loop.gamepad2())) + ", "
+                + field("aprilTags", aprilTags.toString())
                 + "}";
     }
 

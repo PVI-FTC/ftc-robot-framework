@@ -68,7 +68,31 @@ namespace PviHarness.Replay.Editor
                     text.AppendLine("Stopped: finished = " + live.Finished);
                     bool ok = live.Finished && last.stage == "LOOP" && Math.Abs(last.matchTimeSeconds - 1.0) < 1e-6
                         && live.Recording.loops.Count == 1 + 5 + 1 + 50 + 1;
-                    text.AppendLine(ok ? "PASSED" : "FAILED: unexpected stage, time or loop count");
+                    text.AppendLine(ok ? "Harness physics: passed" : "Harness physics: FAILED (unexpected stage, time or loop count)");
+
+                    // Second run: Unity's physics moves the robot (Stage U3). Each step sends where it
+                    // put the robot; the harness's pose must then be Unity's.
+                    live.Load("teamA-teleop", unityPhysics: true);
+                    using (var physics = new UnityRobotPhysics(live.RobotPhysics, null))
+                    {
+                        live.Init();
+                        live.Play(physics.Step(live.LastDriveCommand, live.LoopPeriodSeconds));
+                        PhysicsStateData state = null;
+                        for (int i = 0; i < 50; i++)
+                        {
+                            state = physics.Step(live.LastDriveCommand, live.LoopPeriodSeconds);
+                            live.Step(state);
+                        }
+                        PoseData pose = live.Recording.loops[live.Recording.loops.Count - 1].pose;
+                        bool same = live.UnityPhysics && pose != null && Math.Abs(pose.xInches - state.xInches) < 1e-3
+                            && Math.Abs(pose.yInches - state.yInches) < 1e-3;
+                        text.AppendLine("Unity physics: physics = " + (live.UnityPhysics ? "unity" : "harness") + ", harness pose ("
+                            + pose?.xInches + ", " + pose?.yInches + ") vs Unity (" + state.xInches + ", " + state.yInches + "): "
+                            + (same ? "passed" : "FAILED"));
+                        live.Stop();
+                        ok &= same;
+                    }
+                    text.AppendLine(ok ? "PASSED" : "FAILED");
                     report = text.ToString();
                     return ok;
                 }

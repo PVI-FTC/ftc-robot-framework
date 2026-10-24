@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import pvi.harness.ds.Button;
 import pvi.harness.ds.GamepadScript;
+import pvi.harness.ds.TelemetryFrame;
 import pvi.harness.hardware.RobotConfigs;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunResult;
@@ -29,9 +30,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * expected end. Start and end poses come from TeamCode's own {@code TeamAPedroPathRoute}, so
  * the test follows the team's changes to a route.</p>
  *
- * <p><b>Tolerance: 1 in and 2°.</b> The simulation gives the same result every run, and today
- * every route ends within 0.25 in and 1.5° (LP-11 0.24 in, DECODE 0.10 in, Curving Test 0.24 in
- * and 1.5°). The margin is for small, intended physics changes, such as replacing placeholder
+ * <p>Each route test also prints how long the route took, from PLAY until the OpMode first
+ * shows "Sequence Complete", for comparing with the real robot (CALIBRATION.md). The time is not
+ * checked: it will change when the robot's speeds are measured.</p>
+ *
+ * <p><b>Tolerance: 1 in and 2Â°.</b> The simulation gives the same result every run, and today
+ * every route ends within 0.25 in and 1.5Â° (LP-11 0.24 in, DECODE 0.10 in, Curving Test 0.24 in
+ * and 1.5Â°). The margin is for small, intended physics changes, such as replacing placeholder
  * values after calibration (Step 10), not for randomness. Real problems are much bigger: wrong
  * timing, a wrong start or a frame mistake left routes 10-17 in off or unfinished. 1 in is also
  * about what a well-tuned real robot achieves, so a pass means Pedro's tuning behaves sensibly
@@ -118,7 +123,12 @@ class PedroRouteTest {
         double positionError = Math.hypot(end[0] - expected[0], end[1] - expected[1]);
         // TeamCode's own "End Heading Error" doesn't wrap (it can say -358.5 for 1.5), so wrap here.
         double headingError = Math.IEEEremainder(end[2] - expected[2], 360.0);
-        System.out.printf(Locale.ROOT, "%s ended %.3f in and %.2f deg from its target%n", name, positionError, headingError);
+        // Timing is printed, not checked: it will change once the robot's speeds are measured
+        // (CALIBRATION.md). Compare it with the real robot's time for the same route.
+        Double seconds = secondsToComplete(result);
+        assertNotNull(seconds, name + ": no Driver Station screen showed Sequence Complete = true");
+        System.out.printf(Locale.ROOT, "%s finished %.2f s after PLAY, ended %.3f in and %.2f deg from its target%n",
+                name, seconds, positionError, headingError);
         assertTrue(positionError <= POSITION_TOLERANCE_INCHES, name + " ended " + positionError + " in off");
         assertTrue(Math.abs(headingError) <= HEADING_TOLERANCE_DEGREES, name + " ended " + headingError + " deg off");
     }
@@ -158,6 +168,19 @@ class PedroRouteTest {
         double limit = Pose.FIELD_HALF_WIDTH_INCHES - Math.max(model.lengthInches(), model.widthInches()) / 2.0;
         return new Pose(Math.max(-limit, Math.min(limit, start.xInches())),
                 Math.max(-limit, Math.min(limit, start.yInches())), start.headingRadians());
+    }
+
+    /**
+     * Seconds from PLAY until the OpMode first showed "Sequence Complete" as true, or null if it
+     * never did. Read from the Driver Station screens the run sent.
+     */
+    static Double secondsToComplete(RunResult result) {
+        for (TelemetryFrame frame : result.telemetry().frames()) {
+            if ("true".equals(frame.value("Sequence Complete"))) {
+                return frame.matchTimeSeconds();
+            }
+        }
+        return null;
     }
 
     /** "(48.061, 81.073, 135.031 deg)" as {x, y, degrees}, or null if not a pose (e.g. "unavailable"). */

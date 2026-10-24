@@ -22,6 +22,10 @@ namespace PviHarness.Replay
     /// OpMode call every 20 ms (<see cref="LivePacer"/>) and draws each one. Enter = PLAY, Esc = STOP,
     /// then Save keeps the run as a recording.</para>
     ///
+    /// <para><b>Unity physics</b> (Stage U3): with the Physics button (or U) set to "Unity", the next
+    /// live run is moved by Unity's physics engine (<see cref="UnityRobotPhysics"/>): walls and the
+    /// season field's solid parts really stop the robot.</para>
+    ///
     /// <para>Always: T top-down / 3D view, F follow the robot, G next season field (Harness/fields);
     /// in 3D view right-drag turns the camera and scroll zooms.</para>
     /// </summary>
@@ -49,6 +53,9 @@ namespace PviHarness.Replay
         private Transform seasonRoot;
 
         // Live play.
+        private const string PhysicsPreferenceKey = "HarnessReplay.physics";
+        private bool unityPhysicsChosen;
+        private UnityRobotPhysics robotPhysics;
         private LiveSession live;
         private readonly LivePacer pacer = new LivePacer();
         private string liveTitle;
@@ -82,6 +89,8 @@ namespace PviHarness.Replay
         public string LiveUnavailable { get; private set; }
         /// <summary>True once the live run has been saved.</summary>
         public bool LiveSaved { get; private set; }
+        /// <summary>True if the next live run should be moved by Unity's physics (the Physics button, or U).</summary>
+        public bool UnityPhysicsChosen => unityPhysicsChosen;
         /// <summary>The season field drawn now: its name ("BIOBUZZ 2026-2027"), or "Plain field".</summary>
         public string FieldName
         {
@@ -111,6 +120,8 @@ namespace PviHarness.Replay
             string startField = FieldLayouts.FieldFromCommandLine(Environment.GetCommandLineArgs())
                 ?? PlayerPrefs.GetString(FieldPreferenceKey, "");
             ShowField(FieldLayouts.Pick(null, startField, fields.ConvertAll(f => f.id)));
+
+            unityPhysicsChosen = PlayerPrefs.GetInt(PhysicsPreferenceKey, 0) == 1;
 
             RefreshRecordingList();
             // A recording named in the Inspector, else one given on the command line (dropped on
@@ -270,7 +281,7 @@ namespace PviHarness.Replay
             {
                 session = new LiveSession(new TcpBridgeTransport(bridgePort));
                 session.Hello();
-                session.Load(choice.id);
+                session.Load(choice.id, unityPhysicsChosen);
                 session.Init();
             }
             catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException || e is BridgeErrorException)
@@ -280,7 +291,12 @@ namespace PviHarness.Replay
                 return;
             }
             live = session;
-            liveTitle = choice.title;
+            if (live.UnityPhysics && live.RobotPhysics != null)
+            {
+                // Unity's physics, with the walls and the solid parts of the field shown now.
+                robotPhysics = new UnityRobotPhysics(live.RobotPhysics, fields.Find(f => f.id == fieldId));
+            }
+            liveTitle = choice.title + (robotPhysics != null ? ", Unity physics" : "");
             LiveSaved = false;
             Notice = null;
             shownFile = null;
@@ -291,13 +307,37 @@ namespace PviHarness.Replay
         /// <summary>Presses PLAY in a live run (Enter).</summary>
         public void LivePlay()
         {
-            LiveCall(() => live.Play());
+            LiveCall(() => live.Play(NextPhysicsState()));
         }
 
         /// <summary>Presses STOP in a live run (Esc).</summary>
         public void LiveStop()
         {
             LiveCall(() => live.Stop());
+        }
+
+        /// <summary>
+        /// Switches between the harness's physics and Unity's for the next live run (U). Not while a
+        /// live run is going: its physics was chosen when it started.
+        /// </summary>
+        public void TogglePhysics()
+        {
+            if (live != null && (live.Initialized || live.Playing))
+            {
+                Notice = "Physics can change between live runs, not during one";
+                return;
+            }
+            unityPhysicsChosen = !unityPhysicsChosen;
+            PlayerPrefs.SetInt(PhysicsPreferenceKey, unityPhysicsChosen ? 1 : 0);
+        }
+
+        /// <summary>
+        /// With Unity's physics: runs it one loop with the newest frame's drive command and returns
+        /// where the robot ended up, for the next step or play. Null with the harness's own physics.
+        /// </summary>
+        private PhysicsStateData NextPhysicsState()
+        {
+            return robotPhysics?.Step(live.LastDriveCommand, live.LoopPeriodSeconds);
         }
 
         /// <summary>Saves the live run as a recording in Harness/build/recordings.</summary>
@@ -360,6 +400,8 @@ namespace PviHarness.Replay
             }
             live.Dispose();
             live = null;
+            robotPhysics?.Dispose();
+            robotPhysics = null;
             if (why != null)
             {
                 ErrorMessage = why;
@@ -385,7 +427,7 @@ namespace PviHarness.Replay
                 int steps = pacer.StepsDue(Time.unscaledDeltaTime);
                 for (int i = 0; i < steps && live != null && !live.Finished; i++)
                 {
-                    LiveCall(() => live.Step());
+                    LiveCall(() => live.Step(NextPhysicsState()));
                 }
             }
             else
@@ -506,6 +548,9 @@ namespace PviHarness.Replay
                     break;
                 case KeyCode.G:
                     NextField();
+                    break;
+                case KeyCode.U:
+                    TogglePhysics();
                     break;
                 default:
                     // While a live run is going, the timeline always follows the newest moment.

@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import pvi.harness.runtime.OpModeRunner;
+import pvi.harness.runtime.RunRecorder;
+import pvi.harness.runtime.RunRecording;
+import pvi.harness.runtime.RunRecordingJson;
 import pvi.harness.runtime.RunResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -276,6 +279,73 @@ class AprilTagVisionTest {
         assertEquals("false", runner.telemetry().lastValue("Field Candidate Available"));
         assertEquals("Rejected: tag is not a configured fixed-field localization tag.",
                 runner.telemetry().lastValue("Field Candidate Status"));
+    }
+
+    // ---- Tags in the run recording (format v3) ------------------------------------------------
+
+    /** Records a vision run: tag 22 in view from 0.5 s to 1.5 s after PLAY. */
+    private static RunRecording recordTag22() {
+        OpModeRunner runner = visionRunner(new AprilTagScript()
+                .at(0.5).see(SeenAprilTag.at(22, 2.0, 30.0, 5.0))
+                .at(1.5).lose(22));
+        RunRecorder recorder = RunRecorder.attachTo(runner);
+        runner.init().start();
+        runner.loopUntil(2.0);
+        return recorder.recording();
+    }
+
+    /** The recorded loop closest to this many seconds after PLAY. */
+    private static RunRecording.LoopRecord loopAt(RunRecording recording, double matchSeconds) {
+        RunRecording.LoopRecord closest = null;
+        for (RunRecording.LoopRecord loop : recording.loops()) {
+            if (loop.stage() == RunResult.Stage.LOOP && (closest == null
+                    || Math.abs(loop.matchTimeSeconds() - matchSeconds) < Math.abs(closest.matchTimeSeconds() - matchSeconds))) {
+                closest = loop;
+            }
+        }
+        return closest;
+    }
+
+    /**
+     * WHAT: The run recording saves the tags in view each loop, with the camera and where the
+     * tag is from the lens; none before the tag comes into view or after it is lost.
+     *
+     * <p>WHY: The viewer and Unity show what the camera saw at each moment of a replay.</p>
+     */
+    @Test
+    void theRecordingSavesTheTagsInViewEachLoop() {
+        RunRecording recording = recordTag22();
+
+        assertEquals(List.of(), loopAt(recording, 0.3).aprilTags());
+        assertEquals(List.of(new RunRecording.AprilTagState(WEBCAM, 22, 2.0, 30.0, 5.0, 0.0, 0.0, 0.0)),
+                loopAt(recording, 1.0).aprilTags());
+        assertEquals(List.of(), loopAt(recording, 1.8).aprilTags());
+    }
+
+    /** WHAT: Tags in view survive saving as JSON and loading again, exactly. */
+    @Test
+    void tagsInViewSurviveSavingAndLoading() {
+        RunRecording recording = recordTag22();
+
+        RunRecording loaded = RunRecordingJson.parse(RunRecordingJson.format(recording));
+
+        assertEquals(recording.loops().stream().map(RunRecording.LoopRecord::aprilTags).toList(),
+                loaded.loops().stream().map(RunRecording.LoopRecord::aprilTags).toList());
+    }
+
+    /**
+     * WHAT: Version 2 recordings (saved before tags were recorded) still load, with no tags.
+     */
+    @Test
+    void versionTwoRecordingsStillLoadWithNoTags() {
+        String versionTwo = RunRecordingJson.format(recordTag22())
+                .replace("\"version\": 3,", "\"version\": 2,")
+                .replaceAll(", \"aprilTags\": \\[[^\\]]*\\]", "");
+        assertTrue(!versionTwo.contains("aprilTags"), "the test should have removed every aprilTags field");
+
+        RunRecording old = RunRecordingJson.parse(versionTwo);
+
+        assertTrue(old.loops().stream().allMatch(loop -> loop.aprilTags().isEmpty()));
     }
 
     // ---- Small helpers -----------------------------------------------------------------------

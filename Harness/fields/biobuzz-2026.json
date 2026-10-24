@@ -5,7 +5,7 @@
   "name": "BIOBUZZ",
   "season": "2026-2027",
   "sources": [
-    "FTC BIOBUZZ Competition Manual, version TU06, Section 9 ARENA (figures 9-2, 9-4, 9-8 to 9-12, 9-15 to 9-17) and Figure 10-2",
+    "FTC BIOBUZZ Competition Manual, version TU06 (copy in fields/sources/BIOBUZZ_Competition_Manual_TU06.pdf), Section 9 ARENA (figures 9-2, 9-4, 9-8 to 9-12, 9-15 to 9-17) and Figure 10-2",
     "FTC SDK Vision 12.0.0, AprilTagGameDatabase.getBioBuzzTagLibrary() (tag IDs, sizes and positions inside each cluster)",
     "FTC field coordinate system (ftc-docs): BIOBUZZ has the red alliance on the left as seen from the audience, the same 'inverted square' layout as DECODE"
   ],

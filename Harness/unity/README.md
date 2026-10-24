@@ -71,6 +71,22 @@ operator's face buttons. If a controller disconnects, every input is released at
 moment shows under Events. **Harness → Live Smoke Test** checks the connection without a
 controller (needs `unityBridge` running) and writes `Harness/build/unity-live-smoke.txt`.
 
+### Unity's physics (Stage U3)
+
+Set **Physics:** (right of the chooser, or press **U**) to **Unity** before you pick a live OpMode,
+and Unity's physics engine moves the robot instead of the harness's own physics. The chooser
+title then ends in "Unity physics".
+- The robot speeds up, slows down and coasts the same way as with the harness's physics
+  (`DriveLaw.cs`, a copy of the harness's `MomentumPhysics`).
+- The walls and the solid parts of the field shown now (BIOBUZZ's HIVE frame and FLOWERS) really
+  stop the robot, and it slides along them. CELLS high above the floor don't block it.
+- The robot stays flat on the floor, and game pieces aren't simulated yet.
+- The choice is remembered. It can change only between live runs, and the field used for blocking
+  is the one shown when the run starts.
+
+The code is `UnityRobotPhysics.cs` (invisible PhysX colliders and a Rigidbody robot, stepped one
+20 ms loop at a time) and `DriveLaw.cs`. The tests are in `UnityRobotPhysicsTests`.
+
 ## Season fields
 
 The **Field:** button (right of the Replay chooser) or **G** switches between the plain tiled field

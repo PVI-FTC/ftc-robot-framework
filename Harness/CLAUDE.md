@@ -24,3 +24,4 @@ The rules are the same as in [AGENTS.md](AGENTS.md). The full set:
 @ai-instructions/03-workflow.md
 @ai-instructions/04-code-style.md
 @ai-instructions/05-desktop-viewer.md
+@ai-instructions/06-bot-team.md

@@ -52,7 +52,7 @@ class BridgeServerTest {
                 client.setSoTimeout(20_000);
                 Writer out = new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8);
                 BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-                for (String line : List.of("{\"type\": \"hello\", \"version\": 2}",
+                for (String line : List.of("{\"type\": \"hello\", \"version\": 3}",
                         "{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}", "{\"type\": \"init\"}", "{\"type\": \"bye\"}")) {
                     out.write(line + "\n");
                     out.flush();

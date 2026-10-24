@@ -120,6 +120,8 @@ public class FakeHardwareMap extends HardwareMap {
                 }
             }
         }
+        // A sagging battery drops with simulated time.
+        batteryVoltage.step(seconds);
     }
 
     /** Removes a device, for example to test how robot code copes with a missing part. */

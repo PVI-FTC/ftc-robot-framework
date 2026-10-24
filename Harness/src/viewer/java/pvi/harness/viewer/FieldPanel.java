@@ -16,6 +16,8 @@ import javax.swing.JComponent;
 public final class FieldPanel extends JComponent {
     /** Space left around the field, in pixels, for the caption and legend. */
     static final int MARGIN_PIXELS = 30;
+    /** How long, in seconds of the run, a wall stays red after the robot hits it. */
+    static final double WALL_FLASH_SECONDS = 0.4;
     /** Smallest field size worth drawing, in pixels. */
     static final int MIN_FIELD_PIXELS = 100;
 
@@ -64,7 +66,8 @@ public final class FieldPanel extends JComponent {
             // Center the field square in the panel.
             g.translate((getWidth() - coords.totalPixels()) / 2, (getHeight() - coords.totalPixels()) / 2);
             FieldPainter.paint(g, coords, view.box(), view.loop(index).pose(), view.trail(index), view.caption(index),
-                    FieldPainter.RobotParts.of(view.loop(index).motors()));
+                    FieldPainter.RobotParts.of(view.loop(index).motors()),
+                    view.wallHitWithin(index, WALL_FLASH_SECONDS));
         } finally {
             g.dispose();
         }

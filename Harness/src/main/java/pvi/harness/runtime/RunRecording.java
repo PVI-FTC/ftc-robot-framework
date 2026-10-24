@@ -30,9 +30,10 @@ public record RunRecording(Header header, List<LoopRecord> loops,
 
     /**
      * Format version. Raise it (and update the README) whenever any field changes.
-     * Version 2 added {@link #events()}; version 1 files still load (with no events).
+     * Version 2 added {@link #events()}; version 3 added {@link LoopRecord#aprilTags()}. Older
+     * files still load (with no events, or no tags).
      */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     /** Copies the lists, so the recording can't change after it is made. */
     public RunRecording {
@@ -120,18 +121,48 @@ public record RunRecording(Header header, List<LoopRecord> loops,
      * @param telemetry        every telemetry screen sent during this call, in order (often one, sometimes none)
      * @param gamepad1         the driver's gamepad as the OpMode saw it during this call
      * @param gamepad2         the operator's gamepad as the OpMode saw it during this call
+     * @param aprilTags        the AprilTags in each fake webcam's latest picture, i.e. what robot
+     *                         code could detect during this call (empty with no webcam)
      */
     public record LoopRecord(double sinceInitSeconds, double matchTimeSeconds, RunResult.Stage stage,
                              Pose pose, List<MotorState> motors, List<ServoState> servos,
                              String autoStep, List<TelemetryScreen> telemetry,
-                             GamepadState gamepad1, GamepadState gamepad2) {
+                             GamepadState gamepad1, GamepadState gamepad2, List<AprilTagState> aprilTags) {
 
         /** Copies the lists, so the record can't change after it is made. */
         public LoopRecord {
             motors = List.copyOf(motors);
             servos = List.copyOf(servos);
             telemetry = List.copyOf(telemetry);
+            aprilTags = List.copyOf(aprilTags);
         }
+
+        /** A loop entry with no AprilTags in view (a robot without a webcam). */
+        public LoopRecord(double sinceInitSeconds, double matchTimeSeconds, RunResult.Stage stage,
+                          Pose pose, List<MotorState> motors, List<ServoState> servos,
+                          String autoStep, List<TelemetryScreen> telemetry,
+                          GamepadState gamepad1, GamepadState gamepad2) {
+            this(sinceInitSeconds, matchTimeSeconds, stage, pose, motors, servos, autoStep, telemetry,
+                    gamepad1, gamepad2, List.of());
+        }
+    }
+
+    /**
+     * One AprilTag a fake webcam sees, measured from its lens like the SDK's {@code ftcPose}:
+     * x right, y forward, z up. Range and bearing can be worked out from these
+     * ({@code hypot(right, forward)}, {@code atan2(-right, forward)}).
+     *
+     * @param camera        the webcam's configuration name, e.g. "logitechVisionWebcam"
+     * @param id            the tag's number, e.g. 21
+     * @param rightInches   how far right of the lens (negative = left)
+     * @param forwardInches how far in front of the lens
+     * @param upInches      how far above the lens (negative = below)
+     * @param yawDegrees    the tag's yaw, as the SDK reports it
+     * @param pitchDegrees  the tag's pitch, as the SDK reports it
+     * @param rollDegrees   the tag's roll, as the SDK reports it
+     */
+    public record AprilTagState(String camera, int id, double rightInches, double forwardInches, double upInches,
+                                double yawDegrees, double pitchDegrees, double rollDegrees) {
     }
 
     /**

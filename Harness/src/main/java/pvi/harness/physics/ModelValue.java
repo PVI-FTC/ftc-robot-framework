@@ -22,6 +22,8 @@ public record ModelValue(double value, String unit, String source, boolean measu
     public static final String DEGREES_PER_SECOND = "deg/s";
     /** Unit label for lengths. */
     public static final String INCHES = "in";
+    /** Unit label for voltages. */
+    public static final String VOLTS = "V";
 
     /** Refuses non-numbers, a missing unit, and a missing source. */
     public ModelValue {

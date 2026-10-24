@@ -29,3 +29,6 @@ changes. In short:
 3. Run the harness tests from `Harness/` with `.\gradlew.bat test` before and after your change.
    Then update [PROGRESS.md](PROGRESS.md) with the new status and a log line.
 4. Do not commit, push or open a pull request unless the user asks.
+5. Several bots may be working here at once (a manager and worker bots). Read
+   [06-bot-team.md](ai-instructions/06-bot-team.md) for who owns which files, how to coordinate,
+   and how to take over as manager. Never run `gradlew test` while another bot is running it.

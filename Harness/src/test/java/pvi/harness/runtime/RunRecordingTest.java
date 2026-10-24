@@ -158,7 +158,7 @@ class RunRecordingTest {
     void headerDescribesTheRunTheRobotAndItsModel() {
         RunRecording.Header header = recordTeamAAutonomous().header();
 
-        assertEquals(2, header.version());
+        assertEquals(3, header.version());
         assertEquals("inches", header.distanceUnit());
         assertEquals("radians", header.angleUnit());
         assertEquals("seconds", header.timeUnit());
@@ -263,7 +263,7 @@ class RunRecordingTest {
         assertEquals(List.of("version", "distanceUnit", "angleUnit", "timeUnit", "robotConfig", "opMode",
                 "period", "loopPeriodSeconds", "startPose", "driveModel"), List.copyOf(header.keySet()));
         assertEquals("AUTONOMOUS", header.get("period"));
-        assertEquals(2.0, header.get("version"));
+        assertEquals(3.0, header.get("version"));
         assertEquals("radians", header.get("angleUnit"));
         assertEquals(List.of("xInches", "yInches", "headingRadians"),
                 List.copyOf(((Map<String, Object>) header.get("startPose")).keySet()));
@@ -279,7 +279,7 @@ class RunRecordingTest {
         for (Object item : loops) {
             Map<String, Object> loop = (Map<String, Object>) item;
             assertEquals(List.of("sinceInitSeconds", "matchTimeSeconds", "stage", "pose", "motors", "servos",
-                    "autoStep", "telemetry", "gamepad1", "gamepad2"), List.copyOf(loop.keySet()));
+                    "autoStep", "telemetry", "gamepad1", "gamepad2", "aprilTags"), List.copyOf(loop.keySet()));
             assertEquals(List.of("buttons", "leftStickX", "leftStickY", "rightStickX", "rightStickY",
                     "leftTrigger", "rightTrigger"), List.copyOf(((Map<String, Object>) loop.get("gamepad1")).keySet()));
             List<Object> motors = (List<Object>) loop.get("motors");
@@ -364,12 +364,14 @@ class RunRecordingTest {
      */
     @Test
     void refusesOtherFormatVersions() {
-        String json = RunRecordingJson.format(recordTeamAAutonomous()).replace("\"version\": 2,", "\"version\": 3,");
+        int tooNew = RunRecording.VERSION + 1;
+        String json = RunRecordingJson.format(recordTeamAAutonomous())
+                .replace("\"version\": " + RunRecording.VERSION + ",", "\"version\": " + tooNew + ",");
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> RunRecordingJson.parse(json));
 
-        assertTrue(error.getMessage().contains("version 3"), error.getMessage());
-        assertTrue(error.getMessage().contains("reads versions 1 to 2"), error.getMessage());
+        assertTrue(error.getMessage().contains("version " + tooNew), error.getMessage());
+        assertTrue(error.getMessage().contains("reads versions 1 to " + RunRecording.VERSION), error.getMessage());
     }
 
     /**
@@ -396,7 +398,7 @@ class RunRecordingTest {
         assertEquals(recording.events(), RunRecordingJson.parse(RunRecordingJson.format(recording)).events());
 
         String versionOne = RunRecordingJson.format(recording)
-                .replace("\"version\": 2,", "\"version\": 1,")
+                .replace("\"version\": " + RunRecording.VERSION + ",", "\"version\": 1,")
                 .replaceFirst("  \"events\": \\[[^\\]]*\\],\n", "");
         assertFalse(versionOne.contains("\"events\""), "the test should have removed the events field");
         RunRecording old = RunRecordingJson.parse(versionOne);

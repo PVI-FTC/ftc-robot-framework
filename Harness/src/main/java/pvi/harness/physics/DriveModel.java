@@ -30,6 +30,11 @@ public final class DriveModel {
     private final ModelValue width;
     /** How the robot speeds up and slows down, or null to change speed instantly. */
     private final Dynamics dynamics;
+    /**
+     * The battery voltage the full-power speeds were measured at, or null if battery voltage
+     * doesn't change the speeds. A motor's speed is about proportional to its voltage.
+     */
+    private final ModelValue speedVoltage;
 
     /**
      * @param name    robot name for reports, e.g. "Team A"
@@ -47,7 +52,13 @@ public final class DriveModel {
     /** Like the other constructor, with momentum ({@code dynamics}, or null for instant speed changes). */
     public DriveModel(String name, ModelValue forward, ModelValue strafe, ModelValue turn,
                       ModelValue length, ModelValue width, Dynamics dynamics) {
+        this(name, forward, strafe, turn, length, width, dynamics, null);
+    }
+
+    private DriveModel(String name, ModelValue forward, ModelValue strafe, ModelValue turn,
+                       ModelValue length, ModelValue width, Dynamics dynamics, ModelValue speedVoltage) {
         this.dynamics = dynamics;
+        this.speedVoltage = speedVoltage == null ? null : require("speed voltage", speedVoltage, ModelValue.VOLTS);
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("A drive model needs a name.");
         }
@@ -97,7 +108,24 @@ public final class DriveModel {
 
     /** The same robot with momentum ({@code dynamics}), or without (null). */
     public DriveModel withDynamics(Dynamics dynamics) {
-        return new DriveModel(name, forward, strafe, turn, length, width, dynamics);
+        return new DriveModel(name, forward, strafe, turn, length, width, dynamics, speedVoltage);
+    }
+
+    /** The battery voltage the full-power speeds were measured at, or null if voltage is ignored. */
+    public ModelValue speedVoltage() { return speedVoltage; }
+
+    /**
+     * The same robot, with its full-power speeds measured at {@code volts} (or null to ignore
+     * battery voltage). Then a lower battery makes it slower in proportion: at 11 V, a robot
+     * measured at 12.5 V drives 88% as fast.
+     */
+    public DriveModel withSpeedVoltage(ModelValue volts) {
+        return new DriveModel(name, forward, strafe, turn, length, width, dynamics, volts);
+    }
+
+    /** How much of its measured speed the robot gets at {@code batteryVolts} (1 if voltage is ignored). */
+    public double voltageScale(double batteryVolts) {
+        return speedVoltage == null ? 1.0 : batteryVolts / speedVoltage.value();
     }
 
     /** Forward speed in feet per second, for reports. */
@@ -127,6 +155,7 @@ public final class DriveModel {
         if (!length.measured()) names.add("robot length");
         if (!width.measured()) names.add("robot width");
         if (dynamics != null) names.addAll(dynamics.unmeasured());
+        if (speedVoltage != null && !speedVoltage.measured()) names.add("speed voltage");
         return names;
     }
 
@@ -146,7 +175,8 @@ public final class DriveModel {
                         + "  robot width    %s%n"
                         + "%s",
                 name, forwardFeetPerSecond(), forward, strafeFeetPerSecond(), strafe, turn, length, width,
-                dynamics == null ? "  momentum       none (speed changes instantly)" : dynamics.describe());
+                dynamics == null ? "  momentum       none (speed changes instantly)" : dynamics.describe())
+                + (speedVoltage == null ? "" : String.format(Locale.ROOT, "%n  speeds at      %s", speedVoltage));
     }
 
     /** Short summary, e.g. {@code DriveModel[Team A, unmeasured: [turn rate, ...]]}. */

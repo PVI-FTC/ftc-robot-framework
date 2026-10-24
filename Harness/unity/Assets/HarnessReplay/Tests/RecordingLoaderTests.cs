@@ -79,15 +79,25 @@ namespace PviHarness.Replay.Tests
 
         /// <summary>
         /// WHAT: An unknown format version is refused, saying which versions this project reads.
-        /// WHY: Reading a newer layout as if it were version 2 would show wrong values silently.
+        /// WHY: Reading a newer layout as if it were version 3 would show wrong values silently.
         /// </summary>
         [Test]
         public void UnknownVersionIsRefusedClearly()
         {
-            var error = Assert.Throws<RecordingFormatException>(() => RecordingLoader.Parse(MinimalJson(3, "null"), "future.json"));
+            var error = Assert.Throws<RecordingFormatException>(() => RecordingLoader.Parse(MinimalJson(4, "null"), "future.json"));
 
-            StringAssert.Contains("future.json is format version 3", error.Message);
-            StringAssert.Contains("versions 1 and 2", error.Message);
+            StringAssert.Contains("future.json is format version 4", error.Message);
+            StringAssert.Contains("versions 1, 2, 3", error.Message);
+        }
+
+        /// <summary>
+        /// WHAT: Version 3 recordings (each loop may also list the AprilTags the camera saw) load; the
+        /// replay doesn't show the tags yet, so it skips them.
+        /// </summary>
+        [Test]
+        public void VersionThreeLoads()
+        {
+            Assert.AreEqual(3, RecordingLoader.Parse(MinimalJson(3, "null"), "v3.json").header.version);
         }
 
         /// <summary>WHAT: Files that aren't recordings give a clear message.</summary>

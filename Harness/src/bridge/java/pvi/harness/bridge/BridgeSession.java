@@ -8,6 +8,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import pvi.harness.ds.RumbleRecord;
+import pvi.harness.physics.DriveModel;
+import pvi.harness.physics.Dynamics;
+import pvi.harness.physics.MecanumKinematics;
+import pvi.harness.physics.PhysicsBackend;
+import pvi.harness.physics.Pose;
+import pvi.harness.physics.PoseEstimator;
+import pvi.harness.physics.WheelPushes;
+import pvi.harness.physics.WheelReader;
 import pvi.harness.runtime.JsonReader;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunRecorder;
@@ -72,6 +80,10 @@ public final class BridgeSession {
     private ControllerPoller controllers;
     /** Gamepads from the controllers, or null when Unity sends the gamepads. */
     private LiveGamepads liveGamepads;
+    /** Unity's physics when the run was loaded with "physics": "unity"; null for the harness's own. */
+    private RemotePhysics remotePhysics;
+    /** Reads the drive wheels for each frame's driveCommand, the same way the position estimate does. */
+    private final WheelReader wheels = WheelReader.teamA();
 
     /** A session that reads real controllers (Jamepad) when a run asks for them. */
     public BridgeSession() {
@@ -177,6 +189,11 @@ public final class BridgeSession {
             return error("\"input\" must be \"controllers\" (the harness reads the game controllers) or "
                     + "\"messages\" (each step carries the gamepads), not " + jsonValue(input) + ".");
         }
+        Object physics = message.getOrDefault("physics", "harness");
+        if (!"harness".equals(physics) && !"unity".equals(physics)) {
+            return error("\"physics\" must be \"harness\" (the harness's own physics moves the robot) or "
+                    + "\"unity\" (Unity's physics does), not " + jsonValue(physics) + ".");
+        }
         // A fresh run: new OpMode, new fake robot, new clock. Earlier runners are forgotten.
         RunnerRegistry.startTest();
         close();
@@ -192,6 +209,19 @@ public final class BridgeSession {
         } else {
             runner.gamepad1(driver).gamepad2(operator);
         }
+        remotePhysics = null;
+        if ("unity".equals(physics)) {
+            PoseEstimator builtIn = runner.positionEstimator();
+            if (builtIn == null) {
+                runner = null;
+                entry = null;
+                phase = Phase.READY;
+                return error("\"physics\": \"unity\" needs a robot with drive motors to move; this one has none.");
+            }
+            // Same robot, same start; only the backend that moves it is Unity's.
+            remotePhysics = new RemotePhysics(builtIn.start());
+            runner.usePositionEstimator(new PoseEstimator(builtIn.model(), wheels, builtIn.start(), remotePhysics));
+        }
         recorder = RunRecorder.attachTo(runner);
         sentRumbles1 = 0;
         sentRumbles2 = 0;
@@ -200,6 +230,8 @@ public final class BridgeSession {
         return reply(BridgeProtocol.LOADED,
                 field("opMode", RunRecordingJson.string(entry.id())),
                 field("input", RunRecordingJson.string(liveGamepads == null ? "messages" : "controllers")),
+                field("physics", RunRecordingJson.string(remotePhysics == null ? "harness" : "unity")),
+                field("robotPhysics", robotPhysicsJson()),
                 field("matchSeconds", RunRecordingJson.number(entry.period().seconds())),
                 field("header", RunRecordingJson.headerJson(recorder.header())));
     }
@@ -217,6 +249,7 @@ public final class BridgeSession {
                     + phase.name().toLowerCase(Locale.ROOT) + ".");
         }
         readGamepads(message);
+        readPhysicsState(message);
         if (phase == Phase.INITIALIZED) {
             return runCall(() -> runner.initLoop(1), Phase.INITIALIZED);
         }
@@ -234,6 +267,7 @@ public final class BridgeSession {
             return error(phase == Phase.PLAYING ? "PLAY was already pressed." : "Send \"init\" before \"play\".");
         }
         readGamepads(message);
+        readPhysicsState(message);
         return runCall(() -> runner.start(), Phase.PLAYING);
     }
 
@@ -296,7 +330,8 @@ public final class BridgeSession {
                 field("finished", Boolean.toString(phase == Phase.STOPPED)),
                 field("controllers", controllerStatus()),
                 field("controllerProblem", controllers == null || controllers.problem() == null ? "null"
-                        : RunRecordingJson.string(controllers.problem())));
+                        : RunRecordingJson.string(controllers.problem())),
+                field("driveCommand", driveCommandJson()));
         sentRumbles1 = rumbles1.size();
         sentRumbles2 = rumbles2.size();
         sentEvents = events.size();
@@ -314,6 +349,94 @@ public final class BridgeSession {
         if (message.containsKey("gamepad2")) {
             operator.set(RunRecordingJson.gamepadFrom(message.get("gamepad2"), "gamepad2"));
         }
+    }
+
+    /**
+     * With Unity's physics, takes the robot state Unity worked out for the last frame's
+     * driveCommand ("physicsState"); every "step" and "play" must carry one then. With the
+     * harness's own physics it is refused, so a mix-up shows at once instead of being ignored.
+     */
+    @SuppressWarnings("unchecked")
+    private void readPhysicsState(Map<String, Object> message) {
+        Object raw = message.get("physicsState");
+        if (remotePhysics == null) {
+            if (raw != null) {
+                throw new IllegalArgumentException("This run uses the harness's own physics, so steps must not carry "
+                        + "\"physicsState\". Load with \"physics\": \"unity\" to send it.");
+            }
+            return;
+        }
+        if (!(raw instanceof Map)) {
+            throw new IllegalArgumentException("This run uses Unity's physics (\"physics\": \"unity\"), so each "
+                    + "\"step\" and \"play\" needs a \"physicsState\" object: {\"xInches\", \"yInches\", "
+                    + "\"headingRadians\", \"forwardInchesPerSecond\", \"leftInchesPerSecond\", "
+                    + "\"counterClockwiseRadiansPerSecond\", \"wallContact\"}.");
+        }
+        Map<String, Object> state = (Map<String, Object>) raw;
+        Object contact = state.getOrDefault("wallContact", "");
+        if (!(contact instanceof String)) {
+            throw new IllegalArgumentException("physicsState.wallContact must be text like \"+x\", \"+x/-y\" or \"\".");
+        }
+        remotePhysics.supply(new PhysicsBackend.State(
+                new Pose(number(state, "xInches"), number(state, "yInches"), number(state, "headingRadians")),
+                new MecanumKinematics.RobotVelocity(number(state, "forwardInchesPerSecond"),
+                        number(state, "leftInchesPerSecond"), number(state, "counterClockwiseRadiansPerSecond")),
+                (String) contact));
+    }
+
+    private static double number(Map<String, Object> object, String name) {
+        Object value = object.get(name);
+        if (!(value instanceof Double)) {
+            throw new IllegalArgumentException("physicsState." + name + " must be a number, not " + jsonValue(value) + ".");
+        }
+        return (Double) value;
+    }
+
+    /**
+     * The wheels' command after this call, for Unity's physics: each wheel's push (-1 to 1, after
+     * motor direction) and whether the drive motors brake at zero power. Null without drive motors.
+     */
+    private String driveCommandJson() {
+        if (runner.positionEstimator() == null) {
+            return "null";
+        }
+        WheelPushes p = wheels.read(runner.hardwareMap());
+        return "{" + field("frontLeft", RunRecordingJson.number(p.frontLeft()))
+                + ", " + field("frontRight", RunRecordingJson.number(p.frontRight()))
+                + ", " + field("rearLeft", RunRecordingJson.number(p.rearLeft()))
+                + ", " + field("rearRight", RunRecordingJson.number(p.rearRight()))
+                + ", " + field("braking", Boolean.toString(wheels.isBraking(runner.hardwareMap()))) + "}";
+    }
+
+    /**
+     * What Unity's physics needs to move this robot like the harness would: full-power speeds,
+     * size, start pose and (if the drive model has them) its response and traction numbers. Null
+     * when the robot isn't tracked.
+     */
+    private String robotPhysicsJson() {
+        PoseEstimator estimator = runner.positionEstimator();
+        if (estimator == null) {
+            return "null";
+        }
+        DriveModel m = estimator.model();
+        Dynamics d = m.dynamics();
+        Pose start = estimator.start();
+        return "{" + field("forwardInchesPerSecond", RunRecordingJson.number(m.forwardInchesPerSecond()))
+                + ", " + field("strafeInchesPerSecond", RunRecordingJson.number(m.strafeInchesPerSecond()))
+                + ", " + field("turnRadiansPerSecond", RunRecordingJson.number(m.turnRadiansPerSecond()))
+                + ", " + field("lengthInches", RunRecordingJson.number(m.lengthInches()))
+                + ", " + field("widthInches", RunRecordingJson.number(m.widthInches()))
+                + ", " + field("responseTimeSeconds", d == null ? "null" : RunRecordingJson.number(d.responseTime().value()))
+                + ", " + field("maxAccelerationInchesPerSecondSquared",
+                        d == null ? "null" : RunRecordingJson.number(d.maxAcceleration().value()))
+                + ", " + field("forwardCoastInchesPerSecondSquared",
+                        d == null ? "null" : RunRecordingJson.number(d.forwardCoast().value()))
+                + ", " + field("lateralCoastInchesPerSecondSquared",
+                        d == null ? "null" : RunRecordingJson.number(d.lateralCoast().value()))
+                + ", " + field("start", "{" + field("xInches", RunRecordingJson.number(start.xInches()))
+                        + ", " + field("yInches", RunRecordingJson.number(start.yInches()))
+                        + ", " + field("headingRadians", RunRecordingJson.number(start.headingRadians())) + "}")
+                + "}";
     }
 
     /**

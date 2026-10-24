@@ -117,14 +117,51 @@ public final class FieldPainter {
     /** Like {@link #paint(Graphics2D, FieldCoordinates, RobotBox, Pose, List, String)}, also drawing the wheels and intake. */
     public static void paint(Graphics2D g, FieldCoordinates coords, RobotBox box, Pose pose,
                              List<Pose> trail, String caption, RobotParts parts) {
+        paint(g, coords, box, pose, trail, caption, parts, null);
+    }
+
+    /**
+     * Like {@link #paint(Graphics2D, FieldCoordinates, RobotBox, Pose, List, String, RobotParts)},
+     * also flashing the wall the robot just hit ({@code flashWall}: "+x", "-y", "+x/-y" in a
+     * corner, or null for none) in red.
+     */
+    public static void paint(Graphics2D g, FieldCoordinates coords, RobotBox box, Pose pose,
+                             List<Pose> trail, String caption, RobotParts parts, String flashWall) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         paintField(g, coords);
         paintTrail(g, coords, trail);
+        if (flashWall != null) {
+            paintWallFlash(g, coords, flashWall);
+        }
         if (pose != null) {
             paintRobot(g, coords, box, pose, parts);
         }
         paintText(g, coords, box, pose, caption);
+    }
+
+    /** A wall the robot just hit, drawn as a thick red edge on the field border. */
+    static final Color WALL_FLASH = Theme.RED;
+
+    /** Draws each wall named in {@code walls} ("+x", "-x", "+y", "-y", joined by "/") in red. */
+    private static void paintWallFlash(Graphics2D g, FieldCoordinates c, String walls) {
+        double half = Pose.FIELD_HALF_WIDTH_INCHES;
+        double left = c.screenX(-half);
+        double right = c.screenX(half);
+        double top = c.screenY(half);
+        double bottom = c.screenY(-half);
+        g.setColor(WALL_FLASH);
+        g.setStroke(new BasicStroke((float) Math.max(4.0, 1.2 * c.pixelsPerInch()), BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_MITER));
+        for (String wall : walls.split("/")) {
+            switch (wall.trim()) {
+                case "+x" -> g.draw(new Line2D.Double(right, top, right, bottom));
+                case "-x" -> g.draw(new Line2D.Double(left, top, left, bottom));
+                case "+y" -> g.draw(new Line2D.Double(left, top, right, top));
+                case "-y" -> g.draw(new Line2D.Double(left, bottom, right, bottom));
+                default -> { }
+            }
+        }
     }
 
     /**

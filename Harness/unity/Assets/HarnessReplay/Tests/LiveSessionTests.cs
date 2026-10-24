@@ -7,7 +7,7 @@ namespace PviHarness.Replay.Tests
 {
     /// <summary>
     /// Live play's Unity side (Stage U2 piece 3), against a fake harness that answers like
-    /// <c>gradlew unityBridge</c> (message format v2), using the sample recording's loops as frames.
+    /// <c>gradlew unityBridge</c> (message format v3), using the sample recording's loops as frames.
     /// </summary>
     public class LiveSessionTests
     {
@@ -41,13 +41,22 @@ namespace PviHarness.Replay.Tests
                     case "hello":
                         return new JObject
                         {
-                            ["type"] = "welcome", ["version"] = 2, ["loopPeriodSeconds"] = 0.02,
+                            ["type"] = "welcome", ["version"] = 3, ["loopPeriodSeconds"] = 0.02,
                             ["opModes"] = new JArray(new JObject { ["id"] = "teamA-teleop", ["title"] = "Team A TeleOp", ["period"] = "TELEOP" }),
                         }.ToString(Formatting.None);
                     case "load":
                         return new JObject
                         {
                             ["type"] = "loaded", ["opMode"] = message["opMode"], ["input"] = message["input"], ["matchSeconds"] = 120,
+                            ["physics"] = message["physics"],
+                            ["robotPhysics"] = new JObject
+                            {
+                                ["forwardInchesPerSecond"] = 62.6, ["strafeInchesPerSecond"] = 50, ["turnRadiansPerSecond"] = 3.14,
+                                ["lengthInches"] = 18, ["widthInches"] = 18, ["responseTimeSeconds"] = 0.1,
+                                ["maxAccelerationInchesPerSecondSquared"] = 200, ["forwardCoastInchesPerSecondSquared"] = 40,
+                                ["lateralCoastInchesPerSecondSquared"] = 60,
+                                ["start"] = new JObject { ["xInches"] = 0, ["yInches"] = 0, ["headingRadians"] = 0 },
+                            },
                             ["header"] = JObject.FromObject(sample.header),
                         }.ToString(Formatting.None);
                     case "save":
@@ -66,6 +75,10 @@ namespace PviHarness.Replay.Tests
                             ["finished"] = (string)message["type"] == "stop" || FinishAfterNextFrame,
                             ["controllers"] = new JArray("PS5 Controller", "none"),
                             ["controllerProblem"] = null,
+                            ["driveCommand"] = new JObject
+                            {
+                                ["frontLeft"] = 0.5, ["frontRight"] = 0.5, ["rearLeft"] = 0.5, ["rearRight"] = 0.5, ["braking"] = false,
+                            },
                         };
                         next++;
                         return frame.ToString(Formatting.None);
@@ -81,6 +94,32 @@ namespace PviHarness.Replay.Tests
         private FakeHarness harness;
         private LiveSession session;
 
+        /// <summary>
+        /// WHAT: With Unity's physics, load says so and reads the robot's numbers; each frame's
+        /// driveCommand is kept; step and play carry the physicsState Unity passes in.
+        /// WHY: This is the Unity side of Stage U3's message exchange; a missing field would stop the run.
+        /// </summary>
+        [Test]
+        public void UnityPhysicsSendsStatesAndReadsDriveCommands()
+        {
+            session.Hello();
+            session.Load("teamA-teleop", unityPhysics: true);
+            session.Init();
+            session.Play(new PhysicsStateData());
+            session.Step(new PhysicsStateData { xInches = 12.5, wallContact = "+x" });
+
+            Assert.AreEqual("unity", (string)harness.Received[1]["physics"]);
+            Assert.IsTrue(session.UnityPhysics);
+            Assert.AreEqual(62.6, session.RobotPhysics.forwardInchesPerSecond, 1e-9);
+            Assert.IsTrue(session.RobotPhysics.HasDynamics);
+            Assert.AreEqual(0.02, session.LoopPeriodSeconds, 1e-9);
+            Assert.IsNull(harness.Received[2]["physicsState"], "init carries no state");
+            Assert.AreEqual(12.5, (double)harness.Received[4]["physicsState"]["xInches"], 1e-9);
+            Assert.AreEqual("+x", (string)harness.Received[4]["physicsState"]["wallContact"]);
+            Assert.AreEqual(0.5, session.LastDriveCommand.frontLeft, 1e-9);
+            Assert.IsFalse(session.LastDriveCommand.braking);
+        }
+
         [SetUp]
         public void Connect()
         {
@@ -89,16 +128,19 @@ namespace PviHarness.Replay.Tests
         }
 
         /// <summary>
-        /// WHAT: Hello speaks version 2 and reads the OpModes; load asks the harness to read the controllers.
+        /// WHAT: Hello speaks version 3 and reads the OpModes; load asks the harness to read the controllers
+        /// and, unless asked otherwise, to use its own physics.
         /// WHY: The user chose "the harness reads the controllers"; a wrong version would silently misread frames.
         /// </summary>
         [Test]
-        public void HelloAndLoadUseVersionTwoAndControllers()
+        public void HelloAndLoadUseVersionThreeAndControllers()
         {
             session.Hello();
             session.Load("teamA-teleop");
 
-            Assert.AreEqual(2, (int)harness.Received[0]["version"]);
+            Assert.AreEqual(3, (int)harness.Received[0]["version"]);
+            Assert.AreEqual("harness", (string)harness.Received[1]["physics"]);
+            Assert.IsFalse(session.UnityPhysics);
             Assert.AreEqual("teamA-teleop", session.OpModes[0].id);
             Assert.AreEqual("controllers", (string)harness.Received[1]["input"]);
             Assert.AreEqual("TeamATeleOp", session.Recording.header.opMode);

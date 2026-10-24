@@ -16,6 +16,7 @@ import pvi.harness.physics.Pose;
 import pvi.harness.runtime.RunRecording;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -108,5 +109,24 @@ class RobotPartsDrawingTest {
         Path file = folder.resolve(name + ".png");
         ImageIO.write(image.getSubimage(left, top, size, size), "png", file.toFile());
         System.out.println("Robot close-up saved to " + file.toAbsolutePath());
+    }
+
+    /**
+     * WHAT: A wall the robot just hit is drawn red on the field border; the other walls aren't.
+     *
+     * <p>WHY: The viewer flashes the wall for a moment so a hit is easy to spot when replaying.</p>
+     */
+    @Test
+    void theWallJustHitFlashesRed() {
+        BufferedImage image = new BufferedImage(coords.totalPixels(), coords.totalPixels(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        FieldPainter.paint(g, coords, box, Pose.ORIGIN, List.of(), null, null, "+x");
+        g.dispose();
+
+        assertEquals(FieldPainter.WALL_FLASH, colorAt(image, 72.0, 30.0), "+x wall is red");
+        assertEquals(FieldPainter.WALL_FLASH, colorAt(image, 71.9, -50.0), "along its whole length");
+        assertNotEquals(FieldPainter.WALL_FLASH, colorAt(image, -72.0, 30.0), "the -x wall is not");
+        assertNotEquals(FieldPainter.WALL_FLASH, colorAt(image, 30.0, 72.0), "the +y wall is not");
+        assertNotEquals(FieldPainter.WALL_FLASH, colorAt(draw(null), 72.0, 30.0), "no flash without a hit");
     }
 }

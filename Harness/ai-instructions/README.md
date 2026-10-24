@@ -45,6 +45,7 @@ Harness session until it ends.** From that point:
 | [03-workflow.md](03-workflow.md) | What to do before, during and after a change, and how to report it. |
 | [04-code-style.md](04-code-style.md) | How harness code should look and read. |
 | [05-desktop-viewer.md](05-desktop-viewer.md) | The fallback window (field view and telemetry) for when Unity can't be used. |
+| [06-bot-team.md](06-bot-team.md) | The manager and worker bots: who owns what, how work is handed out, and how a new session takes over as manager. |
 
 The current state of the work is in [`Harness/PROGRESS.md`](../PROGRESS.md). Read it before you
 start and update it when you finish.

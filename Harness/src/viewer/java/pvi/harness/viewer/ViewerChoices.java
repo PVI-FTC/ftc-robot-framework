@@ -54,6 +54,21 @@ public final class ViewerChoices {
     private ViewerChoices() {
     }
 
+    /**
+     * The dropdown's entries: live drives, then scenarios. Saved recordings are not listed here;
+     * the window's Replays button opens them ({@link ReplayPicker}).
+     */
+    public static List<Choice> runnable(List<LiveDrive.Option> drives, List<Scenarios.Scenario> scenarios) {
+        List<Choice> choices = new ArrayList<>();
+        for (LiveDrive.Option drive : drives) {
+            choices.add(new Choice(DRIVE_PREFIX + drive.title(), null, null, drive));
+        }
+        for (Scenarios.Scenario scenario : scenarios) {
+            choices.add(new Choice(RUN_PREFIX + scenario.title(), scenario, null, null));
+        }
+        return choices;
+    }
+
     /** Scenarios first (in their order), then the recordings in {@code folder}, newest first. */
     public static List<Choice> list(List<Scenarios.Scenario> scenarios, Path folder) {
         return list(List.of(), scenarios, folder);

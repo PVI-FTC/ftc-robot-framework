@@ -73,6 +73,8 @@ public class OpModeRunner {
     private PoseEstimator positionEstimator;
     /** Why position isn't tracked, when positionEstimator is null. */
     private String untrackedReason;
+    /** Seconds since INIT when the sensors were last stepped, or -1 before the first call. */
+    private double sensorsSteppedAt = -1.0;
 
     /** Team A's drive model, read once from the Pedro configuration and shared by every runner. */
     private static DriveModel defaultDriveModel;
@@ -360,6 +362,12 @@ public class OpModeRunner {
     private void cycle(Runnable opModeCall) {
         // If a test uses two runners, robot code follows whichever one is running now.
         SimTime.install(clock::nanoTime);
+        // 0. Sensors catch up with how the robot moved since the last call: motor encoders turn
+        //    with the power they had, and the Pinpoint moves to the estimated pose.
+        double now = clock.sinceInit();
+        hardwareMap.stepSensors(positionEstimator == null ? null : positionEstimator.pose(),
+                sensorsSteppedAt < 0 ? 0.0 : now - sensorsSteppedAt);
+        sensorsSteppedAt = now;
         // 1. Deliver gamepad input that is due (-1 means "PLAY not pressed yet").
         double sinceStart = clock.hasStarted() ? clock.sinceStart() : -1.0;
         driver1.deliver(clock.sinceInit(), sinceStart);

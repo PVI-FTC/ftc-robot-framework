@@ -2,6 +2,7 @@ package pvi.harness.hardware;
 
 import org.firstinspires.ftc.teamcode.common.hardware.DriveHardware;
 import org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware;
+import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
 
 /**
  * Ready-made fake robot configurations that match what TeamCode looks up.
@@ -24,10 +25,14 @@ public final class RobotConfigs {
         return hardwareMap.named("driveOnly");
     }
 
-    /** The shared baseline robot: drive plus intake (used by TeamARobot). */
+    /**
+     * The shared baseline robot: drive plus intake (used by TeamARobot), plus the goBILDA
+     * Pinpoint that Team A's Pedro configuration uses, under the name that configuration gives.
+     */
     public static FakeHardwareMap teamA() {
         FakeHardwareMap hardwareMap = driveOnly();
         hardwareMap.addMotor(IntakeHardware.INTAKE_MOTOR_NAME);
+        hardwareMap.addPinpoint(TeamAPedroHarnessAccess.recordedPinpointConstants().hardwareMapName);
         return hardwareMap.named("teamA");
     }
 

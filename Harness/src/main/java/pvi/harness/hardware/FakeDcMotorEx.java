@@ -15,9 +15,16 @@ import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
  * A motor that remembers everything robot code tells it.
  *
  * <p>Power, direction, run mode and zero-power behavior are stored exactly as the
- * robot code set them, so tests can check them. Encoder position and velocity
- * stay at zero until a physics model (Phase 5) moves them with
- * {@link #simulateEncoder(int, double)}.</p>
+ * robot code set them, so tests can check them.</p>
+ *
+ * <p><b>Encoder.</b> After every loop the runner calls {@link #step(double)}, which moves the
+ * encoder the way the motor would turn: speed is proportional to power (like the position
+ * estimator), {@link #FULL_SPEED_TICKS_PER_SECOND} at full power. As on the robot, positive power
+ * gives rising counts whichever {@link Direction} is set, RUN_TO_POSITION drives toward the
+ * target and stops there, {@code setVelocity()} in RUN_USING_ENCODER runs at that speed, and
+ * STOP_AND_RESET_ENCODER zeroes it. A miswired motor counts the opposite way to its power.
+ * The motor's numbers are placeholders (a goBILDA 5203 312 RPM motor) until the team gives
+ * real ones; change them per motor with {@link #setEncoderModel(double, double)}.</p>
  *
  * <p>It implements the SDK's {@code DcMotorEx} interface, so TeamCode can't tell it apart
  * from a real motor: {@code hardwareMap.get(DcMotorEx.class, "frontLeft")} returns one of
@@ -43,12 +50,32 @@ public class FakeDcMotorEx implements DcMotorEx {
     private int targetPosition;
     /** How close (in ticks) counts as "at the target" for isBusy(). The SDK default is 10. */
     private int targetPositionTolerance = 10;
-    /** Encoder reading in ticks. Only changes when a physics model calls simulateEncoder(). */
+    /**
+     * Placeholder until measured: encoder counts per output-shaft turn of a goBILDA 5203 series
+     * 19.2:1 (312 RPM) motor, the usual FTC drive motor.
+     */
+    public static final double PLACEHOLDER_TICKS_PER_REV = 537.7;
+    /** Placeholder until measured: that motor's free speed, in RPM. */
+    public static final double PLACEHOLDER_FREE_SPEED_RPM = 312.0;
+    /** Encoder speed at full power with the placeholder motor: about 2796 ticks per second. */
+    public static final double FULL_SPEED_TICKS_PER_SECOND = PLACEHOLDER_TICKS_PER_REV * PLACEHOLDER_FREE_SPEED_RPM / 60.0;
+
+    /** Encoder counts per output-shaft turn (for setVelocity/getVelocity with an AngleUnit). */
+    private double ticksPerRev = PLACEHOLDER_TICKS_PER_REV;
+    /** Encoder speed at full power, in ticks per second. */
+    private double fullSpeedTicksPerSecond = FULL_SPEED_TICKS_PER_SECOND;
+    /** Encoder reading in ticks, kept exact so slow motors still count up. */
+    private double exactPosition;
+    /** Encoder reading in ticks, as getCurrentPosition() reports it. */
     private int currentPosition;
-    /** Encoder speed in ticks per second, set by a physics model. */
+    /** Encoder speed in ticks per second over the last step. */
     private double velocityTicksPerSecond;
-    /** Last value passed to setVelocity(), kept so tests can check it. */
+    /** Last value passed to setVelocity(), in ticks per second, kept so tests can check it. */
     private double requestedVelocity;
+    /** True when the last command was setVelocity() rather than setPower(). */
+    private boolean velocityCommanded;
+    /** The motor type robot code last set (Pedro sets one), or null until asked for. */
+    private MotorConfigurationType motorType;
     /** Over-current warning level the code set, in amps. */
     private double currentAlertAmps = 0;
     /** How many times the code called setPower(). */
@@ -91,10 +118,58 @@ public class FakeDcMotorEx implements DcMotorEx {
         return miswired;
     }
 
-    /** Lets a physics model update what the encoder reports. */
+    /** Sets what the encoder reports right now, for tests that need a starting reading. */
     public void simulateEncoder(int positionTicks, double velocityTicksPerSecond) {
+        this.exactPosition = positionTicks;
         this.currentPosition = positionTicks;
         this.velocityTicksPerSecond = velocityTicksPerSecond;
+    }
+
+    /**
+     * Changes this motor's numbers from the placeholders.
+     *
+     * @param ticksPerRev  encoder counts per output-shaft turn
+     * @param freeSpeedRpm output-shaft speed at full power, in RPM
+     */
+    public FakeDcMotorEx setEncoderModel(double ticksPerRev, double freeSpeedRpm) {
+        if (!(ticksPerRev > 0) || !(freeSpeedRpm > 0)) {
+            throw new IllegalArgumentException("Ticks per turn and free speed must be positive.");
+        }
+        this.ticksPerRev = ticksPerRev;
+        this.fullSpeedTicksPerSecond = ticksPerRev * freeSpeedRpm / 60.0;
+        return this;
+    }
+
+    /** Encoder speed at full power, in ticks per second. */
+    public double fullSpeedTicksPerSecond() {
+        return fullSpeedTicksPerSecond;
+    }
+
+    /**
+     * Turns the motor for {@code seconds} of simulated time and updates the encoder. Called by
+     * the runner after every loop (see the class comment for the rules).
+     */
+    public void step(double seconds) {
+        double speed;
+        if (!enabled || mode == RunMode.STOP_AND_RESET_ENCODER) {
+            speed = 0.0;
+        } else if (mode == RunMode.RUN_TO_POSITION) {
+            // Drive toward the target at |power|, and stop on it.
+            double toGo = targetPosition - exactPosition;
+            double maxStep = Math.abs(power) * fullSpeedTicksPerSecond * seconds;
+            double move = Math.max(-maxStep, Math.min(maxStep, toGo));
+            speed = seconds > 0 ? move / seconds : 0.0;
+        } else if (velocityCommanded && mode == RunMode.RUN_USING_ENCODER) {
+            speed = Math.max(-fullSpeedTicksPerSecond, Math.min(fullSpeedTicksPerSecond, requestedVelocity));
+        } else {
+            speed = power * fullSpeedTicksPerSecond;
+        }
+        if (miswired && mode != RunMode.RUN_TO_POSITION) {
+            speed = -speed;   // the motor turns the other way; the encoder wires weren't swapped
+        }
+        exactPosition += speed * seconds;
+        currentPosition = (int) Math.round(exactPosition);
+        velocityTicksPerSecond = speed;
     }
 
     // ---- DcMotorSimple: the basic motor methods ----------------------------
@@ -110,6 +185,7 @@ public class FakeDcMotorEx implements DcMotorEx {
     public void setPower(double power) {
         setPowerCalls++;
         this.power = Math.max(-1.0, Math.min(1.0, power));
+        velocityCommanded = false;
     }
 
     /** The power the code last set (not affected by miswiring; the code can't see that). */
@@ -117,11 +193,20 @@ public class FakeDcMotorEx implements DcMotorEx {
 
     // ---- DcMotor: encoder and configuration methods -------------------------
 
-    /** No real motor type is configured on a fake; returns the SDK's "unspecified" type. */
-    @Override public MotorConfigurationType getMotorType() { return MotorConfigurationType.getUnspecifiedMotorType(); }
+    /** A plain motor type with the placeholder counts per turn and RPM (Pedro reads and copies it). */
+    @Override public MotorConfigurationType getMotorType() {
+        if (motorType == null) {
+            // Built directly: the SDK's getUnspecifiedMotorType() needs Android's configuration
+            // manager, which can't start on a desktop JVM. Pedro reads and copies this.
+            motorType = new MotorConfigurationType();
+            motorType.setTicksPerRev(ticksPerRev);
+            motorType.setMaxRPM(fullSpeedTicksPerSecond * 60.0 / ticksPerRev);
+        }
+        return motorType;
+    }
 
     /** Ignored: the fake has no motor-type-specific behavior. */
-    @Override public void setMotorType(MotorConfigurationType motorType) { }
+    @Override public void setMotorType(MotorConfigurationType motorType) { this.motorType = motorType; }
 
     /** No hub exists in the harness, so there is no controller object. */
     @Override public DcMotorController getController() { return null; }
@@ -166,6 +251,7 @@ public class FakeDcMotorEx implements DcMotorEx {
     @Override
     public void setMode(RunMode mode) {
         if (mode == RunMode.STOP_AND_RESET_ENCODER) {
+            exactPosition = 0;
             currentPosition = 0;
             velocityTicksPerSecond = 0;
             power = 0;
@@ -188,16 +274,26 @@ public class FakeDcMotorEx implements DcMotorEx {
     @Override public boolean isMotorEnabled() { return enabled; }
 
     /** Records a velocity request (ticks per second). The fake does not run a velocity controller. */
-    @Override public void setVelocity(double angularRate) { requestedVelocity = angularRate; }
+    @Override public void setVelocity(double angularRate) {
+        requestedVelocity = angularRate;
+        velocityCommanded = true;
+    }
 
     /** Records a velocity request in other units. The unit is not converted in the fake. */
-    @Override public void setVelocity(double angularRate, AngleUnit unit) { requestedVelocity = angularRate; }
+    @Override public void setVelocity(double angularRate, AngleUnit unit) {
+        // Converted by hand: AngleUnit's own conversions wrap to ±180°, which is wrong for speeds.
+        double degreesPerSecond = unit == AngleUnit.RADIANS ? Math.toDegrees(angularRate) : angularRate;
+        setVelocity(degreesPerSecond / 360.0 * ticksPerRev);
+    }
 
     /** The simulated encoder speed in ticks per second. */
     @Override public double getVelocity() { return velocityTicksPerSecond; }
 
-    /** The simulated encoder speed. The unit is not converted in the fake. */
-    @Override public double getVelocity(AngleUnit unit) { return velocityTicksPerSecond; }
+    /** The simulated encoder speed, as an angle per second of the output shaft. */
+    @Override public double getVelocity(AngleUnit unit) {
+        double degreesPerSecond = velocityTicksPerSecond / ticksPerRev * 360.0;
+        return unit == AngleUnit.RADIANS ? Math.toRadians(degreesPerSecond) : degreesPerSecond;
+    }
 
     /** The last value passed to setVelocity(), for tests. */
     public double getRequestedVelocity() { return requestedVelocity; }

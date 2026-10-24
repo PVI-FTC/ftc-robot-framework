@@ -29,10 +29,23 @@ public class FakeHardwareMap extends HardwareMap {
     /** Port number for the next servo added (display only). */
     private int nextServoPort;
 
-    /** An empty hardware map. Add devices with addMotor/addServo, or start from RobotConfigs. */
+    /** The hub's battery voltage reading, which every real robot has. */
+    private final FakeVoltageSensor batteryVoltage = new FakeVoltageSensor();
+
+    /**
+     * A hardware map with no configured devices, only the Control Hub's battery voltage reading
+     * (as on a real robot). Add devices with addMotor/addServo, or start from RobotConfigs.
+     */
     public FakeHardwareMap() {
         // No Android Context or OpMode manager exists on a desktop JVM.
         super(null, null);
+        // Listed only in the SDK's voltage sensor list, where hardwareMap.voltageSensor finds it.
+        voltageSensor.put("Control Hub", batteryVoltage);
+    }
+
+    /** The battery voltage robot code reads; set it to test a tired battery. */
+    public FakeVoltageSensor batteryVoltage() {
+        return batteryVoltage;
     }
 
     /** Adds a fake motor under its configuration name and returns it so tests can inspect it. */
@@ -56,6 +69,42 @@ public class FakeHardwareMap extends HardwareMap {
     /** Returns a previously added fake servo. */
     public FakeServo servo(String configName) {
         return tryGet(FakeServo.class, configName);
+    }
+
+    /**
+     * Adds a fake goBILDA Pinpoint odometry computer (see {@link FakePinpoint}). Robot code and
+     * Pedro find it with {@code hardwareMap.get(GoBildaPinpointDriver.class, name)}.
+     */
+    public FakePinpoint addPinpoint(String configName) {
+        FakePinpoint pinpoint = new FakePinpoint(configName);
+        addDevice(configName, pinpoint);
+        return pinpoint;
+    }
+
+    /** Returns a previously added fake Pinpoint, or null. */
+    public FakePinpoint pinpoint(String configName) {
+        return tryGet(FakePinpoint.class, configName);
+    }
+
+    /**
+     * Moves every sensor on for {@code seconds} of simulated time: motor encoders turn with
+     * their power, and each Pinpoint moves to {@code robot}, the robot's true pose. The runner
+     * calls this after every loop.
+     *
+     * @param robot   where the robot really is now, or null if position isn't tracked (the
+     *                Pinpoints then stay where they are)
+     * @param seconds simulated time since the last step
+     */
+    public void stepSensors(pvi.harness.physics.Pose robot, double seconds) {
+        for (List<HardwareDevice> devices : devicesByName.values()) {
+            for (HardwareDevice device : devices) {
+                if (device instanceof FakeDcMotorEx motor) {
+                    motor.step(seconds);
+                } else if (device instanceof FakePinpoint pinpoint && robot != null) {
+                    pinpoint.step(robot, seconds);
+                }
+            }
+        }
     }
 
     /** Removes a device, for example to test how robot code copes with a missing part. */

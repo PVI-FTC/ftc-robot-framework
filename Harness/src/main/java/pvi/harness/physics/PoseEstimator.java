@@ -44,6 +44,18 @@ public final class PoseEstimator {
     public record TrackPoint(double sinceInitSeconds, double matchTimeSeconds, Pose pose) {
     }
 
+    /**
+     * A moment the robot ran into a field wall (the start of each contact; staying against the
+     * wall doesn't add more).
+     *
+     * @param sinceInitSeconds seconds since INIT
+     * @param matchTimeSeconds seconds since PLAY (0 before PLAY)
+     * @param wall             which wall: "+x", "-x", "+y" or "-y" (two, e.g. "+x/-y", in a corner)
+     * @param pose             where the robot was, pressed against the wall
+     */
+    public record WallHit(double sinceInitSeconds, double matchTimeSeconds, String wall, Pose pose) {
+    }
+
     /** The robot's speeds and size. */
     private final DriveModel model;
     /** Reads which way each wheel pushes. */
@@ -64,6 +76,15 @@ public final class PoseEstimator {
     private double movingSeconds;
     /** Every pose, one per update, oldest first. */
     private final List<TrackPoint> track = new ArrayList<>();
+    /**
+     * True: the field's walls stop the robot, as on the real field (the default). False: the
+     * robot can drive straight through them, e.g. to test an off-field check.
+     */
+    private boolean walls = true;
+    /** Which walls the robot is pressed against after the last move ("" if none). */
+    private String wallContact = "";
+    /** Every time the robot ran into a wall, oldest first. */
+    private final List<WallHit> wallHits = new ArrayList<>();
 
     /**
      * @param model  robot speeds, e.g. {@code DriveModels.teamA()}
@@ -78,6 +99,20 @@ public final class PoseEstimator {
         this.wheels = wheels;
         this.start = start;
         this.pose = start;
+    }
+
+    /**
+     * Lets the robot drive through the field walls (they stop it by default). Only useful for
+     * testing a check that the robot stays on the field. Returns this estimator.
+     */
+    public PoseEstimator withoutWalls() {
+        this.walls = false;
+        return this;
+    }
+
+    /** True if the field walls stop the robot (the default). */
+    public boolean hasWalls() {
+        return walls;
     }
 
     // ---- Step 6: plugging into a runner -------------------------------------------------
@@ -117,7 +152,12 @@ public final class PoseEstimator {
                 throw new IllegalArgumentException("Time went backwards: from " + lastTimeSeconds
                         + " s to " + timeSeconds + " s.");
             }
+            String before = wallContact;
             move(lastPushes, dt);
+            // A new wall contact (not just staying against the same wall) is a hit.
+            if (!wallContact.isEmpty() && !wallContact.equals(before)) {
+                wallHits.add(new WallHit(timeSeconds, matchTimeSeconds, wallContact, pose));
+            }
         }
         // These pushes drive the robot from now until the next update.
         lastPushes = wheels.read(hardwareMap);
@@ -140,7 +180,13 @@ public final class PoseEstimator {
         double dx = (v.forwardInchesPerSecond() * cos - v.leftInchesPerSecond() * sin) * dt;
         double dy = (v.forwardInchesPerSecond() * sin + v.leftInchesPerSecond() * cos) * dt;
 
-        pose = new Pose(pose.xInches() + dx, pose.yInches() + dy, pose.headingRadians() + headingChange);
+        Pose moved = new Pose(pose.xInches() + dx, pose.yInches() + dy, pose.headingRadians() + headingChange);
+        if (walls) {
+            moved = keepInsideWalls(moved);
+            dx = moved.xInches() - pose.xInches();
+            dy = moved.yInches() - pose.yInches();
+        }
+        pose = moved;
 
         // Statistics for the report.
         distanceInches += Math.hypot(dx, dy);
@@ -150,6 +196,50 @@ public final class PoseEstimator {
                 || Math.abs(v.counterClockwiseRadiansPerSecond()) > MOVING_THRESHOLD_INCHES_PER_SECOND) {
             movingSeconds += dt;
         }
+    }
+
+    /**
+     * The field walls: if any part of the robot box would be past a wall, moves the robot back
+     * so the box just touches it. Only the blocked direction is stopped, so a robot driving at
+     * an angle into a wall slides along it, like a real robot pushing on the wall. Sets
+     * {@link #wallContact}.
+     *
+     * <p>How far the box reaches from its center depends on the heading: a robot turned 45
+     * degrees reaches further than one facing straight ahead.</p>
+     *
+     * <p>The box size comes from the drive model. Team A's length and width are still
+     * placeholders (18 × 18 in, the FTC maximum) until they are measured (Step 10), so where the
+     * robot stops against a wall is only as exact as those numbers.</p>
+     */
+    private Pose keepInsideWalls(Pose p) {
+        double cos = Math.abs(Math.cos(p.headingRadians()));
+        double sin = Math.abs(Math.sin(p.headingRadians()));
+        double halfLength = model.lengthInches() / 2.0;
+        double halfWidth = model.widthInches() / 2.0;
+        double reachX = cos * halfLength + sin * halfWidth;
+        double reachY = sin * halfLength + cos * halfWidth;
+        double limitX = Pose.FIELD_HALF_WIDTH_INCHES - reachX;
+        double limitY = Pose.FIELD_HALF_WIDTH_INCHES - reachY;
+
+        double x = p.xInches();
+        double y = p.yInches();
+        List<String> touching = new ArrayList<>();
+        if (limitX > 0 && x > limitX) {
+            x = limitX;
+            touching.add("+x");
+        } else if (limitX > 0 && x < -limitX) {
+            x = -limitX;
+            touching.add("-x");
+        }
+        if (limitY > 0 && y > limitY) {
+            y = limitY;
+            touching.add("+y");
+        } else if (limitY > 0 && y < -limitY) {
+            y = -limitY;
+            touching.add("-y");
+        }
+        wallContact = String.join("/", touching);
+        return touching.isEmpty() ? p : new Pose(x, y, p.headingRadians());
     }
 
     // ---- Results ------------------------------------------------------------------------
@@ -170,6 +260,8 @@ public final class PoseEstimator {
     public double movingSeconds() { return movingSeconds; }
     /** Every pose, one per update, oldest first. */
     public List<TrackPoint> track() { return Collections.unmodifiableList(track); }
+    /** Every time the robot ran into a field wall, oldest first (empty without walls). */
+    public List<WallHit> wallHits() { return Collections.unmodifiableList(wallHits); }
 
     // ---- Step 8: saving the track -------------------------------------------------------
 
@@ -205,10 +297,24 @@ public final class PoseEstimator {
                         + "  start:     %s%n"
                         + "  end:       %s%n"
                         + "  moved:     %.2f %s straight-line, %.2f %s along the path, %.2f s moving%n"
-                        + "  top speed: %.2f %s/s",
+                        + "  top speed: %.2f %s/s%n"
+                        + "  walls:     %s",
                 model.name(), measured, start.toString(unit), pose.toString(unit),
                 straightLine, unit.symbol(), unit.fromInches(distanceInches), unit.symbol(), movingSeconds,
-                unit.fromInches(maxSpeedInchesPerSecond), unit.symbol());
+                unit.fromInches(maxSpeedInchesPerSecond), unit.symbol(), wallSummary());
+    }
+
+    /** "none hit", "hit 2 times (first: -x wall at 3.24 s)", or "off (the robot can leave the field)". */
+    private String wallSummary() {
+        if (!walls) {
+            return "off (the robot can leave the field)";
+        }
+        if (wallHits.isEmpty()) {
+            return "none hit";
+        }
+        WallHit first = wallHits.get(0);
+        return String.format(Locale.ROOT, "hit %d time%s (first: %s wall at %.2f s)", wallHits.size(),
+                wallHits.size() == 1 ? "" : "s", first.wall(), first.matchTimeSeconds());
     }
 
     /** Prints the report to the test output. */

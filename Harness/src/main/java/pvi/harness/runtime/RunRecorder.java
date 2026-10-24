@@ -138,7 +138,22 @@ public final class RunRecorder {
                 runner.loopPeriodSeconds(),
                 estimator == null ? null : estimator.start(),
                 estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()));
-        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles(), events);
+        return new RunRecording(header, loops, runner.driver1().rumbles(), runner.driver2().rumbles(),
+                eventsWithWallHits(estimator));
+    }
+
+    /** The noted events plus every time the robot ran into a field wall, in time order. */
+    private List<RunRecording.Event> eventsWithWallHits(PoseEstimator estimator) {
+        if (estimator == null || estimator.wallHits().isEmpty()) {
+            return events;
+        }
+        List<RunRecording.Event> all = new ArrayList<>(events);
+        for (PoseEstimator.WallHit hit : estimator.wallHits()) {
+            all.add(new RunRecording.Event(hit.sinceInitSeconds(), hit.matchTimeSeconds(),
+                    "Robot hit the " + hit.wall() + " wall"));
+        }
+        all.sort(java.util.Comparator.comparingDouble(RunRecording.Event::sinceInitSeconds));
+        return all;
     }
 
     /** AUTONOMOUS or TELEOP from the OpMode's annotation (what the Driver Station lists it under), or null. */

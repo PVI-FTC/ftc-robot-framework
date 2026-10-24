@@ -33,9 +33,38 @@ public final class DriveChecks {
         }
     }
 
+    /** Text at the start of the event the recorder adds when the robot runs into a field wall. */
+    static final String WALL_HIT_EVENT = "Robot hit the ";
+
+    /**
+     * Fails if the robot ran into a field wall during the run. The harness's field walls stop
+     * the robot (it can't leave the field), and each new wall contact is saved in the
+     * recording's events. Does nothing if position wasn't tracked.
+     */
+    public static void assertRobotDoesNotHitAWall(RunRecording run) {
+        for (RunRecording.Event event : run.events()) {
+            if (event.text().startsWith(WALL_HIT_EVENT)) {
+                throw new AssertionError(String.format(Locale.ROOT,
+                        "The robot hit the %s at %.2f s after PLAY.%s", event.text().substring(WALL_HIT_EVENT.length()),
+                        event.matchTimeSeconds(), sizeNote(run)));
+            }
+        }
+    }
+
+    /** " (The robot size is still a placeholder.)" when it is, else "". */
+    private static String sizeNote(RunRecording run) {
+        RunRecording.DriveModelValues model = run.header().driveModel();
+        return model != null && (!model.length().measured() || !model.width().measured())
+                ? " (The robot size is still a placeholder.)" : "";
+    }
+
     /**
      * Fails the first time any corner of the robot box is outside the ±72 in field. The box
      * size comes from the recording's drive model. Does nothing if position wasn't tracked.
+     *
+     * <p>Runs now have field walls, so this only fails for recordings made before the walls
+     * existed, or with {@code PoseEstimator.withoutWalls()}. New tests check
+     * {@link #assertRobotDoesNotHitAWall} instead.</p>
      */
     public static void assertRobotStaysOnField(RunRecording run) {
         RunRecording.DriveModelValues model = run.header().driveModel();

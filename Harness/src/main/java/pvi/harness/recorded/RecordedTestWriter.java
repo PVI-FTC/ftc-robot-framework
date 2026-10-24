@@ -251,9 +251,9 @@ public final class RecordedTestWriter {
         appendSafetyCheck(out, "DriveChecks.assertMotorPowersInRange(run);",
                 replay == null || replay.recording() == null ? null
                         : failureOf(() -> DriveChecks.assertMotorPowersInRange(replay.recording())));
-        appendSafetyCheck(out, "DriveChecks.assertRobotStaysOnField(run);",
+        appendSafetyCheck(out, "DriveChecks.assertRobotDoesNotHitAWall(run);",
                 replay == null || replay.recording() == null ? null
-                        : failureOf(() -> DriveChecks.assertRobotStaysOnField(replay.recording())));
+                        : failureOf(() -> DriveChecks.assertRobotDoesNotHitAWall(replay.recording())));
         out.append("\n");
         out.append("        // TODO: add your own checks here, for example:\n");
         out.append("        //   assertEquals(\"Intaking\", runner.telemetry().lastValue(\"Intake State\"));\n");

@@ -1,6 +1,7 @@
 package pvi.harness.viewer;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.KeyEventDispatcher;
@@ -98,6 +99,10 @@ public final class ViewerWindow extends JFrame {
     private boolean updatingControls;
     /** The dropdown: scenarios to run and recordings to replay. */
     private final JComboBox<ViewerChoices.Choice> choiceBox = new JComboBox<>();
+    /** Opens the replay picker (saved recordings). */
+    private final JButton replaysButton = new JButton();
+    /** What the dropdown shows when nothing in it is picked (while replaying a recording). */
+    private String choicePlaceholder = "";
     /** One line under the dropdown describing what is shown. */
     private final JLabel choiceDescription = new JLabel(" ");
     /** True while the window itself fills or selects the dropdown, so that isn't treated as a pick. */
@@ -184,9 +189,19 @@ public final class ViewerWindow extends JFrame {
 
     /** The bar at the top: the dropdown and a line describing what is shown. */
     private JComponent buildChooser(String shownName) {
-        choiceBox.setToolTipText("Drive a TeleOp from the keyboard, run a ready-made scenario, or replay a saved"
-                + " recording (build/recordings)");
+        choiceBox.setToolTipText("Drive a TeleOp live, or run a ready-made scenario. Saved recordings: Replays button");
         Theme.flat(choiceBox);
+        // While replaying, nothing in the dropdown is picked: show what is being replayed instead.
+        javax.swing.ListCellRenderer<? super ViewerChoices.Choice> themed = choiceBox.getRenderer();
+        choiceBox.setRenderer((list, value, index, selected, focused) -> {
+            Component cell = themed.getListCellRendererComponent(list, value, index, selected, focused);
+            if (value == null && index < 0 && cell instanceof JLabel label) {
+                label.setText(choicePlaceholder);
+                label.setForeground(Theme.MUTED);
+            }
+            return cell;
+        });
+        choicePlaceholder = "Replaying " + shownName;
         choiceBox.setFocusable(false);
         choiceBox.setMaximumRowCount(20);
         fillChoices("Replay: " + shownName);
@@ -221,7 +236,14 @@ public final class ViewerWindow extends JFrame {
         recordButton.addActionListener(e -> showRecordState());
         showRecordState();
 
-        JLabel caption = new JLabel(Theme.label("Drive / run / replay"));
+        Theme.flat(replaysButton);
+        replaysButton.setText(Theme.label("Replays..."));
+        replaysButton.setToolTipText("Pick a saved recording to replay (Ctrl+O)");
+        replaysButton.setFocusable(false);
+        replaysButton.addActionListener(e -> openReplayPicker());
+        replayControls.add(replaysButton);
+
+        JLabel caption = new JLabel(Theme.label("Drive / run"));
         caption.setFont(Theme.labelFont(10f));
         caption.setForeground(Theme.MUTED);
         choiceDescription.setFont(Theme.text(12f));
@@ -231,6 +253,7 @@ public final class ViewerWindow extends JFrame {
         bar.setBackground(Theme.BACKGROUND);
         bar.add(caption, BorderLayout.WEST);
         bar.add(choiceBox, BorderLayout.CENTER);
+        bar.add(replaysButton, BorderLayout.EAST);
         bar.add(choiceDescription, BorderLayout.SOUTH);
         bar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
@@ -244,7 +267,7 @@ public final class ViewerWindow extends JFrame {
         try {
             choiceBox.removeAllItems();
             ViewerChoices.Choice toSelect = null;
-            for (ViewerChoices.Choice choice : ViewerChoices.list(LiveDrive.options(), Scenarios.all(), RunRecordingJson.DEFAULT_FOLDER)) {
+            for (ViewerChoices.Choice choice : ViewerChoices.runnable(LiveDrive.options(), Scenarios.all())) {
                 choiceBox.addItem(choice);
                 if (choice.label().equals(selectedLabel)) {
                     toSelect = choice;
@@ -269,6 +292,7 @@ public final class ViewerWindow extends JFrame {
                 RunRecording recording = choice.scenario().perform();
                 Path saved = saveScenarioRun(choice.scenario(), recording);
                 display(recording, saved.getFileName().toString());
+                fillChoices(choice.label());
                 choiceDescription.setText("Ran " + choice.scenario().title() + ": " + choice.scenario().description());
             } else {
                 display(RunRecordingJson.load(choice.file()), choice.file().getFileName().toString());
@@ -299,6 +323,7 @@ public final class ViewerWindow extends JFrame {
             updatingControls = false;
         }
         setTitle(WINDOW_TITLE + " - " + name);
+        choicePlaceholder = "Replaying " + name;
         choiceDescription.setText("Showing " + name);
         choiceDescription.setForeground(Theme.MUTED);
         fillChoices(ViewerChoices.REPLAY_PREFIX + name);
@@ -413,6 +438,7 @@ public final class ViewerWindow extends JFrame {
         key(KeyEvent.VK_MINUS, 0, "slower2", () -> playback.slower());
         key(KeyEvent.VK_CLOSE_BRACKET, 0, "faster", () -> playback.faster());
         key(KeyEvent.VK_EQUALS, 0, "faster2", () -> playback.faster());
+        key(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK, "replays", () -> SwingUtilities.invokeLater(this::openReplayPicker));
     }
 
     private void key(int keyCode, int modifiers, String name, Runnable action) {
@@ -428,6 +454,26 @@ public final class ViewerWindow extends JFrame {
                 refresh();
             }
         });
+    }
+
+    /** Opens the replay picker and replays the recording picked there (not while driving). */
+    private void openReplayPicker() {
+        if (liveDrive != null) {
+            return;
+        }
+        Path file = ReplayPicker.choose(this, RunRecordingJson.DEFAULT_FOLDER);
+        if (file == null) {
+            return;
+        }
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        try {
+            display(RunRecordingJson.load(file), file.getFileName().toString());
+        } catch (RuntimeException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Could not open " + file.getFileName(),
+                    JOptionPane.ERROR_MESSAGE);
+        } finally {
+            setCursor(Cursor.getDefaultCursor());
+        }
     }
 
     // ---- Live keyboard driving ------------------------------------------------------------------

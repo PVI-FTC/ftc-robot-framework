@@ -223,20 +223,21 @@ class RecordedDriveToTestTest {
     }
 
     /**
-     * WHAT: If the recorded drive already breaks a safety check (here: it drives off the
-     * field), the generated test has that check turned off with the reason, and still passes.
+     * WHAT: If the recorded drive already breaks a safety check (here: 5 s of full forward
+     * drives it into the +x wall), the generated test has that check turned off with the
+     * reason, and still passes.
      *
      * <p>WHY: A brand-new test should start green. The comment shows the problem so the student
      * can decide whether it's a real bug or just how they drove.</p>
      */
     @Test
     void safetyCheckTheDriveAlreadyFailsIsTurnedOffWithTheReason() throws Exception {
-        RunRecording offTheField = drive(new GamepadScript().at(0.0).stick(Axis.LEFT_STICK_Y, -1.0), null, 5, 250);
-        String source = RecordedTestWriter.source(offTheField, options("DroveOffTheField", false));
+        RunRecording intoTheWall = drive(new GamepadScript().at(0.0).stick(Axis.LEFT_STICK_Y, -1.0), null, 5, 250);
+        String source = RecordedTestWriter.source(intoTheWall, options("DroveOffTheField", false));
 
         assertTrue(source.contains("        // Turned off because the recorded drive already fails it:\n"
-                + "        //   The robot left the field at "), source);
-        assertTrue(source.contains("        // DriveChecks.assertRobotStaysOnField(run);\n"), source);
+                + "        //   The robot hit the +x wall at "), source);
+        assertTrue(source.contains("        // DriveChecks.assertRobotDoesNotHitAWall(run);\n"), source);
         assertTrue(source.contains("\n        DriveChecks.assertMotorPowersInRange(run);\n"),
                 "checks the drive passes stay on");
 
@@ -287,6 +288,9 @@ class RecordedDriveToTestTest {
     private static RunRecording drive(GamepadScript script1, GamepadScript script2, GamepadSource source1,
                                       int initLoops, int loops) {
         OpModeRunner runner = new OpModeRunner(new TeamATeleOp(), RobotConfigs.teamA());
+        // The field walls would stop the robot; these tests need drives that can leave the
+        // field, to prove the on-field check fails when it should.
+        runner.positionEstimator().withoutWalls();
         if (script1 != null) {
             runner.gamepad1(script1);
         }

@@ -115,7 +115,8 @@ viewed from above.
 - Calculate **only** in FTC units inside the harness. Never mix Unity units into core math.
 - Do every conversion in **one place**, at the boundary, the same way `DisplayUnit` keeps the
   feet conversion in one place.
-- **Proposed** mapping (not decided yet; confirm with the user before relying on it):
+- **Mapping (confirmed by the user on 2026-10-23** after checking the Stage U1 replay; it lives
+  in `unity/Assets/HarnessReplay/Runtime/FtcToUnity.cs`):
 
   | FTC (harness) | Unity |
   |---|---|

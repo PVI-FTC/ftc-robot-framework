@@ -186,7 +186,8 @@ class RealCodeMotionTest {
         double gapInches = 5.0;
         Pose nearTheWall = Pose.inches(Pose.FIELD_HALF_WIDTH_INCHES - teamA.lengthInches() / 2.0 - gapInches, 0.0, 0.0);
         OpModeRunner runner = new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA());
-        PoseEstimator estimator = PoseEstimator.attachTo(runner, teamA, WheelReader.teamA(), nearTheWall);
+        // The walls would stop the robot; turn them off so it can cross and the check can fire.
+        PoseEstimator estimator = PoseEstimator.attachTo(runner, teamA, WheelReader.teamA(), nearTheWall).withoutWalls();
 
         // RUN
         runner.run(MatchPeriod.AUTONOMOUS).assertNoException();
@@ -203,6 +204,36 @@ class RealCodeMotionTest {
         double expectedSeconds = gapInches / (0.20 * teamA.forwardInchesPerSecond());
         assertEquals(expectedSeconds, offField.matchTimeSeconds(), 2 * ONE_LOOP_SECONDS + 1e-6, offField.message());
         assertTrue(offField.message().startsWith("The robot left the field at "), offField.message());
+    }
+
+    /**
+     * WHAT: Driving the real Team A TeleOp full forward for 3 s (far more than the 63 in to the
+     * wall), the robot stops at the +x wall instead of leaving the field, and the run shows one
+     * wall hit.
+     *
+     * <p>WHY: Every runner tracks position with the field walls on, so a long drive in the
+     * viewer or a test ends against the wall, as on the real field.</p>
+     */
+    @Test
+    void teleOpCannotDriveThroughTheWall() {
+        // SCRIPT: full forward for 3 s.
+        GamepadScript driver = new GamepadScript()
+                .at(0.0).stick(Axis.LEFT_STICK_Y, -1.0)
+                .at(3.0).stick(Axis.LEFT_STICK_Y, 0.0);
+        OpModeRunner runner = new OpModeRunner(new TeamATeleOp(), RobotConfigs.teamA()).gamepad1(driver);
+
+        // RUN
+        runner.init().start();
+        runner.loopUntil(3.5);
+
+        // CHECK
+        PoseEstimator estimator = runner.positionEstimator();
+        assertTrue(estimator.hasWalls(), "runners track position with the walls on");
+        assertEquals(Pose.FIELD_HALF_WIDTH_INCHES - DriveModels.teamA().lengthInches() / 2.0,
+                estimator.pose().xInches(), 1e-6, "front bumper against the +x wall");
+        assertTrue(estimator.pose().isOnField());
+        assertEquals(1, estimator.wallHits().size(), estimator.report());
+        assertEquals("+x", estimator.wallHits().get(0).wall());
     }
 
     // ---- Helpers --------------------------------------------------------------------------

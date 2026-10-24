@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.robots.teamA;
 
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
+import com.pedropathing.ftc.localization.constants.PinpointConstants;
 
 /**
  * HARNESS FILE, not robot code. It lives in Harness/, but uses TeamCode's package name.
@@ -20,5 +21,10 @@ public final class TeamAPedroHarnessAccess {
     /** The mecanum constants (speeds, motor names, motor directions) in Team A's recorded configuration. */
     public static MecanumConstants recordedMecanumConstants() {
         return TeamAPedroConfiguration.recordedTeamAConfiguration().getMecanumConstants();
+    }
+
+    /** The Pinpoint constants (configuration name, pod offsets, directions) in Team A's recorded configuration. */
+    public static PinpointConstants recordedPinpointConstants() {
+        return TeamAPedroConfiguration.recordedTeamAConfiguration().getPinpointConstants();
     }
 }

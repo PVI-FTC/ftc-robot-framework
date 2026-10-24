@@ -170,13 +170,14 @@ class PoseEstimatorTest {
     void outAndBackEndsAtStartButCountsBothWays() {
         PoseEstimator estimator = estimatorAt(Pose.ORIGIN);
 
+        // 48 in each way: well clear of the wall 63 in away.
         drive(1, 0, 0);
-        run(estimator, 2.0);
+        run(estimator, 1.0);
         drive(-1, 0, 0);
-        run(estimator, 2.0);
+        run(estimator, 1.0);
 
         assertEquals(0.0, estimator.pose().xInches(), INCHES);
-        assertEquals(192.0, estimator.distanceTraveledInches(), INCHES);
+        assertEquals(96.0, estimator.distanceTraveledInches(), INCHES);
     }
 
     /**
@@ -272,5 +273,80 @@ class PoseEstimatorTest {
         assertTrue(report.contains("moved:     4.00 ft straight-line, 4.00 ft along the path, 1.00 s moving"), report);
         assertTrue(report.contains("top speed: 4.00 ft/s"), report);
         assertTrue(report.contains("TO MEASURE"), report);
+    }
+
+    // ---- Field walls --------------------------------------------------------------------
+
+    /**
+     * WHAT: Driving full forward into the +x wall stops the robot with its front bumper
+     * touching the wall (center 9 in from it), and records one wall hit with its time.
+     *
+     * <p>WHY: A real robot can't drive through the field wall. Without walls the estimate would
+     * show it 2 ft outside the field.</p>
+     */
+    @Test
+    void wallsStopTheRobotAtTheEdgeOfTheField() {
+        PoseEstimator estimator = estimatorAt(Pose.ORIGIN);
+        drive(1, 0, 0);
+        run(estimator, 2.0);   // 96 in of driving, but the wall is 63 in away
+
+        assertEquals(63.0, estimator.pose().xInches(), 1e-9, "72 in wall minus 9 in half-length");
+        assertEquals(0.0, estimator.pose().yInches(), 1e-9);
+        assertEquals(1, estimator.wallHits().size(), "pressing on the wall is one hit, not one per loop");
+        PoseEstimator.WallHit hit = estimator.wallHits().get(0);
+        assertEquals("+x", hit.wall());
+        assertEquals(63.0 / 48.0, hit.matchTimeSeconds(), DT, "reaches the wall after 63 in at 48 in/s");
+        assertTrue(estimator.report().contains("walls:     hit 1 time (first: +x wall at 1.32 s)"), estimator.report());
+    }
+
+    /**
+     * WHAT: Driving at an angle into a wall, the robot slides along it.
+     *
+     * <p>HOW: Starts 3 in from the +x wall, drives forward and strafes left together. Only the
+     * forward part is blocked.</p>
+     *
+     * <p>WHY: That's what a mecanum robot pushing against the wall does; stopping dead would make
+     * driving along the wall impossible in the viewer.</p>
+     */
+    @Test
+    void robotSlidesAlongAWall() {
+        PoseEstimator estimator = estimatorAt(Pose.inches(60, 0, 0));
+        drive(1, -0.5, 0);
+        run(estimator, 1.0);
+
+        assertEquals(63.0, estimator.pose().xInches(), 1e-9);
+        assertTrue(estimator.pose().yInches() > 5, "kept moving left along the wall: " + estimator.pose());
+    }
+
+    /**
+     * WHAT: A robot turned 45 degrees stops further from the wall, because its corner reaches out.
+     *
+     * <p>WHY: The whole box must stay inside, at any heading.</p>
+     */
+    @Test
+    void aTurnedRobotStopsWhereItsCornerTouches() {
+        PoseEstimator estimator = estimatorAt(Pose.inches(50, 0, 45));
+        drive(1, 0, 0);
+        run(estimator, 1.0);
+
+        double reach = 9 * Math.cos(Math.toRadians(45)) + 9 * Math.sin(Math.toRadians(45));
+        assertEquals(72 - reach, estimator.pose().xInches(), 1e-9);
+        assertEquals(45.0, estimator.pose().headingDegrees(), 1e-9);
+    }
+
+    /**
+     * WHAT: With {@code withoutWalls()}, the robot drives straight off the field.
+     *
+     * <p>WHY: Tests of the off-field check itself need a robot that can leave.</p>
+     */
+    @Test
+    void withoutWallsTheRobotCanLeave() {
+        PoseEstimator estimator = estimatorAt(Pose.ORIGIN).withoutWalls();
+        drive(1, 0, 0);
+        run(estimator, 2.0);
+
+        assertEquals(96.0, estimator.pose().xInches(), 1e-9);
+        assertTrue(estimator.wallHits().isEmpty());
+        assertTrue(estimator.report().contains("walls:     off"), estimator.report());
     }
 }

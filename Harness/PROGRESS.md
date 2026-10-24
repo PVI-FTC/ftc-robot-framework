@@ -21,7 +21,7 @@ Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 
 | 2 | Scripted gamepads, full telemetry, full-match runs, crash capture, rumble recording, Pedro menu support, robot configs | ✅ Done |
 | 3 | Java agent + simulated clock, so timed autonomous and match-timer rumbles are testable | ✅ Done |
 | 4 | Vision: scripted AprilTag detections to test the `VisionSubsystem` state machine and `TeamAAprilTagVisionTestOpMode` | ⬜ Not started |
-| 5 | Physics and Pinpoint: acceleration, fake encoders, fake Pinpoint so Pedro paths run, `PhysicsBackend` interface | 🟡 Partly done (the position estimator below) |
+| 5 | Physics and Pinpoint: acceleration, fake encoders, fake Pinpoint so Pedro paths run, `PhysicsBackend` interface | 🟡 Partly done: position estimator, fake encoders and fake Pinpoint (Pedro routes run); acceleration and `PhysicsBackend` still to do |
 | 6 | Logging, README updates, optional GitHub Actions CI | 🟡 README done; logging and CI not started |
 | 7 | Unity bridge: Unity replaces the physics backend over a socket (planned in three stages, U1–U3, [below](#unity-phase-7-in-three-stages)) | ⬜ Not started |
 
@@ -49,7 +49,7 @@ Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 
 | 14 | Playback controls: play/pause, speed, timeline slider, keyboard (`Playback`) | ✅ Done |
 | 15 | Opt-in switches: `-Pview`, `simView`, `viewRecording`; no windows during normal runs (`viewRecording` exists from Step 13; behavior still to confirm) | ⏳ Next |
 | 16 | Extras: HTML replay, Pedro path overlay, Panels feasibility check | 💤 Optional |
-| 17 | Phase 5 upgrades: acceleration, encoders, fake Pinpoint, `PhysicsBackend` | 💤 Later |
+| 17 | Phase 5 upgrades: acceleration, encoders, fake Pinpoint, `PhysicsBackend` (encoders and fake Pinpoint done 2026-10-23: `FakeDcMotorEx.step`, `FakePinpoint`, `FakeVoltageSensor`; acceleration and `PhysicsBackend` next) | 🟡 |
 
 ---
 
@@ -83,7 +83,7 @@ Planned with the user on 2026-10-23. Each stage builds on the last; nothing here
 
 | Stage | What | Status |
 |---|---|---|
-| U1 | **Unity replays saved run recordings.** Unity reads the same JSON files as the Swing viewer (format v2) and animates a robot on a 3D field. No harness Java changes needed. | ⬜ Next (planning) |
+| U1 | **Unity replays saved run recordings.** Unity reads the same JSON files as the Swing viewer (format v2) and animates a robot on a 3D field. No harness Java changes needed. | ✅ Done (2026-10-23) |
 | U2 | **Unity live, as display and controller.** The harness runs TeamCode and opens a local socket (`pvi.harness.bridge`); each step it sends the loop snapshot, Unity sends gamepad input back through the D1 gamepad entry point. Unity asks for each step, so runs stay repeatable. | ⬜ |
 | U3 | **Unity becomes the physics.** Behind the `PhysicsBackend` interface (Step 17): wheel powers to Unity, pose (later encoders, Pinpoint) back. Walls, game pieces and pushing become real. | ⬜ |
 
@@ -91,16 +91,16 @@ Stage U1 in steps (Unity side unless marked):
 
 | Step | What | Status |
 |---|---|---|
-| U1.0 | Decisions: where the Unity project lives (**decided: `Harness/unity/`**, 2026-10-23); Unity version (**6000.3.14f1**, the one installed); JSON library (**Newtonsoft**, chosen at setup, can still change); confirm the FTC→Unity mapping in [02](ai-instructions/02-unity-readiness.md) §6 (still open) | 🟡 |
+| U1.0 | Decisions: where the Unity project lives (**decided: `Harness/unity/`**, 2026-10-23); Unity version (**6000.3.14f1**, the one installed); JSON library (**Newtonsoft**, chosen at setup, can still change); FTC→Unity mapping in [02](ai-instructions/02-unity-readiness.md) §6 (**confirmed** by the user, 2026-10-23) | ✅ Done |
 | U1.1 | Unity project set up in `Harness/unity/`, JSON library installed; Unity's generated folders (`Library/`, `Temp/`, `Logs/`, `obj/`, `UserSettings/`, `Build/`) added to `Harness/.gitignore` (opened cleanly in Unity batch mode; packages: Newtonsoft JSON 3.2.2, Test Framework 1.6.0, AI Assistant 2.17.0-pre.1) | ✅ Done |
-| U1.2 | C# data classes matching run recording format v2 (v1 files: no `events`) | ⬜ |
-| U1.3 | Loader: open a file, check `header.version` is 1 or 2, clear errors | ⬜ |
-| U1.4 | `FtcToUnity`: the one place that converts inches/radians to Unity metres/degrees, with tests | ⬜ |
-| U1.5 | Scene: 3.66 m field with 2 ft tiles and walls; robot box sized from `header.driveModel` (placeholder sizes marked) | ⬜ |
-| U1.6 | Playback: timeline on `sinceInitSeconds`, play/pause/speed/slider, smooth movement between 20 ms loops | ⬜ |
-| U1.7 | Overlays: trail, telemetry screen for the moment, gamepads, rumbles and events | ⬜ |
-| U1.8 | Tests (Unity Test Framework): parse a sample recording, conversion numbers, playback timing | ⬜ |
-| U1.9 | (Harness) README section "Watching a recording in Unity"; a small sample recording the Unity tests can use | ⬜ |
+| U1.2 | C# data classes matching run recording format v2 (v1 files: no `events`) (`RecordingData.cs`) | ✅ Done |
+| U1.3 | Loader: open a file, check `header.version` is 1 or 2, clear errors (`RecordingLoader.cs`) | ✅ Done |
+| U1.4 | `FtcToUnity`: the one place that converts inches/radians to Unity metres/degrees, with tests (`FtcToUnity.cs`, mapping as proposed in 02 §6) | ✅ Done |
+| U1.5 | Scene: 3.66 m field with 2 ft tiles and walls; robot box sized from `header.driveModel` (placeholder sizes marked) (`FieldBuilder.cs`, scene `Replay.unity`) | ✅ Done |
+| U1.6 | Playback: timeline on `sinceInitSeconds`, play/pause/speed/slider, smooth movement between 20 ms loops (`ReplayTimeline.cs`, `ReplayController.cs`, `OrbitCamera.cs`) | ✅ Done |
+| U1.7 | Overlays: trail, telemetry screen for the moment, gamepads, rumbles and events (`ReplayPanelText.cs`; gamepads shown as text for now, not pictures) | ✅ Done |
+| U1.8 | Tests (Unity Test Framework): parse a sample recording, conversion numbers, playback timing (18 EditMode tests, **Harness → Run Replay Tests**, each break checked) | ✅ Done |
+| U1.9 | (Harness) README section "Watching a recording in Unity"; a small sample recording the Unity tests can use (README sections; sample `Tests/Samples/teamA-teleop-turn.json`) | ✅ Done |
 
 Done when: replaying `viewer-teamA-autonomous.json` in Unity shows the robot about 9.4 in
 (0.24 m) forward at the end, matching the Swing viewer at the same moment.
@@ -110,7 +110,8 @@ Decided: the Unity project lives in **`Harness/unity/`**, next to the recordings
 it (Gradle only builds `src/`).
 
 Open decisions (ask the user): message format for U2 (likely one JSON message per line over TCP,
-with a `version`), whether Unity drives the clock in U2 (recommended), and the unit mapping.
+with a `version`), and whether Unity drives the clock in U2 (recommended). The unit mapping was
+confirmed on 2026-10-23.
 
 The Unity project also includes Unity's **AI Assistant** package (`com.unity.ai.assistant`), whose
 MCP bridge is what Claude Code's `unity-mcp` tool connects to while the editor is open (the same
@@ -130,7 +131,8 @@ How the steps fit the rules in `ai-instructions/`:
 - `SimTime` allows one active clock per process, so only one runner can loop at a time.
 - `Thread.sleep()` and code outside the rewritten packages (including `java.*`) still use the real
   clock.
-- Fake motor encoders stay at zero until Phase 5 physics moves them (`FakeDcMotorEx`).
+- Motor encoder numbers (537.7 counts per turn, 312 RPM) are placeholders until the team gives real motor types.
+- Pedro follows paths poorly in the harness: the robot changes speed instantly, so its corrections overshoot. Needs acceleration (Step 17).
 - `Harness/build.gradle` library versions are copied by hand from `../build.dependencies.gradle`.
 - `RobotConfigs.teamB()` and `teamC()` are copies of Team A for now.
 - `Harness/README.md` §6 lists vision as "Phase 4" and field position as "Phase 5". Update it as
@@ -144,6 +146,11 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-23 | Unity replay GUI made to match the Swing viewer: `HudTheme` (Swing colors and fonts), `HudText` (same words and numbers), `ReplayHud` (header with mission clock, Replay chooser and Replays..., field caption and legend, Vehicle/Position/Auto step/Motors/Driver Station/Events cards, gamepad pictures, playback bar with speed box and slider); dark field and robot like `FieldPainter` (wheels lit by power); top-down view by default, T for 3D. FTC→Unity mapping marked confirmed. Compared side by side with a screenshot of the Swing window. 5 new `HudTextTests`, each checked to fail when broken | Unity 23/23 pass; harness tests not rerun (no Java change) |
+| 2026-10-23 | **Field walls**: `PoseEstimator` stops the robot box at ±72 in at any heading and lets it slide along a wall; `wallHits()`, report line, `withoutWalls()` for off-field tests; each hit saved as a recording event ("Robot hit the +x wall"). Generated tests now check `DriveChecks.assertRobotDoesNotHitAWall` instead of the on-field check (which walls make always pass). 4 `PoseEstimatorTest` + 1 `RealCodeMotionTest` tests | 177/177 pass |
+| 2026-10-23 | Phase 5 step 1: fake motor encoders (`FakeDcMotorEx.step`: counts with power, RUN_TO_POSITION, setVelocity, reset; placeholder 312 RPM motor), fake goBILDA Pinpoint (`FakePinpoint`, driven by the position estimate; added to `RobotConfigs.teamA()` as "pinpoint"), Control Hub battery voltage (`FakeVoltageSensor`), desktop-safe motor type. Runner steps sensors before each call. Real Pedro routes now run; Pedro's pose matches the harness's to 0.01 in. `SensorsTest` (11), each checked to fail when broken | 177/177 pass (with the other sessions' uncommitted walls and viewer work) |
+| 2026-10-23 | Stage U1 replay in Unity (U1.2–U1.9): `Assets/HarnessReplay/` with recording classes, loader (v1/v2, Newtonsoft), `FtcToUnity` (only conversion), `ReplayTimeline` (Swing `Playback` rules + blending), field/robot/trail built from code, orbit/top-down camera, side panel, scene `Replay.unity`, **Harness → Run Replay Tests** menu. Checked in the editor through the `unity-mcp` bridge: replays the newest drive correctly (pictures in `build/unity-replay-*.png`); Team A autonomous ends 0.24 m forward. 7 deliberate breaks each failed a test | Unity 18/18 pass; harness tests not rerun (no Java change) |
+| 2026-10-23 | Viewer: replays separated from the dropdown (now Drive / Run only). New **Replays** window (`ReplayPicker`, `ReplayLibrary`; REPLAYS... button or Ctrl+O): saved recordings newest first with type (Drive / Scenario / Test), saved time and size, text filter, ALL/DRIVES/SCENARIOS/TESTS buttons, Open file... `ReplayLibraryTest` (3) | 161/161 pass |
 | 2026-10-23 | Viewer opens straight into **Drive: Team A TeleOp** when no file is given (`view.bat`, Android Studio button, `gradlew viewRecording`); robot drawing shows four mecanum wheels (power fill: cyan forward, amber backward) and the intake (cyan in, amber out); dark disabled dropdowns. `RobotPartsDrawingTest` (3) | 158/158 pass |
 | 2026-10-23 | U1.1: Unity project in `Harness/unity/` (Unity 6000.3.14f1, built-in renderer; Newtonsoft JSON, Test Framework, AI Assistant for the `unity-mcp` bridge), `unity/README.md`, Unity folders ignored in `Harness/.gitignore`. Opened once in batch mode: packages resolved, no errors, return code 0. Then opened in the editor by the user: the `unity-mcp` bridge connects and sees the project; console has no errors (warnings: old Input Manager deprecated, so use the Input System package in U1.6; bridge signature check; relay startup). No scene or replay code yet | Harness tests not rerun (no Java change) |
 | 2026-10-23 | Viewer: smaller, quieter T+ clock (header 58 px); one controller runs both gamepads: its D-pad works the operator's A/B/X/Y (up = Y, down = A, left = X, right = B) and isn't sent to the driver, until a second controller connects. 2 new `ControllerTest` tests, checked to fail when broken | all pass |

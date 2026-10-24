@@ -328,7 +328,7 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
 `RecordingViewer`'s `main` directly also opens the window, but the "Run: ..." scenarios then need
 `-javaagent:build\agent\harness-agent.jar` in the run configuration's VM options.)
 
-**The dropdown** ("Drive, run or replay") lists:
+**The dropdown** ("Drive / run") lists:
 
 - **Drive: ...** Team A, B or C TeleOp, driven live from the keyboard (see "Driving live from
   the keyboard" below).
@@ -338,8 +338,15 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
   Picking one runs the real, unchanged OpMode in the harness right there (simulated time, so even
   a whole match takes about a second), saves it as `build\recordings\viewer-<name>.json`, and
   replays it. To add your own, copy a method in `Scenarios.java` and add it to `all()`.
-- **Replay: ...** every recording in `build\recordings`, newest first. The list is refreshed each
-  time you open it, so recordings saved by tests you just ran show up.
+
+**Replays** are kept apart from the dropdown. Click **REPLAYS...** (or press **Ctrl+O**) for the
+Replays window: every recording in `build\recordings`, newest first, with its type (**Drive**
+for your live drives, **Scenario** for dropdown runs, **Test** for files saved by tests), when it
+was saved and its size. Type in **Filter** to search names, or use **ALL / DRIVES / SCENARIOS /
+TESTS** to show one type. **Open** (or double-click, or Enter) replays it; **Open file...** picks
+a recording from anywhere on the computer. The list is read fresh each time the window opens,
+so recordings saved by tests you just ran show up. While a recording is replaying, the dropdown
+reads "Replaying <file>".
 
 **Driving live from the keyboard.** Pick **Drive: Team A TeleOp (keyboard)**. The real, unchanged
 TeleOp starts in INIT. Press **Enter** for PLAY, drive, and press **Esc** to STOP (it also stops
@@ -365,6 +372,13 @@ are off.
 | D-pad up, down, left, right | 1 2 3 4 | | |
 
 Click the window first so it has the keyboard. If it loses focus, every key is released.
+
+**Field walls.** The robot can't drive out of the arena: the position estimate stops the robot
+box at the field's walls (±72 in), at any heading, and a robot driving into a wall at an angle
+slides along it. Each time it runs into a wall, the recording gets an event ("Robot hit the +x
+wall", shown under **Events**) and the final-position report counts the hits. In your own tests,
+`runner.positionEstimator().wallHits()` lists them; `withoutWalls()` lets the robot leave the
+field, only for testing an off-field check.
 
 **Driving with a controller.** Plug in, or pair over Bluetooth, an Xbox, PlayStation
 (DualShock 4 / DualSense) or Logitech F310/F710 controller (switch on "X") *before* picking
@@ -410,8 +424,8 @@ replaced: a second one becomes `...Drive2.java`. Open it and edit it like any ot
   PLAY come after `s.duringInit();`. Marked moments (a controller disconnecting) are comments.
 - **Run:** the same OpMode, robot and number of loops before and after PLAY as the drive.
 - **Check:** two safety checks every run should pass: motor powers stay within -1 to 1, and the
-  robot box stays on the field. If your drive already broke one (for example you drove into the
-  wall), it is written **turned off**, with the reason, so the new test starts green. Then a
+  robot never runs into a field wall. If your drive already broke one (for example you drove into
+  the wall), it is written **turned off**, with the reason, so the new test starts green. Then a
   `// TODO: add your own checks here` spot.
 - **Snapshot checks** (commented out): where the robot ended and the last Driver Station screen.
   Remove the `//` in front of the ones you want; they then fail if the robot code starts
@@ -460,11 +474,20 @@ To save a still picture instead, use `FieldImage.savePng(recording, FieldImage.L
 "myAutonomous")` (a loop index instead of `LAST_LOOP` picks an earlier moment). It goes to
 `Harness\build\field-images\`.
 
+### Watching a recording in Unity (3D)
+
+The same recordings also replay in 3D in the Unity project in `Harness\unity\` (Stage U1).
+Open that folder in Unity Hub (Unity 6000.3.14f1), open `Assets/HarnessReplay/Replay.unity` and
+press **Play**: the newest recording in `build\recordings` opens. N / P switch to newer / older
+recordings; the other keys match the viewer window (Space, arrows, Home/End, `[` `]`), plus T for
+top-down and F to follow the robot. Unity only reads the saved files; nothing connects to the
+harness live yet. Details: [`unity/README.md`](unity/README.md).
+
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |
 |---|---|
-| `RobotConfigs.teamA()` | `frontLeft`, `frontRight`, `rearLeft`, `rearRight`, `intake` |
+| `RobotConfigs.teamA()` | `frontLeft`, `frontRight`, `rearLeft`, `rearRight`, `intake`, and the goBILDA Pinpoint `pinpoint` (name read from Team A's Pedro configuration) |
 | `RobotConfigs.teamB()` / `teamC()` | same as Team A for now |
 | `RobotConfigs.driveOnly()` | the four drive motors |
 | `.without("intake")` | remove a device to test what happens when it is missing |
@@ -475,7 +498,33 @@ Need something else? Build your own:
 FakeHardwareMap hw = RobotConfigs.teamA();
 hw.addServo("claw");
 hw.addMotor("lift");
+hw.addPinpoint("odometry");
 ```
+
+Every fake robot also has the Control Hub's **battery voltage** (12.5 V), which Pedro reads:
+`hw.batteryVoltage().setVoltage(11.0)` tests a tired battery.
+
+### Sensors: motor encoders and the Pinpoint
+
+Before every OpMode call the harness moves the sensors on to match the simulated robot:
+
+- **Motor encoders** count with motor power: full power is about 2796 counts per second
+  (`FakeDcMotorEx.FULL_SPEED_TICKS_PER_SECOND`, a goBILDA 312 RPM motor, **a placeholder** until
+  the team gives real numbers; per motor: `motor("lift").setEncoderModel(ticksPerRev, rpm)`).
+  As on the robot, positive power counts up whatever the direction, `RUN_TO_POSITION` drives to
+  the target and stops (`isBusy()` turns false), `setVelocity(...)` in `RUN_USING_ENCODER`
+  runs at that speed, and `STOP_AND_RESET_ENCODER` zeroes the count. A miswired motor counts
+  backwards.
+- **The goBILDA Pinpoint** (`FakePinpoint`) reports where the position estimate says the robot
+  is, the way a correctly set-up Pinpoint would: from the last `resetPosAndIMU()` (X forward,
+  Y left) or `setPosition(...)`, with velocities, unwrapped heading and raw pod counts that
+  follow the offsets and pod type the code set. Values only change when the code calls
+  `update()`, as on the robot. It doesn't model pod slip or IMU drift.
+
+So **Pedro runs**: pick a route in Team A's "Team A Pedro Paths" menu and Pedro follows it,
+reading the fake Pinpoint every loop (`SensorsTest.java` has an example). How well it follows
+is not realistic yet: the simulated robot still changes speed instantly (no momentum), so Pedro's
+corrections overshoot and the robot wobbles. Acceleration (Step 17) fixes that.
 
 ---
 
@@ -497,7 +546,9 @@ hw.addMotor("lift");
 | TeleOps, buttons, state machines, hardware config, crashes, telemetry, rumble events | ✅ Now |
 | Timed autonomous steps, match-timer rumbles (anything using `ElapsedTime`) | ✅ Now |
 | Vision state machine with scripted AprilTags | Phase 4 |
-| Pedro paths, odometry, field position | Phase 5 |
+| Field position (estimated from motor powers), motor encoders | ✅ Now |
+| Pedro paths: they run and Pedro sees the robot's position | ✅ Now |
+| How well Pedro follows a path (needs acceleration / momentum) | Phase 5 (Step 17) |
 
 ### About time
 
@@ -565,7 +616,7 @@ src/viewer/java/pvi/harness/viewer/
 src/test/java/pvi/harness/
   the tests
 unity/
-  Unity project for watching recordings in 3D (Stage U1; set up only, see unity/README.md)
+  Unity project: replays recordings in 3D (Stage U1; see unity/README.md)
 ```
 
 - **The Java agent.** `build.gradle` packages `src/agent` with Byte Buddy into

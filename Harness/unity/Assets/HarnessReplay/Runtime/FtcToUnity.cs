@@ -1,0 +1,66 @@
+using UnityEngine;
+
+namespace PviHarness.Replay
+{
+    /// <summary>
+    /// The ONE place that turns harness (FTC) units into Unity units. Every other script calls
+    /// this; none converts on its own (Harness/ai-instructions/02-unity-readiness.md §6).
+    ///
+    /// <para>FTC field frame (the harness): inches, origin at the field center, x and y from -72
+    /// to +72, z up, heading counter-clockwise from +x when seen from above.</para>
+    ///
+    /// <para>Unity: meters, y up, left-handed, yaw (rotation around y) clockwise from +z when
+    /// seen from above.</para>
+    ///
+    /// <code>
+    ///   FTC x inches  ->  Unity x = x * 0.0254 m
+    ///   FTC y inches  ->  Unity z = y * 0.0254 m
+    ///   FTC height    ->  Unity y
+    ///   FTC heading   ->  Unity yaw = 90 deg - heading in degrees
+    /// </code>
+    ///
+    /// Seen from above, both have x to the right and FTC +y / Unity +z away from you, so the
+    /// field is not mirrored. Heading 0 (facing FTC +x) is Unity yaw 90 (facing +x); heading 90
+    /// (facing FTC +y) is yaw 0 (facing +z).
+    /// </summary>
+    public static class FtcToUnity
+    {
+        /// <summary>Exactly 0.0254 meters in an inch.</summary>
+        public const float MetersPerInch = 0.0254f;
+        /// <summary>The field reaches 72 inches from its center in every direction.</summary>
+        public const float FieldHalfWidthInches = 72f;
+        /// <summary>The whole field is 144 inches (12 ft, 3.6576 m) across.</summary>
+        public const float FieldSizeMeters = 2f * FieldHalfWidthInches * MetersPerInch;
+
+        /// <summary>A length in inches as meters.</summary>
+        public static float Meters(double inches)
+        {
+            return (float)(inches * MetersPerInch);
+        }
+
+        /// <summary>A field position (FTC inches) as a Unity position, at a height in meters above the floor.</summary>
+        public static Vector3 Position(double xInches, double yInches, float heightMeters = 0f)
+        {
+            return new Vector3(Meters(xInches), heightMeters, Meters(yInches));
+        }
+
+        /// <summary>An FTC heading (radians, counter-clockwise from +x) as a Unity yaw in degrees (clockwise from +z).</summary>
+        public static float YawDegrees(double headingRadians)
+        {
+            return 90f - (float)(headingRadians * Mathf.Rad2Deg);
+        }
+
+        /// <summary>The Unity rotation for a robot with this FTC heading: its local +z (forward) points the way it faces.</summary>
+        public static Quaternion Rotation(double headingRadians)
+        {
+            return Quaternion.Euler(0f, YawDegrees(headingRadians), 0f);
+        }
+
+        /// <summary>A recorded pose as a Unity position (on the floor, or at a height) and rotation.</summary>
+        public static void Pose(PoseData pose, float heightMeters, out Vector3 position, out Quaternion rotation)
+        {
+            position = Position(pose.xInches, pose.yInches, heightMeters);
+            rotation = Rotation(pose.headingRadians);
+        }
+    }
+}

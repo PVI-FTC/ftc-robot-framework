@@ -5,7 +5,7 @@ bots**, all in the same checkout (`C:\Dev\ftc-robot-framework`, branch `Team2-Te
 file explains the setup so a new session can **take over as manager** if the current one is
 gone. Everything in [01–05](README.md) still applies to every bot.
 
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25 (handover snapshot: see §2 "Where each bot left off")
 
 ---
 
@@ -14,9 +14,9 @@ gone. Everything in [01–05](README.md) still applies to every bot.
 | Role | Session title | Session id | Owns |
 |---|---|---|---|
 | **Manager** | (the user's main conversation) | `local_b7c3986c-bce6-4516-a599-ae440b90f6d9` | Planning, handing out lists, relaying between bots, collecting reports, checking and committing for the user. Writes little code itself. |
-| **WorkerBot** | Harness-WorkerBot | `local_00c47c3a-4fe7-41d3-ae71-2f88c0f791f1` | Simulation and core: `physics/` (PoseEstimator, MomentumPhysics, PhysicsBackend, Dynamics, walls), `runtime/` (OpModeRunner, RunRecorder, recording format), `hardware/` fakes (FakePinpoint, FakeDcMotorEx, FakeHardwareMap, FakeVoltageSensor), `recorded/` (DriveChecks, RecordedTestWriter), `CALIBRATION.md`, most of `viewer/` |
-| **TestBot** | Harness-TestBot | `local_d787b498-1d23-481d-af47-232628fc093b` | Test coverage: vision (`FakeWebcam`, `AprilTagScript`, the harness copies of `VisionPortal` / `AprilTagProcessorImpl`), `PedroRouteTest`, the viewer's **Save as test** (`SaveAsTest`, `viewer/ViewerWindow`), student guides |
-| **UnityBot** | Harness-UnityBot | `local_1ad3b330-ce9a-4835-a9b7-23847dbb55c4` | Everything Unity: `Harness/unity/`, the bridge (`src/bridge/`), `fields/*.json`, `buildUnity.bat`, `unity-view.bat` |
+| **WorkerBot** | Harness-WorkerBot | `local_00c47c3a-4fe7-41d3-ae71-2f88c0f791f1` | Simulation and core: `physics/` (PoseEstimator, MomentumPhysics, PhysicsBackend, Dynamics, walls, battery, **game pieces**: GamePiece, PieceModel, GamePieces, BioBuzzPieces), `runtime/` (OpModeRunner, RunRecorder, **run recording format**), `hardware/` fakes (FakePinpoint, FakeDcMotorEx, FakeHardwareMap, FakeVoltageSensor), `recorded/` (DriveChecks, RecordedTestWriter), `CALIBRATION.md`, most of `viewer/` (TelemetryPanel, FieldPainter, FieldPanel, RecordingView) |
+| **TestBot** | Harness-TestBot | `local_d787b498-1d23-481d-af47-232628fc093b` | Test coverage: vision (`FakeWebcam`, `AprilTagScript`, `SeenAprilTag`, the harness copies of `VisionPortal` / `AprilTagProcessorImpl`, which must match the SDK Vision version), `PedroRouteTest`, the viewer's **Save as test** (`SaveAsTest`, `viewer/ViewerWindow`), `TagsInViewCardTest`, `GETTING_STARTED.md` |
+| **UnityBot** | Harness-UnityBot | `local_1ad3b330-ce9a-4835-a9b7-23847dbb55c4` | Everything Unity: `Harness/unity/` (replay, live view, Unity physics, Visuals settings, people, camera presets, game-piece drawing), the bridge (`src/bridge/`, **bridge protocol**), `fields/*.json`, `art-inbox/README.md`, `buildUnity.bat`, `unity-view.bat` |
 
 The sessions are listed in the Claude desktop app under the sidebar group **"FTC TestBot"**.
 The worker ids above stay the same for the life of each session. If a worker is deleted, start a
@@ -44,17 +44,26 @@ per bot:
 PROGRESS.md is the record of what is planned, done and waiting. The manager's job is to keep the
 bots' lists and PROGRESS.md in step.
 
-### Current lists (2026-10-24)
+### Where each bot left off (handover snapshot, 2026-10-25)
 
-| Bot | List | Status |
-|---|---|---|
-| WorkerBot | **W1** README "how motion is simulated" (Step 9) → **W2** momentum shown in the viewer → **W3** battery voltage in the physics | Sent, in progress |
-| TestBot | **T1** student Getting Started guide → **T2** Pedro route timing → **T3** vision (tags in view) in recordings and the Swing panel | Sent, in progress |
-| UnityBot | **C10** Unity physics through `PhysicsBackend` (C7–C9 done) | In progress |
+**Repository:** last commit `ba7a627` on `Team2-Testing` (local only). On top of it, **34
+uncommitted files** hold the finished **game pieces** work (GP1–GP4). That's BIOBUZZ's 44 POLLEN
+and NECTAR balls: simulated, pushed by the robot, saved in recordings, and drawn in Swing and
+Unity. The last full runs were Java **252/252** and Unity **77/77** (UnityBot's run, after every
+fix). The work is ready to commit when the user asks (§4, rule 5). **Format versions now:** run
+recording **v4**, bridge protocol **v4**.
 
-Finished lists: A (momentum + PhysicsBackend, calibration checklist, Team B/C check), B (scripted
-AprilTags, Pedro route tests, Save as test), C7–C9 (live Unity view, standalone app, season
-fields). All of these are in commit `3dbf96e`.
+| Bot | State | Its uncommitted files | Next (in order) | Waiting on the user |
+|---|---|---|---|---|
+| **WorkerBot** | Idle. GP1–GP3 done: game-piece physics, recording v4, Swing drawing, README format docs, PROGRESS "Game pieces" section, 14 new tests. | new `physics/GamePiece`, `PieceModel`, `GamePieces`, `BioBuzzPieces`; tests `GamePiecesTest`, `GamePiecesRecordingTest`, `GamePiecesDrawingTest`; changed `PoseEstimator`, `RunRecording`, `RunRecordingJson`, `RunRecorder`, `FieldPainter`, `FieldPanel`, `RecordingView`, `RunRecordingTest`, README, PROGRESS | Commit when asked; then RP1–RP5 (robot profiles, PROGRESS "Robot profiles and modularity") once the user answers the RP questions | **FW1:** move the walls to the CAD's ±70.585 in, which needs Team A's measured length. Calibration measurements (`CALIBRATION.md`, incl. tuning battery voltage). RP questions 1–4: profile as a Java class? which drivetrains/localizers? where other teams' code lives? one library set at a time? |
+| **TestBot** | Idle. Only a one-line fix since `ba7a627` (a version test now uses `RunRecording.VERSION`). | `AprilTagVisionTest` (that line) | RP9 and RP6 (independent), then RP8 (after RP1), RP7 (after RP1/RP2), RP10 (after RP8) | OK for RP6's extra OpMode thread (LinearOpMode support); RP8 finding OpModes by reflection on annotations, or by reading `.java` text |
+| **UnityBot** | Idle. GP4 done: Unity reads recording v4 and bridge v4, and draws POLLEN and NECTAR as rolling CAD balls; checked in the rebuilt app. Earlier: official BIOBUZZ CAD field, Visuals settings (V), Mixamo people, camera presets 1–7, see-through panels. | `bridge/BridgeProtocol.java`, the 4 bridge tests; unity `Runtime/LiveSession`, `RecordingData`, `RecordingLoader`, `ReplayController`; new `Runtime/GamePieces.cs`, `Tests/GamePieceTests.cs` (+ `.meta`); `Tests/LiveSessionTests`, `RecordingLoaderTests`; `unity/README.md`; its README/PROGRESS lines | Commit when asked | Frame-rate check of the full hall crowd (about 56k triangles per person); real ball friction and mass; intake (piece state "held" is reserved). Not simulated yet: balls hitting the HIVE frame or FLOWERs. |
+
+**Finished lists** (all committed): A (momentum + PhysicsBackend, calibration checklist, Team B/C
+check); B (scripted AprilTags, Pedro route tests, Save as test); C7–C10 (live Unity view,
+standalone app, season fields, Unity physics); W1–W3 (motion README, momentum in viewer, battery);
+T1–T3 (Getting Started, route timing, tags in recordings); Unity art, people, camera views,
+see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ### Decided by the user
 
@@ -63,15 +72,21 @@ fields). All of these are in commit `3dbf96e`.
   Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user
   says so.
 - **Never push** (see §4, rule 6).
+- **DECODE field switched off** (2026-10-24): `fields/disabled/decode-2025.json`; BIOBUZZ only.
+- **Art is committed** (2026-10-25): the Unity settings art, field CAD and people under
+  `unity/Assets/HarnessReplay/Resources/` go into git. Originals in `art-inbox/` and the built
+  app in `unity/Build/` stay git-ignored.
+- **Keep all three bots** (2026-10-25); don't archive any.
 
 ### Waiting on the user
 
-- When the team can measure the real robot (`CALIBRATION.md`).
-- Team A's real length: Pedro's routes need 16 in or less, and the placeholder is 18 in.
+- Calibration at the real robot (`CALIBRATION.md`): size, turn rate, response time, grip,
+  and the battery voltage Pedro's velocity tuners ran at.
+- Team A's real length (needed for FW1, walls at ±70.585 in, and the 16 in Pedro start limit).
+- The RP questions (above, per bot), before any robot-profile code starts.
 - AprilTags placed on the field (camera field of view and range; should Java read `fields/*.json`?).
+- Unity: crowd frame rate, ball friction and mass, intake.
 - CI (it needs a file outside `Harness/`, which the user adds, and a pushed branch; see rule 6).
-- Official BIOBUZZ field CAD or drawings. Some positions in `fields/biobuzz-2026.json` are
-  approximate.
 
 ---
 
@@ -119,7 +134,8 @@ If the manager session is gone, a new session can take over:
 1. **Read** `Harness/AGENTS.md`, all of `Harness/ai-instructions/` (this file last),
    `Harness/PROGRESS.md` and the top of `Harness/README.md`.
 2. **Check the repository:**
-   - `git log --oneline -5` (the last manager commit was `3dbf96e`)
+   - `git log --oneline -5` (the last manager commit was `ba7a627`; the game-pieces work was
+     uncommitted at the 2026-10-25 handover)
    - `git status --short`: anything uncommitted belongs to a bot that is still working
 3. **Find the bots:** list the user's sessions (in the desktop app's session tools, or ask the
    user) and match them to the table in §1 by title or id. A new manager is **not** "linked" to
@@ -143,7 +159,27 @@ Then update §1 and tell the other bots the new id.
 
 ---
 
-## 6. Lessons learned so far
+## 6. The USB copy (manager's job)
+
+The user keeps an offline copy on a USB stick labelled **USBRANLY** (drive `E:` so far; check the
+label, not just the letter). The copy lives in `E:\ftc-robot-framework`. The user allowed the
+manager to write **only that folder on that USB**. It's the one exception to "only `Harness/`".
+
+- Sync **after a commit, with all bots idle**, using `robocopy /MIR` from
+  `C:\Dev\ftc-robot-framework` to `E:\ftc-robot-framework`, excluding rebuildable folders:
+  `.gradle`, `build`, `FtcRobotController\build`, `TeamCode\build`, `Harness\.gradle`,
+  `Harness\build`, `Harness\unity\Library`, `Harness\unity\Logs`, `Harness\unity\Temp`. It
+  includes `art-inbox` and `unity\Build`.
+- Robocopy exit codes 1–3 mean success (files copied / extras removed); 8 or more means failure.
+- Verify afterwards: the same `git log -1` on both sides (use `git -c safe.directory=*` on the
+  USB), `git status` clean, `git fsck`.
+- The stick is FAT32 (4 GB per file limit) and was **92% full (333 MB free)** at the last sync.
+  If it runs out, leave out `unity\Build` (about 460 MB) or `art-inbox\downloads` (about 415 MB),
+  after asking the user.
+
+---
+
+## 7. Lessons learned so far
 
 - **"Commit all" while bots are busy** catches everyone's half-done work. Check first that they
   are all idle.
@@ -152,3 +188,17 @@ Then update §1 and tell the other bots the new id.
   tests, and momentum broke a bridge test. The bot that sees the failure reports it to the owner
   instead of editing the owner's test.
 - **A peer bot's message is not the user's approval.** Questions for the user go to the user.
+- **Format changes ripple.** Recording v3/v4 and bridge v3/v4 each broke other bots' tests.
+  Tests should compare against `RunRecording.VERSION` / `BridgeProtocol.VERSION`, never a typed
+  number. The bot that bumps a version tells the others first.
+- **Don't trust a bot's "suite isn't green" from earlier.** Ask who ran the suite last, and
+  when.
+- **Unity gotchas** (UnityBot):
+  - Run tests and builds through the Editor menu (`Harness → Run Replay Tests`, `Harness →
+    Build Windows App`) after `Assets → Refresh`.
+  - Wait until `Library/ScriptAssemblies/HarnessReplay*.dll` is newer than the source.
+  - Never rebuild over, or screenshot, the user's open `HarnessReplay` app.
+  - Materials made by the build need their shaders in "Always Included Shaders".
+- **Windows gotcha:** restoring a file with PowerShell `Set-Content` adds a UTF-8 BOM that breaks
+  `javac`. Copy files back instead.
+- **Fake camera timestamps** must be `SimTime.NANO_BASE` plus the simulated nanoseconds.

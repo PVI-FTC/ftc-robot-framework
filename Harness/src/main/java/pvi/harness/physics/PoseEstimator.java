@@ -25,8 +25,11 @@ import pvi.harness.runtime.OpModeRunner;
  * OpMode, and finally calls {@link #update} (records the moment and reads the new wheel
  * powers).</p>
  *
+ * <p>It also moves the game pieces ({@link GamePieces}): the robot pushes loose balls out of
+ * its way, but is never slowed by them.</p>
+ *
  * <p><b>Assumptions:</b> the wheels never slip except at the traction limit, and the robot
- * moves on a flat, empty field. See the README.</p>
+ * moves on a flat field with nothing but the walls in its way. See the README.</p>
  *
  * <p>Easiest use: {@code PoseEstimator estimator = PoseEstimator.attachTo(runner, DriveModels.teamA());}
  * then run the OpMode and call {@code estimator.printReport()}.</p>
@@ -81,6 +84,8 @@ public final class PoseEstimator {
     private String wallContact = "";
     /** Every time the robot ran into a wall, oldest first. */
     private final List<WallHit> wallHits = new ArrayList<>();
+    /** The game pieces the robot can push (BIOBUZZ's by default). */
+    private GamePieces pieces;
 
     /**
      * An estimate using the harness's own physics ({@link MomentumPhysics}).
@@ -103,6 +108,24 @@ public final class PoseEstimator {
         this.wheels = wheels;
         this.start = start;
         this.physics = physics;
+        this.pieces = new GamePieces(BioBuzzPieces.start(start, model.lengthInches()), PieceModel.bioBuzz());
+    }
+
+    /**
+     * Uses these game pieces instead of the BIOBUZZ ones (for example {@link GamePieces#none()}).
+     * Call it before the run starts. Returns this estimator.
+     */
+    public PoseEstimator withPieces(GamePieces newPieces) {
+        if (newPieces == null) {
+            throw new IllegalArgumentException("Use GamePieces.none() for a field without game pieces.");
+        }
+        this.pieces = newPieces;
+        return this;
+    }
+
+    /** The game pieces on the field: where they started and where they are now. */
+    public GamePieces pieces() {
+        return pieces;
     }
 
     /**
@@ -175,6 +198,8 @@ public final class PoseEstimator {
         physics.step(lastCommand, dt);
         PhysicsBackend.State now = physics.state();
         lastTimeSeconds = timeSeconds;
+        // The robot pushes any loose game pieces in its way.
+        pieces.step(before, now.pose(), model.lengthInches(), model.widthInches(), dt, hasWalls());
 
         // A new wall contact (not just staying against the same wall) is a hit.
         String contactBefore = wallContact;

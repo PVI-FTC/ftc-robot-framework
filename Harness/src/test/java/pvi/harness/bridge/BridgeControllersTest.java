@@ -65,7 +65,7 @@ class BridgeControllersTest {
 
     /** hello, load with controllers, init and play. */
     private void startWithControllers() {
-        send("{\"type\": \"hello\", \"version\": 3}");
+        send("{\"type\": \"hello\", \"version\": 4}");
         Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"input\": \"controllers\"}");
         assertEquals("controllers", loaded.get("input"));
         send("{\"type\": \"init\"}");
@@ -201,7 +201,7 @@ class BridgeControllersTest {
      */
     @Test
     void messagesInputHasNoControllers() {
-        send("{\"type\": \"hello\", \"version\": 3}");
+        send("{\"type\": \"hello\", \"version\": 4}");
         Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}");
         assertEquals("messages", loaded.get("input"));
 

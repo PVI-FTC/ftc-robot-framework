@@ -2,9 +2,12 @@ package pvi.harness.viewer;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.Pose;
 import pvi.harness.runtime.RunRecording;
 
@@ -26,6 +29,11 @@ public final class RecordingView {
     private final FieldPainter.RobotBox box;
     /** For each loop index: how the robot was moving, worked out from the recorded poses. */
     private final Motion[] motions;
+    /**
+     * For each loop index: every game piece at that moment. The recording only lists the pieces
+     * that changed, so this adds them up; loops where nothing changed share the same list.
+     */
+    private final List<List<GamePiece>> pieces = new ArrayList<>();
 
     /**
      * How the robot was moving at one moment, worked out from where it was in neighbouring loops
@@ -57,6 +65,31 @@ public final class RecordingView {
         }
         box = FieldPainter.RobotBox.of(recording.header().driveModel());
         motions = workOutMotions(loops);
+        workOutPieces(loops);
+    }
+
+    /** Every piece at every loop: the header's list, updated by each loop's changed pieces. */
+    private void workOutPieces(List<RunRecording.LoopRecord> loops) {
+        Map<String, GamePiece> now = new LinkedHashMap<>();
+        for (GamePiece p : recording.header().pieces()) {
+            now.put(p.id(), p);
+        }
+        List<GamePiece> current = List.copyOf(now.values());
+        for (RunRecording.LoopRecord loop : loops) {
+            if (!loop.pieces().isEmpty()) {
+                for (GamePiece p : loop.pieces()) {
+                    now.put(p.id(), p);
+                }
+                current = List.copyOf(now.values());
+            }
+            pieces.add(current);
+        }
+    }
+
+    /** Every game piece at loop {@code index}, in the header's order (empty for a run without pieces). */
+    public List<GamePiece> pieces(int index) {
+        checkIndex(index);
+        return pieces.get(index);
     }
 
     /**

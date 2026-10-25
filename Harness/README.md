@@ -224,8 +224,9 @@ The recorder only watches, so a test passes or fails the same with or without it
 always saves exactly the same bytes. A 30 s autonomous is about 0.8 MB. `RunRecordingTest.java`
 has examples.
 
-**Run recording format, version 3.** (Version 2 added `events`, version 3 added each loop's
-`aprilTags`. Older files, without them, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
+**Run recording format, version 4.** (Version 2 added `events`, version 3 added each loop's
+`aprilTags`, version 4 added the game `pieces` in the header and each loop. Older files, without
+them, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
 decimal places and written with a dot, without trailing zeros (`0.2`, `1`, `-3.141593`). Field
 names match the `RunRecording` record components. Devices are arrays of `{name, ...}` objects, not
 name-to-value maps, because some readers (Unity's JsonUtility) can't read maps. Distances are in
@@ -245,7 +246,7 @@ Top level:
 
 | Field | Type | Unit | Meaning |
 |---|---|---|---|
-| `version` | whole number | — | Format version, `3`. It goes up whenever any field changes. |
+| `version` | whole number | — | Format version, `4`. It goes up whenever any field changes. |
 | `distanceUnit` | string | — | Always `"inches"`. |
 | `angleUnit` | string | — | Always `"radians"`. |
 | `timeUnit` | string | — | Always `"seconds"`. |
@@ -255,6 +256,7 @@ Top level:
 | `loopPeriodSeconds` | number | s | Simulated time per OpMode call (default 0.02). |
 | `startPose` | pose or `null` | — | Where the position estimate started; `null` if position wasn't tracked (robot without the four drive motors). |
 | `driveModel` | drive model or `null` | — | Robot speeds and size used for the estimate; `null` if not tracked. |
+| `pieces` | array of piece | — | Every game piece at INIT, in a fixed order (version 4). Empty if position wasn't tracked. |
 
 drive model: `name` (string, e.g. `"Team A"`) and five model values: `forward` (in/s), `strafe`
 (in/s), `turn` (deg/s), `length` (in), `width` (in). Each model value is:
@@ -281,6 +283,7 @@ loop (one OpMode call):
 | `gamepad1` | gamepad | — | The driver's gamepad as the OpMode saw it during this call. |
 | `gamepad2` | gamepad | — | The operator's gamepad as the OpMode saw it during this call. |
 | `aprilTags` | array of AprilTag | — | The tags in each fake webcam's latest picture, i.e. what robot code could detect during this call (version 3). Empty with no webcam. |
+| `pieces` | array of piece | — | Only the game pieces that moved more than 0.01 in or changed `state` since the previous loop entry (since the header's list, for the first entry), where they are after this call; in the header's order. Empty if none did (version 4). |
 
 gamepad:
 
@@ -299,6 +302,13 @@ tag is from the camera lens, as the SDK's `ftcPose`: `rightInches`, `forwardInch
 (numbers, inches; x right, y forward, z up) and `yawDegrees`, `pitchDegrees`, `rollDegrees`
 (numbers, degrees, as the SDK reports them). Range along the floor is `hypot(right, forward)` and
 bearing (left positive) is `atan2(-right, forward)`.
+
+piece (a game piece, a ball): `id` (string, the same all run, e.g. `"pollen-garden-red-1"`), `kind`
+(string: `"pollen"`, 2.8 in, or `"red-nectar"` / `"blue-nectar"`, 3.6 in), `state` (string: `"field"`
+loose on the tiles, `"flower"`, `"cell"`, `"alliance-area"`; `"held"` is reserved for an intake
+later, and more states may be added without a version change), `xInches`, `yInches` (numbers,
+inches, FTC field frame) and `zInches` (number, inches, the ball center's height above the tiles).
+To know every piece at a loop, start from `header.pieces` and apply each loop's `pieces` in order.
 
 event: `sinceInitSeconds` (number, seconds since INIT), `matchTimeSeconds` (number, seconds after
 PLAY, `0` if before PLAY), `text` (string, what happened, e.g. `"Gamepad 1: controller
@@ -592,10 +602,11 @@ choosing a live OpMode. Unity's physics engine then moves the robot instead of t
   (`RemotePhysics` in `src/bridge`): the encoders, the Pinpoint, the recording and the wall-hit events.
 - The harness's own physics stays the default, and every test uses it.
 
-**Bridge message format, version 3.** (Version 2 added `input` in `load` and `controllers` /
+**Bridge message format, version 4.** (Version 2 added `input` in `load` and `controllers` /
 `controllerProblem` in `frame`. Version 3 added `physics` in `load`, `physics` / `robotPhysics` in
-`loaded`, `driveCommand` in `frame`, and `physicsState` in `step` / `play`. An older client is
-refused.) A local TCP connection; each message is one line of UTF-8
+`loaded`, `driveCommand` in `frame`, and `physicsState` in `step` / `play`. Version 4 added the game
+pieces: `pieces` in the `loaded` header and in each frame's `loop`, as in run recording version 4.
+An older client is refused.) A local TCP connection; each message is one line of UTF-8
 JSON ending in `\n`, with a `type`. Unity sends a request and the harness sends **exactly one
 reply**, then waits: the harness never runs ahead, so **Unity drives the clock** (about one
 `step` per 20 ms of real time) and the same messages always give the same replies. Numbers and
@@ -753,8 +764,20 @@ report, until the team measures them on the real robot ([CALIBRATION.md](CALIBRA
 | Battery voltage the speeds were measured at | 12.5 V | `DriveModels.teamA()` |
 | Other motors' encoders | goBILDA 312 RPM | `FakeDcMotorEx` |
 
-**What isn't simulated.** Wheel slip below the traction limit, bumps, other robots, game
-pieces, voltage dips from heavy load (only steady sag), pod slip and IMU drift in the Pinpoint.
+**Game pieces.** Every tracked run has BIOBUZZ's 44 balls at their starting spots
+(`BioBuzzPieces`; 4 pre-loads touch the robot's back edge, or its front edge if its back is
+against a wall). Loose balls on the tiles (`state` `"field"`) are pushed by the robot box: they
+leave at least as fast as the bit of robot that hit them, roll and slow down, and bounce off the
+walls and each other (`GamePieces`, in small sub-steps so nothing passes through anything). The
+robot is never slowed by a ball. Balls in a FLOWER, a CELL or an ALLIANCE AREA stay put. Rolling
+deceleration (15 in/s²), the bounces and the masses are placeholders (`PieceModel.bioBuzz()`).
+`estimator.pieces().snapshot()` gives every ball now; `estimator.withPieces(GamePieces.none())`
+runs on an empty field.
+
+**What isn't simulated.** Wheel slip below the traction limit, bumps, other robots, balls
+rolling into the HIVE frame or FLOWERs (only the walls stop them), picking up or scoring
+pieces (an intake would make a piece `"held"`, reserved), voltage dips from heavy load (only
+steady sag), pod slip and IMU drift in the Pinpoint.
 
 **For tests.** Round-number test robots (`DriveModel.forTesting`) and `model.withDynamics(null)`
 change speed instantly, so simple math tests stay exact. The physics sits behind the

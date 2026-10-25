@@ -67,7 +67,7 @@ public final class FieldPanel extends JComponent {
             g.translate((getWidth() - coords.totalPixels()) / 2, (getHeight() - coords.totalPixels()) / 2);
             FieldPainter.paint(g, coords, view.box(), view.loop(index).pose(), view.trail(index), view.caption(index),
                     FieldPainter.RobotParts.of(view.loop(index).motors()),
-                    view.wallHitWithin(index, WALL_FLASH_SECONDS));
+                    view.wallHitWithin(index, WALL_FLASH_SECONDS), view.pieces(index));
         } finally {
             g.dispose();
         }

@@ -14,6 +14,7 @@ import java.util.Map;
 
 import pvi.harness.ds.Button;
 import pvi.harness.ds.RumbleRecord;
+import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.ModelValue;
 import pvi.harness.physics.Pose;
 
@@ -130,7 +131,9 @@ public final class RunRecordingJson {
                 periodName == null ? null : MatchPeriod.valueOf(periodName),
                 decimal(h.get("loopPeriodSeconds"), "header.loopPeriodSeconds"),
                 readPose(h.get("startPose"), "header.startPose"),
-                readDriveModel(h.get("driveModel"), "header.driveModel"));
+                readDriveModel(h.get("driveModel"), "header.driveModel"),
+                // Versions 1 to 3 have no game pieces.
+                version >= 4 ? readPieces(h.get("pieces"), "header.pieces") : List.of());
 
         List<RunRecording.LoopRecord> loops = new ArrayList<>();
         List<Object> loopItems = array(top.get("loops"), "loops");
@@ -187,6 +190,8 @@ public final class RunRecordingJson {
                     decimal(t.get("pitchDegrees"), at + ".pitchDegrees"),
                     decimal(t.get("rollDegrees"), at + ".rollDegrees")));
         }
+        // Versions 1 to 3 have no game pieces.
+        List<GamePiece> pieces = version >= 4 ? readPieces(loop.get("pieces"), where + ".pieces") : List.of();
         String stage = optionalText(loop.get("stage"), where + ".stage");
         return new RunRecording.LoopRecord(
                 decimal(loop.get("sinceInitSeconds"), where + ".sinceInitSeconds"),
@@ -198,7 +203,28 @@ public final class RunRecordingJson {
                 screens,
                 readGamepad(loop.get("gamepad1"), where + ".gamepad1"),
                 readGamepad(loop.get("gamepad2"), where + ".gamepad2"),
-                aprilTags);
+                aprilTags, pieces);
+    }
+
+    private static List<GamePiece> readPieces(Object value, String where) {
+        List<GamePiece> pieces = new ArrayList<>();
+        List<Object> items = array(value, where);
+        for (int i = 0; i < items.size(); i++) {
+            String at = where + "[" + i + "]";
+            Map<String, Object> p = object(items.get(i), at);
+            String id = text(p.get("id"), at + ".id");
+            String kind = text(p.get("kind"), at + ".kind");
+            String state = text(p.get("state"), at + ".state");
+            double x = decimal(p.get("xInches"), at + ".xInches");
+            double y = decimal(p.get("yInches"), at + ".yInches");
+            double z = decimal(p.get("zInches"), at + ".zInches");
+            try {
+                pieces.add(new GamePiece(id, kind, state, x, y, z));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Bad run recording: " + at + ": " + e.getMessage());
+            }
+        }
+        return pieces;
     }
 
     private static RunRecording.GamepadState readGamepad(Object value, String where) {
@@ -383,7 +409,8 @@ public final class RunRecordingJson {
                 + field("period", h.period() == null ? "null" : string(h.period().name())) + ", "
                 + field("loopPeriodSeconds", number(h.loopPeriodSeconds())) + ", "
                 + field("startPose", pose(h.startPose())) + ", "
-                + field("driveModel", driveModel(h.driveModel()))
+                + field("driveModel", driveModel(h.driveModel())) + ", "
+                + field("pieces", pieces(h.pieces()))
                 + "}";
     }
 
@@ -501,8 +528,24 @@ public final class RunRecordingJson {
                 + field("telemetry", telemetry.toString()) + ", "
                 + field("gamepad1", gamepad(loop.gamepad1())) + ", "
                 + field("gamepad2", gamepad(loop.gamepad2())) + ", "
-                + field("aprilTags", aprilTags.toString())
+                + field("aprilTags", aprilTags.toString()) + ", "
+                + field("pieces", pieces(loop.pieces()))
                 + "}";
+    }
+
+    private static String pieces(List<GamePiece> pieces) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < pieces.size(); i++) {
+            GamePiece p = pieces.get(i);
+            json.append(i == 0 ? "" : ", ").append("{")
+                    .append(field("id", string(p.id()))).append(", ")
+                    .append(field("kind", string(p.kind()))).append(", ")
+                    .append(field("state", string(p.state()))).append(", ")
+                    .append(field("xInches", number(p.xInches()))).append(", ")
+                    .append(field("yInches", number(p.yInches()))).append(", ")
+                    .append(field("zInches", number(p.zInches()))).append("}");
+        }
+        return json.append("]").toString();
     }
 
     private static String gamepad(RunRecording.GamepadState pad) {

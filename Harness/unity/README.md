@@ -176,6 +176,25 @@ simple shapes from `Harness/fields/biobuzz-2026.json` are drawn as before.
 - **Physics:** Unity's physics still uses the simple shapes from the field file, which now use the
   CAD's measurements.
 
+## Game pieces (POLLEN and NECTAR)
+
+Recordings from format version 4 carry the BIOBUZZ game pieces, and the 3D view draws them: yellow
+POLLEN (2.8 in) and red and blue NECTAR (3.6 in), using the CAD balls in
+`Resources/GamePieces/biobuzz-2026/`.
+
+- **The harness moves them, not Unity.** The Java side puts every piece at its starting spot from the
+  game manual (FLOWERs, GARDENs, the robot's pre-loads, the upward HIVE CELLs, the alliance areas),
+  pushes the ones on the tiles when the robot drives into them, and records every move. So a replay
+  always shows exactly the same pushes, and live mode (in either physics mode) shows the harness's
+  pieces too.
+- **In the recording:** `header.pieces` lists every piece at INIT; each loop's `pieces` lists only the
+  pieces that changed in that loop (see Harness/README.md, run recording version 4). `GamePieceTrack`
+  adds the changes up, so the playhead can jump anywhere; `GamePieceView` draws the balls and rolls the
+  ones that move.
+- **An intake later:** a piece's `state` can be `held` (riding on the robot), reserved for when an
+  intake is added. Nothing picks pieces up yet.
+- **Older recordings** (versions 1-3) simply show no pieces.
+
 ## Season fields
 
 **G** steps through the arenas without opening the Visuals screen: the plain tiled field

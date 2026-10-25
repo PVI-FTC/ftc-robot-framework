@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PviHarness.Replay
 {
-    // These classes mirror the harness's run recording JSON, format version 2 (described field by
+    // These classes mirror the harness's run recording JSON, format versions 1-4 (described field by
     // field in Harness/README.md, "Recording a whole run (JSON)"). Field names are written exactly
     // as in the JSON (camelCase), so anyone can match a C# field to the file at a glance.
     //
@@ -41,6 +41,11 @@ namespace PviHarness.Replay
         /// replay should show. Null means the viewer's own choice.
         /// </summary>
         public string field;
+        /// <summary>
+        /// Every game piece (POLLEN, NECTAR) at INIT (version 4). Empty in older files, and when position
+        /// wasn't tracked.
+        /// </summary>
+        public List<PieceData> pieces = new List<PieceData>();
     }
 
     /// <summary>A robot position on the FTC field: inches from the center, heading counter-clockwise from +x.</summary>
@@ -87,6 +92,31 @@ namespace PviHarness.Replay
         public List<TelemetryScreenData> telemetry = new List<TelemetryScreenData>();
         public GamepadData gamepad1;
         public GamepadData gamepad2;
+        /// <summary>
+        /// The game pieces that changed since the previous loop (version 4): moved, or changed state.
+        /// Pieces not listed are where they were. <see cref="GamePieceTrack"/> adds these up.
+        /// </summary>
+        public List<PieceData> pieces = new List<PieceData>();
+    }
+
+    /// <summary>
+    /// One game piece: a POLLEN or NECTAR ball, where its center is, and what it is doing.
+    /// </summary>
+    public sealed class PieceData
+    {
+        /// <summary>Stays the same for the whole run, e.g. "pollen-garden-red-1".</summary>
+        public string id;
+        /// <summary>"pollen", "red-nectar" or "blue-nectar".</summary>
+        public string kind;
+        /// <summary>
+        /// "field" (on the tiles, can be pushed), "flower", "cell", "alliance-area", or "held" (kept
+        /// for a future intake: riding on the robot).
+        /// </summary>
+        public string state;
+        public double xInches;
+        public double yInches;
+        /// <summary>Height of the ball's center above the tiles.</summary>
+        public double zInches;
     }
 
     /// <summary>One motor's power, -1 to 1.</summary>

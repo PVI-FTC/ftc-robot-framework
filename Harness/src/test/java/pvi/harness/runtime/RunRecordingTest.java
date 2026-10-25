@@ -158,7 +158,7 @@ class RunRecordingTest {
     void headerDescribesTheRunTheRobotAndItsModel() {
         RunRecording.Header header = recordTeamAAutonomous().header();
 
-        assertEquals(3, header.version());
+        assertEquals(4, header.version());
         assertEquals("inches", header.distanceUnit());
         assertEquals("radians", header.angleUnit());
         assertEquals("seconds", header.timeUnit());
@@ -261,9 +261,9 @@ class RunRecordingTest {
         assertEquals(List.of("header", "gamepad1Rumbles", "gamepad2Rumbles", "events", "loops"), List.copyOf(json.keySet()));
         Map<String, Object> header = (Map<String, Object>) json.get("header");
         assertEquals(List.of("version", "distanceUnit", "angleUnit", "timeUnit", "robotConfig", "opMode",
-                "period", "loopPeriodSeconds", "startPose", "driveModel"), List.copyOf(header.keySet()));
+                "period", "loopPeriodSeconds", "startPose", "driveModel", "pieces"), List.copyOf(header.keySet()));
         assertEquals("AUTONOMOUS", header.get("period"));
-        assertEquals(3.0, header.get("version"));
+        assertEquals(4.0, header.get("version"));
         assertEquals("radians", header.get("angleUnit"));
         assertEquals(List.of("xInches", "yInches", "headingRadians"),
                 List.copyOf(((Map<String, Object>) header.get("startPose")).keySet()));
@@ -279,7 +279,7 @@ class RunRecordingTest {
         for (Object item : loops) {
             Map<String, Object> loop = (Map<String, Object>) item;
             assertEquals(List.of("sinceInitSeconds", "matchTimeSeconds", "stage", "pose", "motors", "servos",
-                    "autoStep", "telemetry", "gamepad1", "gamepad2", "aprilTags"), List.copyOf(loop.keySet()));
+                    "autoStep", "telemetry", "gamepad1", "gamepad2", "aprilTags", "pieces"), List.copyOf(loop.keySet()));
             assertEquals(List.of("buttons", "leftStickX", "leftStickY", "rightStickX", "rightStickY",
                     "leftTrigger", "rightTrigger"), List.copyOf(((Map<String, Object>) loop.get("gamepad1")).keySet()));
             List<Object> motors = (List<Object>) loop.get("motors");

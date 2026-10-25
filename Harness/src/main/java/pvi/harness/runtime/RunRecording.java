@@ -5,6 +5,7 @@ import java.util.List;
 import pvi.harness.ds.Button;
 import pvi.harness.ds.RumbleRecord;
 import pvi.harness.physics.DriveModel;
+import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.ModelValue;
 import pvi.harness.physics.Pose;
 
@@ -30,10 +31,11 @@ public record RunRecording(Header header, List<LoopRecord> loops,
 
     /**
      * Format version. Raise it (and update the README) whenever any field changes.
-     * Version 2 added {@link #events()}; version 3 added {@link LoopRecord#aprilTags()}. Older
-     * files still load (with no events, or no tags).
+     * Version 2 added {@link #events()}; version 3 added {@link LoopRecord#aprilTags()}; version 4
+     * added the game pieces ({@link Header#pieces()} and {@link LoopRecord#pieces()}). Older files
+     * still load (with no events, no tags, or no pieces).
      */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     /** Copies the lists, so the recording can't change after it is made. */
     public RunRecording {
@@ -82,10 +84,24 @@ public record RunRecording(Header header, List<LoopRecord> loops,
      * @param loopPeriodSeconds simulated seconds per OpMode call
      * @param startPose         where the position estimate started, or null if position wasn't tracked
      * @param driveModel        the robot speeds and size used for the estimate, or null if not tracked
+     * @param pieces            every game piece at INIT, in a fixed order (empty if position wasn't tracked)
      */
     public record Header(int version, String distanceUnit, String angleUnit, String timeUnit,
                          String robotConfig, String opMode, MatchPeriod period, double loopPeriodSeconds,
-                         Pose startPose, DriveModelValues driveModel) {
+                         Pose startPose, DriveModelValues driveModel, List<GamePiece> pieces) {
+
+        /** Copies the list, so the header can't change after it is made. */
+        public Header {
+            pieces = List.copyOf(pieces);
+        }
+
+        /** A header with no game pieces. */
+        public Header(int version, String distanceUnit, String angleUnit, String timeUnit,
+                      String robotConfig, String opMode, MatchPeriod period, double loopPeriodSeconds,
+                      Pose startPose, DriveModelValues driveModel) {
+            this(version, distanceUnit, angleUnit, timeUnit, robotConfig, opMode, period, loopPeriodSeconds,
+                    startPose, driveModel, List.of());
+        }
     }
 
     /**
@@ -123,11 +139,15 @@ public record RunRecording(Header header, List<LoopRecord> loops,
      * @param gamepad2         the operator's gamepad as the OpMode saw it during this call
      * @param aprilTags        the AprilTags in each fake webcam's latest picture, i.e. what robot
      *                         code could detect during this call (empty with no webcam)
+     * @param pieces           the game pieces that moved or changed state since the previous loop
+     *                         entry (or since the header's list, for the first entry), where they
+     *                         are now; empty if none did. Pieces keep the header's order.
      */
     public record LoopRecord(double sinceInitSeconds, double matchTimeSeconds, RunResult.Stage stage,
                              Pose pose, List<MotorState> motors, List<ServoState> servos,
                              String autoStep, List<TelemetryScreen> telemetry,
-                             GamepadState gamepad1, GamepadState gamepad2, List<AprilTagState> aprilTags) {
+                             GamepadState gamepad1, GamepadState gamepad2, List<AprilTagState> aprilTags,
+                             List<GamePiece> pieces) {
 
         /** Copies the lists, so the record can't change after it is made. */
         public LoopRecord {
@@ -135,6 +155,16 @@ public record RunRecording(Header header, List<LoopRecord> loops,
             servos = List.copyOf(servos);
             telemetry = List.copyOf(telemetry);
             aprilTags = List.copyOf(aprilTags);
+            pieces = List.copyOf(pieces);
+        }
+
+        /** A loop entry in which no game piece moved. */
+        public LoopRecord(double sinceInitSeconds, double matchTimeSeconds, RunResult.Stage stage,
+                          Pose pose, List<MotorState> motors, List<ServoState> servos,
+                          String autoStep, List<TelemetryScreen> telemetry,
+                          GamepadState gamepad1, GamepadState gamepad2, List<AprilTagState> aprilTags) {
+            this(sinceInitSeconds, matchTimeSeconds, stage, pose, motors, servos, autoStep, telemetry,
+                    gamepad1, gamepad2, aprilTags, List.of());
         }
 
         /** A loop entry with no AprilTags in view (a robot without a webcam). */
@@ -143,7 +173,7 @@ public record RunRecording(Header header, List<LoopRecord> loops,
                           String autoStep, List<TelemetryScreen> telemetry,
                           GamepadState gamepad1, GamepadState gamepad2) {
             this(sinceInitSeconds, matchTimeSeconds, stage, pose, motors, servos, autoStep, telemetry,
-                    gamepad1, gamepad2, List.of());
+                    gamepad1, gamepad2, List.of(), List.of());
         }
     }
 

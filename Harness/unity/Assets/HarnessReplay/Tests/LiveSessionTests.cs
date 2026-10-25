@@ -41,7 +41,7 @@ namespace PviHarness.Replay.Tests
                     case "hello":
                         return new JObject
                         {
-                            ["type"] = "welcome", ["version"] = 3, ["loopPeriodSeconds"] = 0.02,
+                            ["type"] = "welcome", ["version"] = LiveSession.ProtocolVersion, ["loopPeriodSeconds"] = 0.02,
                             ["opModes"] = new JArray(new JObject { ["id"] = "teamA-teleop", ["title"] = "Team A TeleOp", ["period"] = "TELEOP" }),
                         }.ToString(Formatting.None);
                     case "load":
@@ -128,17 +128,17 @@ namespace PviHarness.Replay.Tests
         }
 
         /// <summary>
-        /// WHAT: Hello speaks version 3 and reads the OpModes; load asks the harness to read the controllers
+        /// WHAT: Hello speaks version 4 and reads the OpModes; load asks the harness to read the controllers
         /// and, unless asked otherwise, to use its own physics.
         /// WHY: The user chose "the harness reads the controllers"; a wrong version would silently misread frames.
         /// </summary>
         [Test]
-        public void HelloAndLoadUseVersionThreeAndControllers()
+        public void HelloAndLoadUseVersionFourAndControllers()
         {
             session.Hello();
             session.Load("teamA-teleop");
 
-            Assert.AreEqual(3, (int)harness.Received[0]["version"]);
+            Assert.AreEqual(4, (int)harness.Received[0]["version"]);
             Assert.AreEqual("harness", (string)harness.Received[1]["physics"]);
             Assert.IsFalse(session.UnityPhysics);
             Assert.AreEqual("teamA-teleop", session.OpModes[0].id);

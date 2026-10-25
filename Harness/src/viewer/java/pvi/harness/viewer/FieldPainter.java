@@ -4,12 +4,14 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Locale;
 
+import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.Pose;
 import pvi.harness.runtime.RunRecording;
 
@@ -55,6 +57,11 @@ public final class FieldPainter {
 
     /** How far the heading arrow reaches past the front of the robot, in inches. */
     static final double ARROW_PAST_FRONT_INCHES = 8.0;
+
+    /** Game piece colors, from the official CAD: yellow POLLEN, red and blue NECTAR. */
+    static final Color POLLEN = new Color(0xFF, 0xEF, 0x3F);
+    static final Color RED_NECTAR = new Color(0xE0, 0x32, 0x2B);
+    static final Color BLUE_NECTAR = new Color(0x2F, 0x6B, 0xFF);
 
     /**
      * The robot's footprint for drawing, from the drive model.
@@ -127,6 +134,18 @@ public final class FieldPainter {
      */
     public static void paint(Graphics2D g, FieldCoordinates coords, RobotBox box, Pose pose,
                              List<Pose> trail, String caption, RobotParts parts, String flashWall) {
+        paint(g, coords, box, pose, trail, caption, parts, flashWall, List.of());
+    }
+
+    /**
+     * Like {@link #paint(Graphics2D, FieldCoordinates, RobotBox, Pose, List, String, RobotParts, String)},
+     * also drawing the game pieces: loose balls on the tiles as filled circles under the robot,
+     * balls up in a FLOWER or CELL as rings over it. Pieces outside the field (in an ALLIANCE AREA)
+     * aren't drawn.
+     */
+    public static void paint(Graphics2D g, FieldCoordinates coords, RobotBox box, Pose pose,
+                             List<Pose> trail, String caption, RobotParts parts, String flashWall,
+                             List<GamePiece> pieces) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         paintField(g, coords);
@@ -134,10 +153,48 @@ public final class FieldPainter {
         if (flashWall != null) {
             paintWallFlash(g, coords, flashWall);
         }
+        paintPieces(g, coords, pieces, true);
         if (pose != null) {
             paintRobot(g, coords, box, pose, parts);
         }
+        paintPieces(g, coords, pieces, false);
         paintText(g, coords, box, pose, caption);
+    }
+
+    /** The color a game piece is drawn in. */
+    static Color pieceColor(String kind) {
+        return switch (kind) {
+            case GamePiece.RED_NECTAR -> RED_NECTAR;
+            case GamePiece.BLUE_NECTAR -> BLUE_NECTAR;
+            default -> POLLEN;
+        };
+    }
+
+    /**
+     * The game pieces on the field: {@code onTiles} true draws the loose ones (filled, to go under
+     * the robot), false the ones up in a FLOWER or CELL (rings, drawn over the robot).
+     */
+    private static void paintPieces(Graphics2D g, FieldCoordinates c, List<GamePiece> pieces, boolean onTiles) {
+        if (pieces == null) {
+            return;
+        }
+        double half = Pose.FIELD_HALF_WIDTH_INCHES;
+        g.setStroke(new BasicStroke((float) Math.max(1.0, 0.25 * c.pixelsPerInch())));
+        for (GamePiece p : pieces) {
+            boolean loose = GamePiece.FIELD.equals(p.state()) || GamePiece.HELD.equals(p.state());
+            if (loose != onTiles || Math.abs(p.xInches()) > half || Math.abs(p.yInches()) > half) {
+                continue;
+            }
+            double r = p.radiusInches() * c.pixelsPerInch();
+            Ellipse2D.Double ball = new Ellipse2D.Double(c.screenX(p.xInches()) - r, c.screenY(p.yInches()) - r,
+                    2 * r, 2 * r);
+            g.setColor(pieceColor(p.kind()));
+            if (loose) {
+                g.fill(ball);
+                g.setColor(BACKGROUND);
+            }
+            g.draw(ball);
+        }
     }
 
     /** A wall the robot just hit, drawn as a thick red edge on the field border. */

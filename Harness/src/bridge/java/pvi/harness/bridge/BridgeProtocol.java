@@ -24,11 +24,14 @@ package pvi.harness.bridge;
  *       Unity's physics moves the robot. Then each frame carries the wheels' {@code driveCommand},
  *       Unity runs its physics for one loop with it, and sends the result as {@code physicsState}
  *       in its next "step" or "play" ({@link RemotePhysics}).</li>
+ *   <li>Version 4 added the game pieces (POLLEN, NECTAR): {@code pieces} in the "loaded" header
+ *       (every piece at INIT) and in each frame's loop (the pieces that changed in that loop), in
+ *       the run recording's version 4 layout. The harness moves them, in either physics mode.</li>
  * </ul>
  *
  * <pre>
  *   Unity                          harness
- *   hello {version: 3}       -->
+ *   hello {version: 4}       -->
  *                            <--   welcome {opModes: [...]}
  *   load {opMode: "teamA-teleop", input: "controllers"} -->
  *                            <--   loaded {header: {...}}
@@ -50,7 +53,7 @@ package pvi.harness.bridge;
  */
 public final class BridgeProtocol {
     /** Message format version. Raise it (and update the README) whenever any message changes. */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
     /** The port the harness listens on unless told otherwise. */
     public static final int DEFAULT_PORT = 7465;
 

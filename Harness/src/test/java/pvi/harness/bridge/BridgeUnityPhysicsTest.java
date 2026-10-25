@@ -36,7 +36,7 @@ class BridgeUnityPhysicsTest {
     }
 
     private Map<String, Object> loadTeleOp(String physics) {
-        send("{\"type\": \"hello\", \"version\": 3}");
+        send("{\"type\": \"hello\", \"version\": 4}");
         return send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"physics\": \"" + physics + "\"}");
     }
 

@@ -6,7 +6,9 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.Button;
@@ -16,6 +18,7 @@ import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.FakeServo;
 import pvi.harness.hardware.FakeWebcam;
 import pvi.harness.hardware.SeenAprilTag;
+import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.PoseEstimator;
 
 /**
@@ -48,6 +51,10 @@ public final class RunRecorder {
     private int framesSeen;
     /** Marked moments, oldest first (see {@link #note}). */
     private final List<RunRecording.Event> events = new ArrayList<>();
+    /** Each game piece as last written to the recording, by id (only looked up, never listed). */
+    private final Map<String, GamePiece> piecesRecorded = new HashMap<>();
+    /** A piece counts as moved once it is more than this far (inches) from where it was last recorded. */
+    static final double PIECE_MOVE_INCHES = 0.01;
 
     private RunRecorder(OpModeRunner runner) {
         this.runner = runner;
@@ -114,7 +121,38 @@ public final class RunRecorder {
                 estimator == null ? null : estimator.pose(),
                 motors, servos, autoStep, screens,
                 gamepadState(runner.opMode().gamepad1), gamepadState(runner.opMode().gamepad2),
-                aprilTags));
+                aprilTags, changedPieces(estimator)));
+    }
+
+    /**
+     * The game pieces that moved more than {@link #PIECE_MOVE_INCHES} or changed state since they
+     * were last recorded (since the header's list, the first time), in the header's order.
+     */
+    private List<GamePiece> changedPieces(PoseEstimator estimator) {
+        if (estimator == null) {
+            return List.of();
+        }
+        if (piecesRecorded.isEmpty()) {
+            for (GamePiece p : estimator.pieces().initial()) {
+                piecesRecorded.put(p.id(), p);
+            }
+        }
+        List<GamePiece> changed = new ArrayList<>();
+        for (GamePiece now : estimator.pieces().snapshot()) {
+            GamePiece was = piecesRecorded.get(now.id());
+            boolean moved = was == null || !was.state().equals(now.state())
+                    || Math.sqrt(square(now.xInches() - was.xInches()) + square(now.yInches() - was.yInches())
+                    + square(now.zInches() - was.zInches())) > PIECE_MOVE_INCHES;
+            if (moved) {
+                changed.add(now);
+                piecesRecorded.put(now.id(), now);
+            }
+        }
+        return changed;
+    }
+
+    private static double square(double value) {
+        return value * value;
     }
 
     /** Copies a gamepad's buttons and sticks into plain data. */
@@ -172,7 +210,8 @@ public final class RunRecorder {
                 periodOf(runner.opMode().getClass()),
                 runner.loopPeriodSeconds(),
                 estimator == null ? null : estimator.start(),
-                estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()));
+                estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()),
+                estimator == null ? List.of() : estimator.pieces().initial());
     }
 
     /** The noted events plus every time the robot ran into a field wall, in time order. */

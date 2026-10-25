@@ -43,6 +43,8 @@ namespace PviHarness.Replay
         private readonly ReplayHud hud = new ReplayHud();
         private RunRecordingData recording;
         private ReplayTimeline timeline;
+        private GamePieceTrack pieceTrack;
+        private GamePieceView pieceView;
         private string shownFile;
         private List<string> recordingsNewestFirst = new List<string>();
 
@@ -79,6 +81,8 @@ namespace PviHarness.Replay
         public RunRecordingData Recording => recording;
         /// <summary>The playback state (null until a recording is open).</summary>
         public ReplayTimeline Timeline => timeline;
+        /// <summary>The game pieces drawn for the recording, or null if it has none (older than version 4).</summary>
+        public GamePieceView Pieces => pieceView;
         /// <summary>What is shown: a file name like "viewer-teamA-autonomous.json", "Live: Team A TeleOp", or null.</summary>
         public string ShownFileName => live != null ? "Live: " + liveTitle : shownFile == null ? null : Path.GetFileName(shownFile);
         /// <summary>Why the last action failed (open, connect, step), or null.</summary>
@@ -235,6 +239,14 @@ namespace PviHarness.Replay
             if (recording.header.field != null)
             {
                 ShowField(FieldLayouts.Pick(recording.header.field, fieldId, fields.ConvertAll(f => f.id)));
+            }
+            // The recording's game pieces (POLLEN, NECTAR), if it has any.
+            pieceView?.Destroy();
+            pieceView = null;
+            pieceTrack = new GamePieceTrack(recording);
+            if (pieceTrack.Start.Count > 0)
+            {
+                pieceView = new GamePieceView(transform, pieceTrack.Start);
             }
             ResetTrail();
             AddTrailPoints();
@@ -563,6 +575,7 @@ namespace PviHarness.Replay
                 scene.robot.SetPositionAndRotation(position, rotation);
             }
             FieldBuilder.ShowPowers(scene, timeline.Current);
+            pieceView?.Show(pieceTrack.At(timeline.Index));
             if (timeline.Index != trailShownIndex || timeline.Index >= trailCountUpTo.Count - 1)
             {
                 int count = trailCountUpTo[Math.Min(timeline.Index, trailCountUpTo.Count - 1)];

@@ -339,7 +339,7 @@ class AprilTagVisionTest {
     @Test
     void versionTwoRecordingsStillLoadWithNoTags() {
         String versionTwo = RunRecordingJson.format(recordTag22())
-                .replace("\"version\": 3,", "\"version\": 2,")
+                .replace("\"version\": " + RunRecording.VERSION + ",", "\"version\": 2,")
                 .replaceAll(", \"aprilTags\": \\[[^\\]]*\\]", "");
         assertTrue(!versionTwo.contains("aprilTags"), "the test should have removed every aprilTags field");
 

@@ -3,8 +3,8 @@
 Where the FTC test harness stands, what is being worked on and what comes next. Update this file in
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
-**Last updated:** 2026-10-24
-**Test status:** 219 tests in 35 classes, all passing (`.\gradlew.bat test`, 2026-10-24, with the bots' uncommitted work)
+**Last updated:** 2026-10-25
+**Test status:** 252 tests in 42 classes, all passing (`.\gradlew.bat test`, 2026-10-25, with the bots' uncommitted work); Unity 77/77
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
 **Next up:** position estimator Step 15 (opt-in switches; decide their behavior with the user)
 
@@ -398,6 +398,24 @@ RP10 (after RP8).
 
 ---
 
+## Game pieces (POLLEN and NECTAR, level 3)
+
+User request 2026-10-25: the balls sit at their starting spots, the robot pushes the loose ones,
+and every replay shows exactly the same pushes. Leave room for an intake later. Starting spots are
+written into Java, and the Swing viewer draws the pieces too (user decisions). The plan and shared
+format are in UnityBot's notes (`game-pieces-plan.md`).
+
+| Step | What | Owner | Status |
+|---|---|---|---|
+| GP1 | Piece simulation (`physics/GamePiece`, `PieceModel`, `GamePieces`, `BioBuzzPieces`), hooked into `PoseEstimator`: the robot box pushes loose balls; they roll, slow down and bounce off walls and each other; placeholders for friction, bounce and mass | WorkerBot | ✅ Done (tests pass; full suite waits on the bridge and vision test updates below) |
+| GP2 | Run recording v4: `header.pieces` (all at INIT) and `loops[i].pieces` (only changed ones), JSON read/write, README format docs | WorkerBot | ✅ Done |
+| GP3 | Swing viewer draws the pieces (loose balls filled under the robot, FLOWER/CELL balls as rings over it) | WorkerBot | ✅ Done |
+| GP4 | Bridge protocol v4 and Unity loading, live view and drawing (`GamePieceTrack`, `GamePieceView`: CAD balls that roll as they move) | UnityBot | ✅ Done |
+| GP5 | Intake: a `"held"` state is reserved in the format | — | Later |
+
+Not simulated yet: balls rolling into the HIVE frame or FLOWERs (only the walls stop them), and
+the robot being slowed by balls.
+
 ## Field walls from the official CAD
 
 The official BIOBUZZ field CAD (processed 2026-10-25, see `art-inbox/processed/field/manifest.json`)
@@ -462,6 +480,8 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-25 | **Game pieces GP4** (UnityBot): bridge protocol v4 (`pieces` in `loaded` and each frame), Unity reads run recording v4 and draws POLLEN/NECTAR with the CAD balls, rolling the ones that move, in replays and live mode; `GamePieceTests` (4, break-checked); bridge tests updated to v4. Checked with a real recording (the teleop turn knocks the 4 pre-loads about 25 in) and in the rebuilt app | Java 252/252, Unity 77/77 pass |
+| 2026-10-25 | Game pieces GP1–GP3 (WorkerBot): BIOBUZZ's 44 balls in every tracked run; the robot pushes loose ones; run recording v4 (`pieces` in header and loops); Swing viewer draws them; README. New `GamePiecesTest` (8), `GamePiecesRecordingTest` (4), `GamePiecesDrawingTest` (2); `RunRecordingTest` updated for v4. | New tests pass; full suite 252 run, 5 failed on the v4 change: 2 fixed (mine), 3 in the bridge and vision tests sent to UnityBot and TestBot |
 | 2026-10-25 | **See-through walls and HIVEs** (user request): the BIOBUZZ CAD's clear panels (perimeter, red and blue HIVE) are drawn as see-through plastic with `Legacy Shaders/Transparent/Specular`, which the build always includes (the Standard shader's transparent modes were clear in the Editor but solid in the app, because the build left out that shader version); trim, rails and the HIVE frame stay solid. `FieldLayoutTests.WallAndHivePanelsAreSeeThrough` (break-checked). Field boxes made in the Editor tests now remove their colliders without an edit-mode error. Panels made clearer at the user's request (opacity 0.22 to 0.11) | Unity 73/73 pass |
 | 2026-10-25 | **Real people** (user provided Mixamo characters): `People.cs` puts seated fans (frozen sit/clap poses, shared per character, no shadows) in the hall bleachers and the lower 5 rows of the stadium stands, and animated drive teams in alliance shirts at the hall's tables; random character, outfit colors, height and turn per person. `Editor/PeopleBuilder.cs` (**Harness → Build People**) and `PeopleImport.cs` turn the Mixamo downloads into `Resources/People` (59 MB); `PeopleTests` (4, break-checked). Not yet measured: frame rate of the full hall crowd in the app | Unity 72/72 pass |
 | 2026-10-25 | **Camera preset viewpoints** (user request via WorkerBot): keys 1–7 and View buttons above the field: Audience, Red drive team, Blue drive team, Top-down, Corner, HIVE close-up, Robot chase (follows and turns with the robot). Eased moves; free orbit/zoom still work afterwards; camera can look up (pitch down to -30°) but never goes below the floor; `-preset N` start-up option. Mixamo character Ch08 imported as a humanoid (`Editor/PeopleImport`), clothes recolourable per person (not yet placed). 3 `OrbitCameraTests` (pitch sign break-checked) | Unity 68/68 |

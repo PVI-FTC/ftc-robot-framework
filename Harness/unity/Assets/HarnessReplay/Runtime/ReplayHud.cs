@@ -73,6 +73,8 @@ namespace PviHarness.Replay
 
         // Dropdowns and dragging state.
         private bool recordingMenuOpen;
+        /// <summary>True while the Visuals screen (arena and setting) is open. V or Esc closes it.</summary>
+        public bool VisualsOpen { get; set; }
         private bool speedMenuOpen;
         private Vector2 recordingMenuScroll;
         private Vector2 cardsScroll;
@@ -91,6 +93,7 @@ namespace PviHarness.Replay
             DrawFrameAroundField(layout);
             DrawHeader(layout.header, recording, timeline, replay.ShownFileName, replay.IsLive);
             DrawChooser(layout.chooser, replay);
+            DrawViewButtons(layout, replay.Orbit);
             if (recording != null)
             {
                 DrawFieldTexts(layout, recording, timeline);
@@ -121,6 +124,10 @@ namespace PviHarness.Replay
             if (speedMenuOpen && timeline != null)
             {
                 DrawSpeedMenu(timeline);
+            }
+            if (VisualsOpen)
+            {
+                DrawVisuals(layout, replay);
             }
         }
 
@@ -242,14 +249,16 @@ namespace PviHarness.Replay
                 showing += "  ·  " + replay.Notice;
             }
             HudTheme.DrawText(HudTheme.Ellipsize(showing, HudTheme.Style("normal", 12),
-                r.width - 56 - FieldButtonWidth - PhysicsButtonWidth - 24), 28, r.y + 56,
+                r.width - 56 - FieldButtonWidth - PhysicsButtonWidth - LiveModeButtonWidth - 32), 28, r.y + 56,
                 HudTheme.Style("normal", 12), showingColor);
 
-            // The season field (Harness/fields): click, or press G, for the next one.
+            // Visuals: opens the screen for picking the arena and the setting around it (V).
             var fieldButton = new Rect(r.xMax - 16 - FieldButtonWidth, r.y + 42, FieldButtonWidth, 22);
-            if (FlatButton(fieldButton, "Field: " + replay.FieldName + "  (G)"))
+            if (FlatButton(fieldButton, "Visuals: " + replay.FieldName + " · " + replay.SettingName + "  (V)"))
             {
-                replay.NextField();
+                VisualsOpen = !VisualsOpen;
+                recordingMenuOpen = false;
+                speedMenuOpen = false;
             }
 
             // Who moves the robot in the next live run: the harness's physics or Unity's (U).
@@ -258,10 +267,116 @@ namespace PviHarness.Replay
             {
                 replay.TogglePhysics();
             }
+
+            // Live mode: starts (or stops) the harness side, so nobody has to type gradlew unityBridge.
+            var liveButton = new Rect(physicsButton.x - 8 - LiveModeButtonWidth, r.y + 42, LiveModeButtonWidth, 22);
+            HarnessLauncher.LaunchState state = replay.LiveModeState;
+            string liveText = state == HarnessLauncher.LaunchState.Running ? "Live mode: On"
+                : state == HarnessLauncher.LaunchState.Starting ? "Live mode: Starting..."
+                : state == HarnessLauncher.LaunchState.Failed ? "Live mode: Failed (retry)" : "Live mode: Off";
+            if (FlatButton(liveButton, liveText + "  (L)"))
+            {
+                replay.ToggleLiveMode();
+            }
+            Color lamp = state == HarnessLauncher.LaunchState.Running ? HudTheme.Green
+                : state == HarnessLauncher.LaunchState.Starting ? HudTheme.Amber
+                : state == HarnessLauncher.LaunchState.Failed ? HudTheme.Red : HudTheme.Faint;
+            HudTheme.Circle(new Vector2(liveButton.x + 10, liveButton.y + 11), 3.5f, lamp);
         }
 
-        private const float FieldButtonWidth = 240;
+        private const float FieldButtonWidth = 330;
         private const float PhysicsButtonWidth = 170;
+        private const float LiveModeButtonWidth = 200;
+
+        // ---- Visuals screen -------------------------------------------------------------------------
+
+        /// <summary>
+        /// The Visuals screen, over the field: pick the arena (the plain field or a season field file)
+        /// and the setting around it (<see cref="SettingBuilder.All"/>). Choices apply at once and are
+        /// remembered. Clicking outside it, Done, V or Esc closes it.
+        /// </summary>
+        private void DrawVisuals(Layout layout, ReplayController replay)
+        {
+            Rect area = layout.fieldPanel;
+            HudTheme.Fill(area, new Color(HudTheme.Background.r, HudTheme.Background.g, HudTheme.Background.b, 0.72f));
+            float width = Mathf.Min(780, area.width - 40), height = Mathf.Min(500, area.height - 40);
+            var panel = new Rect(area.x + (area.width - width) / 2f, area.y + (area.height - height) / 2f, width, height);
+            HudTheme.Fill(panel, HudTheme.Panel);
+            HudTheme.Hairline(panel, HudTheme.Line);
+            HudTheme.Fill(new Rect(panel.x + 20, panel.y + 18, 3, 24), HudTheme.Accent);
+            HudTheme.Label("Visuals", panel.x + 32, panel.y + 35, 14, HudTheme.Text);
+            HudTheme.DrawText("Pick the arena and what surrounds it. Turn the view with T (3D), right-drag and scroll.",
+                panel.x + 32, panel.y + 58, HudTheme.Style("normal", 12), HudTheme.Muted);
+
+            // Arena: the plain field, then each season field file.
+            float x = panel.x + 24, y = panel.y + 78;
+            HudTheme.Label("Arena", x, y + 12, 10, HudTheme.Muted);
+            y += 22;
+            var arenas = new List<(string id, string name, string detail)> { (FieldLayouts.PlainFieldId, "Plain field", "Tiles and walls only") };
+            foreach (FieldLayoutData field in replay.Fields)
+            {
+                arenas.Add((field.id, field.name, field.season + " season"));
+            }
+            float gap = 12, cardWidth = (panel.width - 48 - gap * 2) / 3f;
+            for (int i = 0; i < arenas.Count; i++)
+            {
+                var card = new Rect(x + (i % 3) * (cardWidth + gap), y + (i / 3) * 64, cardWidth, 54);
+                if (ChoiceCard(card, arenas[i].name, arenas[i].detail, arenas[i].id == replay.FieldId))
+                {
+                    replay.SelectField(arenas[i].id);
+                }
+            }
+            y += ((arenas.Count + 2) / 3) * 64 + 14;
+
+            // Setting: two cards per row.
+            HudTheme.Label("Setting", x, y + 12, 10, HudTheme.Muted);
+            y += 22;
+            float settingWidth = (panel.width - 48 - gap) / 2f;
+            for (int i = 0; i < SettingBuilder.All.Count; i++)
+            {
+                SettingInfo setting = SettingBuilder.All[i];
+                var card = new Rect(x + (i % 2) * (settingWidth + gap), y + (i / 2) * 78, settingWidth, 68);
+                if (ChoiceCard(card, setting.name, setting.description, setting.id == replay.SettingId, setting.sky))
+                {
+                    replay.SelectSetting(setting.id);
+                }
+            }
+
+            var done = new Rect(panel.xMax - 24 - 110, panel.yMax - 20 - 28, 110, 28);
+            if (FlatButton(done, "Done  (V)"))
+            {
+                VisualsOpen = false;
+            }
+            else if (Event.current.type == EventType.MouseDown && area.Contains(Event.current.mousePosition)
+                && !panel.Contains(Event.current.mousePosition))
+            {
+                VisualsOpen = false; // a click outside the panel closes it
+                Event.current.Use();
+            }
+        }
+
+        /// <summary>A choice on the Visuals screen: name and a line under it, lit when chosen, with an optional color swatch.</summary>
+        private static bool ChoiceCard(Rect r, string name, string detail, bool chosen, Color? swatch = null)
+        {
+            bool hover = r.Contains(Event.current.mousePosition);
+            HudTheme.Fill(r, chosen ? HudTheme.Raised : hover ? HudTheme.Raised : HudTheme.Background);
+            HudTheme.Hairline(r, chosen ? HudTheme.Accent : HudTheme.Line);
+            float textX = r.x + 12;
+            if (swatch.HasValue)
+            {
+                var chip = new Rect(r.x + 10, r.y + 10, 18, 18);
+                HudTheme.Fill(chip, swatch.Value);
+                HudTheme.Hairline(chip, HudTheme.Line);
+                textX = chip.xMax + 10;
+            }
+            if (chosen)
+            {
+                HudTheme.Circle(new Vector2(r.xMax - 14, r.y + 14), 4, HudTheme.Accent);
+            }
+            HudTheme.DrawText(name, textX, r.y + 23, HudTheme.Style("normal", 14), chosen ? HudTheme.Text : HudTheme.Muted);
+            GUI.Label(new Rect(r.x + 12, r.y + 31, r.width - 24, r.height - 33), detail, WrapStyle(HudTheme.Style("normal", 11), HudTheme.Faint));
+            return Clicked(r);
+        }
 
         private void DrawRecordingMenu(Rect chooser, ReplayController replay)
         {
@@ -283,8 +398,19 @@ namespace PviHarness.Replay
                 var row = new Rect(0, i * rowHeight, rowWidth, rowHeight);
                 if (liveChoices == null)
                 {
-                    HudTheme.DrawText(HudTheme.Ellipsize(replay.LiveUnavailable ?? "Live play: start .\\gradlew.bat unityBridge first",
-                        text, rowWidth - 16), row.x + 8, row.y + 17, text, HudTheme.Faint);
+                    // Not running yet: this row is a button that switches Live mode on.
+                    bool startable = replay.LiveModeState != HarnessLauncher.LaunchState.Starting;
+                    bool hoverHint = startable && row.Contains(Event.current.mousePosition);
+                    HudTheme.Fill(row, hoverHint ? HudTheme.Raised : HudTheme.Panel);
+                    string hint = startable ? "Start live mode (L): starts the harness side, then the live OpModes appear here"
+                        : replay.LiveUnavailable ?? "Live mode is starting...";
+                    HudTheme.DrawText(HudTheme.Ellipsize(hint, text, rowWidth - 16), row.x + 8, row.y + 17, text,
+                        startable ? HudTheme.Green : HudTheme.Faint);
+                    if (startable && Clicked(row))
+                    {
+                        recordingMenuOpen = false;
+                        replay.ToggleLiveMode();
+                    }
                     continue;
                 }
                 LiveSession.OpModeChoice choice = liveChoices[i];
@@ -346,11 +472,43 @@ namespace PviHarness.Replay
         {
             Rect f = layout.field;
             string caption = HudText.FieldCaption(recording, timeline.Index, timeline.PoseAtPlayhead());
-            HudTheme.Label(HudTheme.Ellipsize(caption.ToUpperInvariant(), HudTheme.Style("normal", 12), f.width * 0.85f),
+            HudTheme.Label(HudTheme.Ellipsize(caption.ToUpperInvariant(), HudTheme.Style("normal", 12), f.width - ViewButtonsWidth - 16),
                 f.x + 2, f.y - 10, 12, HudTheme.Text);
             DriveModelData model = recording.header.driveModel;
             HudTheme.Label(HudTheme.Ellipsize(HudText.Legend(model).ToUpperInvariant(), HudTheme.Style("normal", 12), f.width),
                 f.x + 2, f.yMax + 20, 12, HudText.SizeIsPlaceholder(model) ? HudTheme.Amber : HudTheme.Muted);
+        }
+
+        private const float ViewButtonWidth = 74, ViewButtonGap = 4;
+        private static float ViewButtonsWidth => OrbitCamera.Presets.Count * (ViewButtonWidth + ViewButtonGap);
+
+        /// <summary>
+        /// The preset viewpoint buttons, right-aligned above the field: "1 Audience" ... "7 Chase". The one
+        /// last picked is lit; turning the view by hand clears it.
+        /// </summary>
+        private static void DrawViewButtons(Layout layout, OrbitCamera orbit)
+        {
+            if (orbit == null)
+            {
+                return;
+            }
+            float x = layout.field.xMax - ViewButtonsWidth;
+            float y = layout.fieldPanel.y + 5;
+            for (int i = 0; i < OrbitCamera.Presets.Count; i++)
+            {
+                var button = new Rect(x + i * (ViewButtonWidth + ViewButtonGap), y, ViewButtonWidth, 20);
+                bool chosen = orbit.CurrentPreset == i;
+                bool hover = button.Contains(Event.current.mousePosition);
+                HudTheme.Fill(button, chosen || hover ? HudTheme.Raised : HudTheme.Panel);
+                HudTheme.Hairline(button, chosen ? HudTheme.Accent : HudTheme.Line);
+                string text = (i + 1) + " " + OrbitCamera.Presets[i].label;
+                float w = HudTheme.LabelWidth(text, 10);
+                HudTheme.Label(text, button.x + (button.width - w) / 2f, button.y + 14, 10, chosen ? HudTheme.Text : HudTheme.Muted);
+                if (Clicked(button))
+                {
+                    orbit.ApplyPreset(i);
+                }
+            }
         }
 
         // ---- Cards (the right-hand column) ---------------------------------------------------------

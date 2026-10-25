@@ -48,6 +48,7 @@ namespace PviHarness.Replay.Editor
             PlayerSettings.resizableWindow = true;
             PlayerSettings.runInBackground = true; // keep live play stepping when the window isn't focused
             IncludeShaders();
+            KeepNormalMappedVariant();
 
             var options = new BuildPlayerOptions
             {
@@ -63,7 +64,28 @@ namespace PviHarness.Replay.Editor
         /// The shaders FieldBuilder uses: three looked up by name with Shader.Find, and Standard, which
         /// the default material of its CreatePrimitive boxes (walls, wheels) needs.
         /// </summary>
-        public static readonly string[] ShadersFoundByName = { "Sprites/Default", "Unlit/Color", "Unlit/Texture", "Standard" };
+        public static readonly string[] ShadersFoundByName = { "Sprites/Default", "Unlit/Color", "Unlit/Texture", "Standard", "Skybox/Cubemap" };
+
+        /// <summary>
+        /// A material saved in the project with the Standard shader's normal-map version switched on.
+        /// WHY: the settings make their textured materials in code; a build only keeps the shader versions
+        /// that saved materials use, so without this the app would drop the surfaces' bumps.
+        /// </summary>
+        public const string NormalMappedVariantPath = "Assets/HarnessReplay/Resources/ShaderVariants/StandardNormalMapped.mat";
+
+        private static void KeepNormalMappedVariant()
+        {
+            if (AssetDatabase.LoadAssetAtPath<Material>(NormalMappedVariantPath) != null)
+            {
+                return;
+            }
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(NormalMappedVariantPath));
+            var material = new Material(Shader.Find("Standard"));
+            material.EnableKeyword("_NORMALMAP");
+            material.SetTexture("_BumpMap", Texture2D.normalTexture);
+            AssetDatabase.CreateAsset(material, NormalMappedVariantPath);
+            AssetDatabase.SaveAssets();
+        }
 
         /// <summary>
         /// Adds <see cref="ShadersFoundByName"/> to Graphics Settings → Always Included Shaders.

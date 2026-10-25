@@ -41,6 +41,7 @@ The field starts in a straight-down view that looks like the Swing field; T swit
 | `[` or `-` / `]` or `+` | Slower / faster (0.25x to 4x) |
 | N / P | Next newer / older recording in `build/recordings` |
 | T | Switch between top-down (the default, FTC +y up the screen, like the Swing viewer) and angled 3D |
+| 1–7 (or the View buttons above the field) | Preset viewpoints, with a smooth move: 1 Audience (behind the audience wall), 2 Red drive team, 3 Blue drive team (eye height, from each alliance area), 4 Top-down, 5 Corner (high, from the red/audience corner), 6 HIVE close-up (low, looking up at the cells and their AprilTags), 7 Robot chase (behind the robot, turning with it). Turning or zooming afterwards starts from that view |
 | F | Follow the robot |
 | Right-drag, scroll (over the field) | Turn the camera (switches to 3D), zoom |
 
@@ -55,9 +56,12 @@ To pick a fixed recording instead of the newest, select **Harness Replay** in th
 
 Watch the real TeamCode run **while you drive**, with your game controller:
 
-1. In `Harness\`: `.\gradlew.bat unityBridge` (leave it running).
-2. Plug in the controller (Xbox, PlayStation or Logitech in X mode; USB or Bluetooth).
-3. In Unity, press Play, open the **Replay** chooser and pick **Live: Team A TeleOp** (or another).
+1. Plug in the controller (Xbox, PlayStation or Logitech in X mode; USB or Bluetooth).
+2. Open the replay (the Windows app via `unity-view.bat`, or press Play in the Editor) and click
+   **Live mode** (or press **L**), right of the chooser. It starts the harness side for you in the
+   background: the lamp goes amber while it starts (a few seconds; up to a minute the first time),
+   then green.
+3. Open the **Replay** chooser and pick **Live: Team A TeleOp** (or another).
    The header shows **LIVE**; the line under the chooser says what to press and which controller
    drives each gamepad.
 4. **Enter** = PLAY, **Esc** = STOP (or the buttons in the bottom bar). The run also stops by
@@ -68,8 +72,17 @@ Watch the real TeamCode run **while you drive**, with your game controller:
 The harness reads the controller (the same code as the Swing viewer's live drive); Unity only
 asks for one OpMode call every 20 ms and draws it. With one controller, its D-pad also works the
 operator's face buttons. If a controller disconnects, every input is released at once and the
-moment shows under Events. **Harness → Live Smoke Test** checks the connection without a
-controller (needs `unityBridge` running) and writes `Harness/build/unity-live-smoke.txt`.
+moment shows under Events.
+
+Clicking **Live mode** again (or closing the app) ends the run and the harness side it started.
+If you started `.\gradlew.bat unityBridge` yourself, Live mode just uses it and leaves it running.
+If it can't start, the button says **Failed** and the message names the reason and the log,
+`Harness/build/unity-bridge.log`. It needs the whole `Harness` folder (it runs `gradlew.bat`) and
+Java: `JAVA_HOME`, or Android Studio's Java, which it finds by itself.
+
+**Harness → Live Smoke Test** checks the connection without a controller (needs `unityBridge`
+running). **Harness → Live Mode Smoke Test** does the same, but lets the Live mode launcher start and
+stop the harness side. Both write `Harness/build/unity-live-smoke.txt`.
 
 ### Unity's physics (Stage U3)
 
@@ -87,10 +100,81 @@ title then ends in "Unity physics".
 The code is `UnityRobotPhysics.cs` (invisible PhysX colliders and a Rigidbody robot, stepped one
 20 ms loop at a time) and `DriveLaw.cs`. The tests are in `UnityRobotPhysicsTests`.
 
+## Visuals: arena and setting
+
+The **Visuals** button (right of the Replay chooser) or **V** opens a screen over the field with
+two choices. Both apply at once, are remembered, and V, Esc, **Done** or a click outside closes it.
+
+- **Arena:** the plain tiled field, or a season field (below).
+- **Setting**, the place around the arena:
+  - **Mission control:** the dark, plain look of the Swing viewer. Nothing around the field.
+  - **Competition hall:** a school gym on event day, with a wooden floor, bleachers full of fans,
+    banners, drive-team stations at the red and blue walls, a scoreboard and ceiling lights.
+  - **Night stadium:** a football field under four floodlight towers, with a running track,
+    packed stands, goal posts, stars and the Moon.
+  - **Moon base:** a landing pad on grey moon dust, with craters, rocks, habitat domes joined by
+    tubes, an antenna dish, a rover, and Earth in a black sky.
+
+The settings show best in the 3D view: press **T**, right-drag to turn, and scroll out (the zoom now
+goes far enough to see the whole place). In the top-down view you see the ground around the field.
+No setting ever puts anything over the field or gives it a collider, so the robot, the field parts,
+the trail and Unity's physics are never affected. That's checked in `SettingBuilderTests`. The code is
+`SettingBuilder.cs`: every shape, size and color is in plain code, and new settings go in
+`SettingBuilder.All`.
+
+**The settings' art** (added 2026-10-25, all free to use; see `Assets/HarnessReplay/Art/CREDITS.md`):
+
+| Setting | 360° sky (3D view) | Textured surfaces | Detailed models |
+|---|---|---|---|
+| Competition hall | Poly Haven "Gym 01" (seen above the walls) | wood floor, cinder-block walls | laptops and gamepads on the drive-team tables, tool cart, tool chest |
+| Night stadium | Poly Haven night sky | grass, red rubber track, concrete stands | (none yet) |
+| Moon base | NASA's Deep Star Maps (the real sky with the Milky Way), NASA's Blue Marble Earth | moon dust, metal landing pad | NASA's Apollo Lunar Module, astronaut, Habitat Demonstration Unit and Space Exploration Vehicle (rover); scanned moon rocks |
+
+- **Where it lives:** `Resources/Settings/<setting id>/`: `sky`, `textures/<surface>_color|_normal|_ao`,
+  `models/<name>/<name>` (+ `color`, `normal`).
+- **The code:** `SettingAssets.cs` loads it, puts textures on surfaces and sizes each model to its real size.
+- **People:** real people from Mixamo (`Resources/People/`, 59 MB): four characters and five animations
+  (sit, sit_clap, stand_clap, stand_idle, stand_idle_2). `People.cs` places them:
+  - **Fans** (hall bleachers, and the lower 5 rows of each stadium stand) are frozen in a sitting or clapping
+    pose. Each pose is captured once per character and shared, so a full stand stays fast.
+  - **Drive teams** (hall) stand and play an idle animation, in their alliance's shirt color.
+  - Every person gets a random character, shirt, trouser, shoe and hair color, a slightly different height and
+    turn, so neighbours never look the same.
+  - To add characters or animations: put the Mixamo FBX files in `Assets/HarnessReplay/PeopleSource/`
+    (git-ignored), the 2K textures in `Resources/People/<chNN>/textures/`, and run **Harness → Build People**
+    (`Editor/PeopleBuilder.cs`). Without the people files the settings go back to simple capsules.
+- **Without the files** a setting simply keeps its plain shapes. `SettingAssetsTests` checks every file is
+  there.
+- **Import settings:** in `Editor/SettingArtImport.cs`. The top-down view keeps its plain dark background.
+
+Start-up options (handy for demos): `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-view 3d`,
+`-zoom 3` (times the normal distance), `-yaw 30` (degrees).
+
+## The official field CAD
+
+With BIOBUZZ chosen, the 3D view shows FIRST's official field CAD instead of simple shapes: the
+foam tiles, the perimeter rails and glass, the HIVE A-frame with both HIVEs and their cells, the
+four FLOWERs, the tape and the AprilTag plates, in the CAD's own colours. It replaces the plain dark
+floor and low walls. Without the CAD files (for example in a fresh clone without them), the
+simple shapes from `Harness/fields/biobuzz-2026.json` are drawn as before.
+
+- **Files:** `Assets/HarnessReplay/Resources/Field/biobuzz-2026/*.obj` (12 parts, 1.2 M triangles,
+  39 MB). The game pieces (POLLEN, red and blue NECTAR) are in `Resources/GamePieces/biobuzz-2026/`;
+  they aren't placed on the field yet.
+- **Where they came from:** the user's export of the official CAD (15.2 M triangles). WorkerBot split
+  it into parts, slimmed it and turned it into the FTC field frame (inches, z up). How it did that is in
+  `Assets/HarnessReplay/Art/biobuzz-2026-cad-manifest.json`; credits are in `Art/CREDITS.md`.
+- **How it's drawn:** `FieldBuilder.BuildSeason` places every model in `Resources/Field/<field id>`
+  with `FtcToUnity.FtcModelRotation` and inch-to-meter scaling. Import settings (calculated normals at
+  40°, no compression) are in `Editor/FieldModelImport.cs`.
+- **Physics:** Unity's physics still uses the simple shapes from the field file, which now use the
+  CAD's measurements.
+
 ## Season fields
 
-The **Field:** button (right of the Replay chooser) or **G** switches between the plain tiled field
-and each season in `Harness/fields/` (BIOBUZZ 2026–2027, DECODE 2025–2026). Unity remembers the
+**G** steps through the arenas without opening the Visuals screen: the plain tiled field
+and each season in `Harness/fields/` (now only BIOBUZZ 2026–2027; DECODE 2025–2026 is switched off in
+`Harness/fields/disabled/`, which isn't read). Unity remembers the
 choice. `-field biobuzz-2026` on the app's command line picks one at start, and a recording whose
 header has `"field"` opens that one. BIOBUZZ shows:
 - the HIVE frame, with both HIVES in their starting tilt
@@ -98,7 +182,7 @@ header has `"field"` opens that one. BIOBUZZ shows:
 - the loading zones, gardens and alliance areas
 - all 16 AprilTags under the cells
 
-DECODE shows only its two goal AprilTags (its field parts aren't in the file yet). The file format and
+The file format and
 where every number came from: `Harness/README.md`, "Season field files". The code is `FieldLayout.cs`
 (reading and picking) and `FieldBuilder.BuildSeason` (drawing).
 

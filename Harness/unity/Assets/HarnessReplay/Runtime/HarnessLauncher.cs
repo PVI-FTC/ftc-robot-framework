@@ -1,0 +1,268 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.NetworkInformation;
+
+namespace PviHarness.Replay
+{
+    /// <summary>
+    /// Starts and stops the harness side of live play (<c>.\gradlew.bat unityBridge</c>) for the
+    /// <b>Live mode</b> button, so nobody has to type the command. It runs Gradle hidden in the
+    /// background (output in Harness/build/unity-bridge.log), watches for the bridge to start
+    /// listening, and when switched off (or when Unity closes) ends the bridge it started.
+    ///
+    /// <para>Nothing here blocks: <see cref="Poll"/> is called every frame and only looks.
+    /// A bridge someone started by hand is used as it is and never stopped from here.</para>
+    /// </summary>
+    public sealed class HarnessLauncher : IDisposable
+    {
+        /// <summary>Where live mode is.</summary>
+        public enum LaunchState
+        {
+            /// <summary>Not running (or switched off).</summary>
+            Off,
+            /// <summary>Gradle is starting the bridge (the first time takes up to a minute).</summary>
+            Starting,
+            /// <summary>The bridge is listening: live OpModes can be picked.</summary>
+            Running,
+            /// <summary>It didn't start; <see cref="Problem"/> says why.</summary>
+            Failed,
+        }
+
+        /// <summary>How long to wait for Gradle to start the bridge before giving up.</summary>
+        public const double StartTimeoutSeconds = 180;
+        /// <summary>Android Studio's Java, which the harness docs use for Gradle.</summary>
+        public const string AndroidStudioJava = @"C:\Program Files\Android\Android Studio\jbr";
+
+        private readonly string harnessFolder;
+        private readonly int port;
+        private Process gradle;
+        private bool ownBridge;
+        private double startedAt;
+
+        /// <summary>A launcher for the harness in <paramref name="harnessFolder"/>, listening on <paramref name="port"/>.</summary>
+        public HarnessLauncher(string harnessFolder, int port)
+        {
+            this.harnessFolder = harnessFolder;
+            this.port = port;
+        }
+
+        /// <summary>Where live mode is now.</summary>
+        public LaunchState State { get; private set; } = LaunchState.Off;
+        /// <summary>Why it failed (with the end of the Gradle log when there is one), or null.</summary>
+        public string Problem { get; private set; }
+        /// <summary>True if the bridge was already running when live mode was switched on (started by hand).</summary>
+        public bool StartedOutside => State == LaunchState.Running && !ownBridge;
+        /// <summary>Gradle's output: Harness/build/unity-bridge.log.</summary>
+        public string LogPath => Path.Combine(harnessFolder, "build", "unity-bridge.log");
+
+        /// <summary>
+        /// The Harness folder: <c>-harness &lt;folder&gt;</c> on the command line, else found from
+        /// Harness/unity/Assets (the Editor) or Harness/unity/Build/HarnessReplay_Data (the built app).
+        /// </summary>
+        public static string ResolveHarnessFolder(string[] args, string dataPath, bool isEditor)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-harness", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Path.GetFullPath(args[i + 1]);
+                }
+            }
+            return isEditor
+                ? Path.GetFullPath(Path.Combine(dataPath, "..", ".."))
+                : Path.GetFullPath(Path.Combine(dataPath, "..", "..", ".."));
+        }
+
+        /// <summary>
+        /// The command that starts the bridge: <c>cmd.exe</c> running Harness\gradlew.bat unityBridge
+        /// (with <c>-Pport</c> for a port other than 7465), its output going to the log file.
+        /// </summary>
+        public static ProcessStartInfo Command(string harnessFolder, int port, string javaHome)
+        {
+            string gradlew = Path.Combine(harnessFolder, "gradlew.bat");
+            string log = Path.Combine(harnessFolder, "build", "unity-bridge.log");
+            string portArgument = port == TcpBridgeTransport.DefaultPort ? "" : " -Pport=" + port;
+            var info = new ProcessStartInfo("cmd.exe",
+                "/c \"\"" + gradlew + "\" unityBridge" + portArgument + " > \"" + log + "\" 2>&1\"")
+            {
+                WorkingDirectory = harnessFolder,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            if (javaHome != null)
+            {
+                info.EnvironmentVariables["JAVA_HOME"] = javaHome;
+            }
+            return info;
+        }
+
+        /// <summary>
+        /// The process listening on 127.0.0.1:<paramref name="port"/> in <c>netstat -ano</c> output, or
+        /// -1. (Gradle runs the bridge in its own Java process, so stopping Gradle alone can leave it.)
+        /// </summary>
+        public static int ListeningProcess(string netstatOutput, int port)
+        {
+            foreach (string line in netstatOutput.Split('\n'))
+            {
+                string[] parts = line.Split(new[] { ' ', '\t', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 5 && parts[0] == "TCP" && parts[3] == "LISTENING"
+                    && (parts[1] == "127.0.0.1:" + port || parts[1] == "0.0.0.0:" + port)
+                    && int.TryParse(parts[4], out int pid))
+                {
+                    return pid;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>True if something is listening on this computer's port (no connection is made).</summary>
+        public static bool IsListening(int port)
+        {
+            try
+            {
+                return IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(e => e.Port == port);
+            }
+            catch (NetworkInformationException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Switches live mode on: uses a bridge that is already listening, else starts one with Gradle.
+        /// <paramref name="nowSeconds"/> is the current time (Time.realtimeSinceStartup), for the timeout.
+        /// </summary>
+        public void Start(double nowSeconds)
+        {
+            if (State == LaunchState.Starting || State == LaunchState.Running)
+            {
+                return;
+            }
+            Problem = null;
+            if (IsListening(port))
+            {
+                ownBridge = false;
+                State = LaunchState.Running;
+                return;
+            }
+            if (!File.Exists(Path.Combine(harnessFolder, "gradlew.bat")))
+            {
+                Fail("Can't find gradlew.bat in " + harnessFolder + ". Live mode needs the whole Harness folder.");
+                return;
+            }
+            string javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
+            if (string.IsNullOrEmpty(javaHome) && Directory.Exists(AndroidStudioJava))
+            {
+                javaHome = AndroidStudioJava;
+            }
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
+                gradle = Process.Start(Command(harnessFolder, port, javaHome));
+            }
+            catch (Exception e) when (e is System.ComponentModel.Win32Exception || e is IOException || e is InvalidOperationException)
+            {
+                Fail("Could not run gradlew.bat: " + e.Message);
+                return;
+            }
+            ownBridge = true;
+            startedAt = nowSeconds;
+            State = LaunchState.Starting;
+        }
+
+        /// <summary>Checks on a starting bridge (call every frame; it only looks, never waits).</summary>
+        public void Poll(double nowSeconds)
+        {
+            if (State == LaunchState.Running && ownBridge && gradle != null && gradle.HasExited && !IsListening(port))
+            {
+                Fail("The harness side stopped.");
+                return;
+            }
+            if (State != LaunchState.Starting)
+            {
+                return;
+            }
+            if (IsListening(port))
+            {
+                State = LaunchState.Running;
+            }
+            else if (gradle.HasExited)
+            {
+                Fail("The harness side didn't start.");
+            }
+            else if (nowSeconds - startedAt > StartTimeoutSeconds)
+            {
+                Stop();
+                Fail("The harness side took over " + StartTimeoutSeconds + " s to start.");
+            }
+        }
+
+        /// <summary>Switches live mode off, ending the bridge this launcher started (a hand-started one is left running).</summary>
+        public void Stop()
+        {
+            if (ownBridge)
+            {
+                if (gradle != null && !gradle.HasExited)
+                {
+                    RunQuietly("taskkill", "/PID " + gradle.Id + " /T /F");
+                }
+                int bridge = ListeningProcess(RunQuietly("netstat", "-ano -p TCP"), port);
+                if (bridge > 0)
+                {
+                    RunQuietly("taskkill", "/PID " + bridge + " /T /F");
+                }
+            }
+            gradle = null;
+            ownBridge = false;
+            State = LaunchState.Off;
+        }
+
+        public void Dispose()
+        {
+            Stop();
+        }
+
+        private void Fail(string why)
+        {
+            string tail = "";
+            try
+            {
+                if (File.Exists(LogPath))
+                {
+                    string last = File.ReadAllLines(LogPath).LastOrDefault(l => l.Trim().Length > 0);
+                    tail = last == null ? "" : " Last log line: " + last.Trim();
+                }
+            }
+            catch (IOException)
+            {
+                // The log is still open by Gradle; skip it.
+            }
+            Problem = why + tail + " (log: " + LogPath + ")";
+            State = LaunchState.Failed;
+        }
+
+        /// <summary>Runs a short Windows command hidden and returns its output ("" if it fails).</summary>
+        private static string RunQuietly(string file, string arguments)
+        {
+            try
+            {
+                var info = new ProcessStartInfo(file, arguments)
+                {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+                };
+                using (Process process = Process.Start(info))
+                {
+                    string output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit(5000);
+                    return output;
+                }
+            }
+            catch (Exception e) when (e is System.ComponentModel.Win32Exception || e is InvalidOperationException)
+            {
+                return "";
+            }
+        }
+    }
+}

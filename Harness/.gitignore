@@ -25,3 +25,12 @@ local.properties
 /unity/*.csproj
 /unity/*.sln
 /unity/*.slnx
+
+# The art inbox: downloads dropped here before Claude sorts them into the Unity project. Large,
+# so never committed; only its README (the checklist) is kept.
+/art-inbox/*
+!/art-inbox/README.md
+
+# Temporary copy of the raw Mixamo files while Harness -> Build People runs (it deletes the folder after).
+/unity/Assets/HarnessReplay/PeopleSource/
+/unity/Assets/HarnessReplay/PeopleSource.meta

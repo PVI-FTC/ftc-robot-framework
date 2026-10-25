@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PviHarness.Replay
@@ -44,16 +45,35 @@ namespace PviHarness.Replay
             /// <summary>Front-left, front-right, rear-left, rear-right.</summary>
             public Renderer[] wheels;
             public Renderer intake;
+            /// <summary>The scene's sun, which each setting colors and aims (<see cref="SettingBuilder"/>).</summary>
+            public Light sun;
+            /// <summary>The plain dark floor and low walls, hidden while a CAD field (with its own tiles and walls) is shown.</summary>
+            public readonly List<GameObject> plainField = new List<GameObject>();
+        }
+
+        /// <summary>Where a season's CAD parts live: Resources/Field/&lt;field id&gt; (one model per element).</summary>
+        public static string CadFolder(string fieldId) => "Field/" + fieldId;
+
+        /// <summary>The CAD models for a field (empty if the field has none in Resources, e.g. in a fresh clone).</summary>
+        public static GameObject[] CadModels(string fieldId) => Resources.LoadAll<GameObject>(CadFolder(fieldId));
+
+        /// <summary>Shows or hides the plain dark floor and low walls.</summary>
+        public static void ShowPlainField(Built built, bool show)
+        {
+            foreach (GameObject part in built.plainField)
+            {
+                part.SetActive(show);
+            }
         }
 
         /// <summary>Creates everything under one parent object and returns the parts that change.</summary>
         public static Built Build(Transform parent, float robotLengthInches, float robotWidthInches)
         {
-            AddLight(parent);
-            AddFloor(parent);
-            AddWalls(parent);
+            Light sun = AddLight(parent);
+            var built = new Built { trail = AddTrail(parent), sun = sun };
+            built.plainField.Add(AddFloor(parent));
+            built.plainField.AddRange(AddWalls(parent));
             AddAxisLabels(parent);
-            var built = new Built { trail = AddTrail(parent) };
             AddRobot(parent, built, robotLengthInches, robotWidthInches);
             return built;
         }
@@ -69,23 +89,46 @@ namespace PviHarness.Replay
         }
 
         /// <summary>
-        /// Draws a season's field parts and AprilTags (from a Harness/fields file) under a new
-        /// object, on top of the plain tiled field, and returns that object so it can be removed
-        /// when another field is picked. Tags without a known field position are skipped.
+        /// Draws a season's field under a new object and returns it, so it can be removed when another
+        /// field is picked. With the official CAD in Resources/Field/&lt;id&gt; (<see cref="CadModels"/>), the
+        /// CAD parts are drawn (tiles, perimeter, HIVE, flowers, tape, tags), plus the file's parts
+        /// outside the field (alliance areas); otherwise the file's simple shapes and AprilTags. Tags
+        /// without a known field position are skipped.
         /// </summary>
         public static Transform BuildSeason(Transform parent, FieldLayoutData field)
         {
             var root = new GameObject("Season field " + field.id).transform;
             root.SetParent(parent, false);
+            GameObject[] cad = CadModels(field.id);
+            if (cad.Length > 0)
+            {
+                // The CAD's points are FTC inches, z up: turn and shrink it into Unity's frame in one step.
+                var model = new GameObject("CAD field").transform;
+                model.SetParent(root, false);
+                model.localRotation = FtcToUnity.FtcModelRotation;
+                model.localScale = Vector3.one * FtcToUnity.MetersPerInch;
+                foreach (GameObject part in cad)
+                {
+                    Object.Instantiate(part, model, false).name = part.name;
+                }
+            }
             foreach (FieldElementData element in field.elements)
             {
-                AddElement(root, element);
-            }
-            foreach (FieldTagData tag in field.aprilTags)
-            {
-                if (tag.HasFieldPose)
+                bool outsideField = System.Math.Abs(element.xInches) > FtcToUnity.FieldHalfWidthInches
+                    || System.Math.Abs(element.yInches) > FtcToUnity.FieldHalfWidthInches;
+                if (cad.Length == 0 || outsideField)
                 {
-                    AddTag(root, tag);
+                    AddElement(root, element);
+                }
+            }
+            if (cad.Length == 0)
+            {
+                foreach (FieldTagData tag in field.aprilTags)
+                {
+                    if (tag.HasFieldPose)
+                    {
+                        AddTag(root, tag);
+                    }
                 }
             }
             return root;
@@ -176,7 +219,7 @@ namespace PviHarness.Replay
 
         // ---- The parts -----------------------------------------------------------------------------
 
-        private static void AddLight(Transform parent)
+        private static Light AddLight(Transform parent)
         {
             var light = new GameObject("Sun").AddComponent<Light>();
             light.type = LightType.Directional;
@@ -190,9 +233,10 @@ namespace PviHarness.Replay
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.55f, 0.57f, 0.60f);
             RenderSettings.skybox = null;
+            return light;
         }
 
-        private static void AddFloor(Transform parent)
+        private static GameObject AddFloor(Transform parent)
         {
             // The field is unlit, so its colors are exactly the Swing field's in every view.
             GameObject field = Box(parent, "Field", new Vector3(0f, -0.01f, 0f),
@@ -200,6 +244,7 @@ namespace PviHarness.Replay
             Renderer renderer = field.GetComponent<Renderer>();
             renderer.material.mainTexture = TileTexture();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return field;
         }
 
         /// <summary>The field's pattern: faint lines every foot, stronger ones every 2 ft tile.</summary>
@@ -234,16 +279,19 @@ namespace PviHarness.Replay
             return texture;
         }
 
-        private static void AddWalls(Transform parent)
+        private static GameObject[] AddWalls(Transform parent)
         {
             float half = FtcToUnity.FieldSizeMeters / 2f;
             const float thickness = 0.03f;
             float length = FtcToUnity.FieldSizeMeters + 2f * thickness;
             float y = WallHeightMeters / 2f;
-            Box(parent, "Wall +x", new Vector3(half + thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor);
-            Box(parent, "Wall -x", new Vector3(-half - thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor);
-            Box(parent, "Wall +y", new Vector3(0f, y, half + thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor);
-            Box(parent, "Wall -y", new Vector3(0f, y, -half - thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor);
+            return new[]
+            {
+                Box(parent, "Wall +x", new Vector3(half + thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor),
+                Box(parent, "Wall -x", new Vector3(-half - thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor),
+                Box(parent, "Wall +y", new Vector3(0f, y, half + thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor),
+                Box(parent, "Wall -y", new Vector3(0f, y, -half - thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor),
+            };
         }
 
         /// <summary>"+X" and "+Y" labels just outside the field, where the Swing viewer puts them.</summary>

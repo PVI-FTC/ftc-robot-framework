@@ -66,6 +66,14 @@ namespace PviHarness.Replay
             return Rotation(headingRadians) * Quaternion.Euler(-(float)tiltDegrees, 0f, 0f);
         }
 
+        /// <summary>
+        /// The rotation for a 3D model whose points are in the FTC field frame (x, y, z up), such as
+        /// the field CAD. Unity's OBJ importer reads a point (x, y, z) as Unity (-x, y, z); this turns
+        /// that into Unity (x, z, y), the same mapping as <see cref="Position"/>. Scale the model by
+        /// <see cref="MetersPerInch"/> when its points are in inches.
+        /// </summary>
+        public static readonly Quaternion FtcModelRotation = Quaternion.LookRotation(new Vector3(0f, 1f, 0f), new Vector3(0f, 0f, 1f));
+
         /// <summary>Meters as inches (the other way from <see cref="Meters"/>).</summary>
         public static double Inches(double meters)
         {

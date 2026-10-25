@@ -1,0 +1,13 @@
+newmtl astnt1_1
+Kd 0.5843 0.5843 0.5843
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Kd 1 1 1
+map_Kd astnt1_1.png
+
+newmtl astnt1_2
+Kd 0.5843 0.5843 0.5843
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Kd 1 1 1
+map_Kd astnt1_2.png

@@ -13,13 +13,16 @@ namespace PviHarness.Replay.Tests
     {
         private static string FieldsFolder => FieldLayouts.ResolveFolder(new string[0], Application.dataPath, true);
 
+        /// <summary>A field file: in Harness/fields, or switched off in Harness/fields/disabled.</summary>
         private static FieldLayoutData LoadField(string id)
         {
-            return FieldLayouts.Load(Path.Combine(FieldsFolder, id + ".json"));
+            string active = Path.Combine(FieldsFolder, id + ".json");
+            return FieldLayouts.Load(File.Exists(active) ? active : Path.Combine(FieldsFolder, "disabled", id + ".json"));
         }
 
         /// <summary>
-        /// WHAT: Every file in Harness/fields loads, and has an id matching its file name.
+        /// WHAT: Every file in Harness/fields loads, and has an id matching its file name. Files moved
+        /// into Harness/fields/disabled (DECODE 2025, switched off by the user on 2026-10-24) are not offered.
         /// WHY: The picker silently skips a broken file, so a typo would only show as a missing field.
         /// </summary>
         [Test]
@@ -29,7 +32,9 @@ namespace PviHarness.Replay.Tests
             List<FieldLayoutData> fields = FieldLayouts.LoadAll(FieldsFolder, problems);
 
             CollectionAssert.IsEmpty(problems);
-            CollectionAssert.AreEquivalent(new[] { "biobuzz-2026", "decode-2025" }, fields.Select(f => f.id));
+            CollectionAssert.AreEquivalent(new[] { "biobuzz-2026" }, fields.Select(f => f.id));
+            CollectionAssert.IsEmpty(FieldLayouts.LoadAll(Path.Combine(FieldsFolder, "disabled"), problems)
+                .Select(f => f.id).Intersect(fields.Select(f => f.id)), "a disabled field isn't also active");
         }
 
         /// <summary>
@@ -101,7 +106,8 @@ namespace PviHarness.Replay.Tests
         }
 
         /// <summary>
-        /// WHAT: DECODE's goal tags are the SDK's (getDecodeTagLibrary): 20 BlueTarget and 24 RedTarget at
+        /// WHAT: DECODE's goal tags (fields/disabled/decode-2025.json, kept correct in case it is switched
+        /// back on) are the SDK's (getDecodeTagLibrary): 20 BlueTarget and 24 RedTarget at
         /// (-58.3727, -/+55.6425, 29.5) in, 6.5 in; the obelisk tags 21-23 have no field position, so
         /// they aren't drawn.
         /// </summary>
@@ -154,6 +160,38 @@ namespace PviHarness.Replay.Tests
             Assert.AreEqual(0.5f, length.y, 0.001f);
             Assert.AreEqual(0f, length.z, 0.001f);
             Assert.AreEqual(new Vector3(0.5f, -0.866f, 0f), FtcToUnity.Direction(0.5, 0, -0.866), "FTC z is Unity y");
+        }
+
+        /// <summary>
+        /// WHAT: A CAD point in FTC inches (x toward the audience, y toward blue, z up), read by Unity's
+        /// OBJ importer as (-x, y, z), lands where <see cref="FtcToUnity.Position"/> puts it.
+        /// WHY: Getting this wrong would show the whole CAD field mirrored or on its side.
+        /// </summary>
+        [Test]
+        public void CadModelsLandInTheFtcFrame()
+        {
+            var ftc = new Vector3(30f, -20f, 44f);                 // a point on the red side, 44 in up
+            var asImported = new Vector3(-ftc.x, ftc.y, ftc.z);    // what Unity's OBJ importer makes of it
+            Vector3 placed = FtcToUnity.FtcModelRotation * asImported * FtcToUnity.MetersPerInch;
+
+            Vector3 expected = FtcToUnity.Position(ftc.x, ftc.y, FtcToUnity.Meters(ftc.z));
+            Assert.AreEqual(expected.x, placed.x, 1e-4f);
+            Assert.AreEqual(expected.y, placed.y, 1e-4f);
+            Assert.AreEqual(expected.z, placed.z, 1e-4f);
+        }
+
+        /// <summary>
+        /// WHAT: The official BIOBUZZ CAD (Resources/Field/biobuzz-2026) has all 12 parts the field is drawn from.
+        /// </summary>
+        [Test]
+        public void BioBuzzCadPartsAreAllThere()
+        {
+            string[] parts = FieldBuilder.CadModels("biobuzz-2026").Select(p => p.name).ToArray();
+            CollectionAssert.AreEquivalent(new[]
+            {
+                "tiles", "perimeter", "hive-frame", "red-hive", "blue-hive", "flower-far", "flower-blue-wall",
+                "flower-red-wall", "flower-audience", "tape", "apriltags", "other",
+            }, parts);
         }
 
         /// <summary>

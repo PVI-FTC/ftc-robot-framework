@@ -17,8 +17,8 @@ namespace PviHarness.Replay
     /// <see cref="recordingPath"/>) and plays it back. Keys: Space play/pause, Left/Right one loop,
     /// Shift+Left/Right one second, Home/End, [ and ] slower/faster, N/P newer/older recording.</para>
     ///
-    /// <para><b>Live</b> (Stage U2): pick "Live: ..." in the chooser while <c>gradlew unityBridge</c>
-    /// runs. The harness runs the real TeamCode and reads the game controllers; Unity asks for one
+    /// <para><b>Live</b> (Stage U2): press <b>Live mode</b> (or L), which starts the harness side
+    /// (<see cref="HarnessLauncher"/>), then pick "Live: ..." in the chooser. The harness runs the real TeamCode and reads the game controllers; Unity asks for one
     /// OpMode call every 20 ms (<see cref="LivePacer"/>) and draws each one. Enter = PLAY, Esc = STOP,
     /// then Save keeps the run as a recording.</para>
     ///
@@ -26,8 +26,8 @@ namespace PviHarness.Replay
     /// live run is moved by Unity's physics engine (<see cref="UnityRobotPhysics"/>): walls and the
     /// season field's solid parts really stop the robot.</para>
     ///
-    /// <para>Always: T top-down / 3D view, F follow the robot, G next season field (Harness/fields);
-    /// in 3D view right-drag turns the camera and scroll zooms.</para>
+    /// <para>Always: T top-down / 3D view, F follow the robot, V the Visuals screen (arena and
+    /// setting), G next arena; in 3D view right-drag turns the camera and scroll zooms.</para>
     /// </summary>
     public sealed class ReplayController : MonoBehaviour
     {
@@ -52,7 +52,14 @@ namespace PviHarness.Replay
         private string fieldId = FieldLayouts.PlainFieldId;
         private Transform seasonRoot;
 
+        // The setting around the arena (SettingBuilder) and the one drawn now.
+        private const string SettingPreferenceKey = "HarnessReplay.setting";
+        private string settingId = SettingBuilder.MissionControlId;
+        private Transform settingRoot;
+
         // Live play.
+        private HarnessLauncher launcher;
+        private HarnessLauncher.LaunchState lastLaunchState = HarnessLauncher.LaunchState.Off;
         private const string PhysicsPreferenceKey = "HarnessReplay.physics";
         private bool unityPhysicsChosen;
         private UnityRobotPhysics robotPhysics;
@@ -66,6 +73,8 @@ namespace PviHarness.Replay
         private readonly List<int> trailCountUpTo = new List<int>();
         private int trailShownIndex = -1;
 
+        /// <summary>The camera, for the View buttons (preset viewpoints).</summary>
+        public OrbitCamera Orbit => orbit;
         /// <summary>The recording being shown (a live run grows step by step), or null if none.</summary>
         public RunRecordingData Recording => recording;
         /// <summary>The playback state (null until a recording is open).</summary>
@@ -89,8 +98,20 @@ namespace PviHarness.Replay
         public string LiveUnavailable { get; private set; }
         /// <summary>True once the live run has been saved.</summary>
         public bool LiveSaved { get; private set; }
+        /// <summary>Where the Live mode button is: off, starting the harness side, running, or failed.</summary>
+        public HarnessLauncher.LaunchState LiveModeState => launcher?.State ?? HarnessLauncher.LaunchState.Off;
+        /// <summary>True if live mode is using a harness side someone started by hand.</summary>
+        public bool LiveModeStartedOutside => launcher != null && launcher.StartedOutside;
         /// <summary>True if the next live run should be moved by Unity's physics (the Physics button, or U).</summary>
         public bool UnityPhysicsChosen => unityPhysicsChosen;
+        /// <summary>The season field files that can be picked (Harness/fields), by id.</summary>
+        public List<FieldLayoutData> Fields => fields;
+        /// <summary>The arena drawn now: a field file's id, or <see cref="FieldLayouts.PlainFieldId"/>.</summary>
+        public string FieldId => fieldId;
+        /// <summary>The setting drawn now (see <see cref="SettingBuilder.All"/>).</summary>
+        public string SettingId => settingId;
+        /// <summary>The setting drawn now, by name ("Competition hall").</summary>
+        public string SettingName => SettingBuilder.Find(settingId).name;
         /// <summary>The season field drawn now: its name ("BIOBUZZ 2026-2027"), or "Plain field".</summary>
         public string FieldName
         {
@@ -120,8 +141,13 @@ namespace PviHarness.Replay
             string startField = FieldLayouts.FieldFromCommandLine(Environment.GetCommandLineArgs())
                 ?? PlayerPrefs.GetString(FieldPreferenceKey, "");
             ShowField(FieldLayouts.Pick(null, startField, fields.ConvertAll(f => f.id)));
+            // "-setting <id>" on the command line, else the setting picked last time.
+            ShowSetting(SettingBuilder.SettingFromCommandLine(Environment.GetCommandLineArgs())
+                ?? PlayerPrefs.GetString(SettingPreferenceKey, SettingBuilder.MissionControlId));
 
             unityPhysicsChosen = PlayerPrefs.GetInt(PhysicsPreferenceKey, 0) == 1;
+            launcher = new HarnessLauncher(
+                HarnessLauncher.ResolveHarnessFolder(Environment.GetCommandLineArgs(), Application.dataPath, Application.isEditor), bridgePort);
 
             RefreshRecordingList();
             // A recording named in the Inspector, else one given on the command line (dropped on
@@ -144,6 +170,7 @@ namespace PviHarness.Replay
         private void OnDestroy()
         {
             EndLive(null);
+            launcher?.Dispose(); // ends the harness side if Live mode started it
             if (trailPoints.IsCreated)
             {
                 trailPoints.Dispose();
@@ -226,6 +253,34 @@ namespace PviHarness.Replay
             PlayerPrefs.SetString(FieldPreferenceKey, fieldId);
         }
 
+        /// <summary>Picks the arena on the Visuals screen: a field file's id, or the plain field. Remembered.</summary>
+        public void SelectField(string id)
+        {
+            ShowField(id);
+            PlayerPrefs.SetString(FieldPreferenceKey, fieldId);
+        }
+
+        /// <summary>Picks the setting around the arena on the Visuals screen. Remembered.</summary>
+        public void SelectSetting(string id)
+        {
+            ShowSetting(id);
+            PlayerPrefs.SetString(SettingPreferenceKey, settingId);
+        }
+
+        /// <summary>Draws a setting (or none), replacing the one shown, and sets its sky and light.</summary>
+        private void ShowSetting(string id)
+        {
+            if (settingRoot != null)
+            {
+                Destroy(settingRoot.gameObject);
+                settingRoot = null;
+            }
+            SettingInfo setting = SettingBuilder.Find(id);
+            settingId = setting.id;
+            settingRoot = SettingBuilder.Build(transform, setting);
+            SettingBuilder.ApplyLighting(setting, replayCamera, scene.sun);
+        }
+
         /// <summary>Draws a season field by id (or only the plain field), replacing the one shown.</summary>
         private void ShowField(string id)
         {
@@ -240,6 +295,8 @@ namespace PviHarness.Replay
             {
                 seasonRoot = FieldBuilder.BuildSeason(transform, field);
             }
+            // A CAD field brings its own tiles and walls, so the plain ones step aside.
+            FieldBuilder.ShowPlainField(scene, field == null || FieldBuilder.CadModels(field.id).Length == 0);
         }
 
         // ---- Live ---------------------------------------------------------------------------------
@@ -268,7 +325,9 @@ namespace PviHarness.Replay
             catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException || e is BridgeErrorException)
             {
                 LiveChoices = null;
-                LiveUnavailable = "Live play: start .\\gradlew.bat unityBridge in Harness\\ first (" + e.Message + ")";
+                LiveUnavailable = LiveModeState == HarnessLauncher.LaunchState.Starting
+                    ? "Live mode is starting the harness side (the first time takes up to a minute)..."
+                    : "Live play: press Live mode first (or run .\\gradlew.bat unityBridge in Harness\\)";
             }
         }
 
@@ -314,6 +373,48 @@ namespace PviHarness.Replay
         public void LiveStop()
         {
             LiveCall(() => live.Stop());
+        }
+
+        /// <summary>
+        /// The Live mode button (L): switches on (starts the harness side in the background) or off
+        /// (ends any live run and the harness side it started).
+        /// </summary>
+        public void ToggleLiveMode()
+        {
+            if (LiveModeState == HarnessLauncher.LaunchState.Starting || LiveModeState == HarnessLauncher.LaunchState.Running)
+            {
+                EndLive(null);
+                launcher.Stop();
+                Notice = "Live mode off";
+                return;
+            }
+            ErrorMessage = null;
+            launcher.Start(Time.realtimeSinceStartup);
+            Notice = launcher.State == HarnessLauncher.LaunchState.Starting
+                ? "Starting the harness side for live play (the first time takes up to a minute)..." : null;
+        }
+
+        /// <summary>Follows the Live mode launcher: says when it is ready, or why it failed.</summary>
+        private void WatchLiveMode()
+        {
+            launcher.Poll(Time.realtimeSinceStartup);
+            HarnessLauncher.LaunchState now = launcher.State;
+            if (now == lastLaunchState)
+            {
+                return;
+            }
+            lastLaunchState = now;
+            if (now == HarnessLauncher.LaunchState.Running)
+            {
+                RefreshLiveChoices();
+                Notice = "Live mode on: open the Replay chooser and pick \"Live: ...\", then press Enter to PLAY";
+            }
+            else if (now == HarnessLauncher.LaunchState.Failed)
+            {
+                EndLive(null);
+                Notice = null;
+                ErrorMessage = "Live mode: " + launcher.Problem;
+            }
         }
 
         /// <summary>
@@ -417,6 +518,10 @@ namespace PviHarness.Replay
             replayCamera.rect = new Rect(layout.field.x / Screen.width, (Screen.height - layout.field.yMax) / Screen.height,
                 layout.field.width / Screen.width, layout.field.height / Screen.height);
 
+            WatchLiveMode();
+            HideCeilingFromAbove();
+            // The setting's 360° sky shows in the 3D view; the top-down view keeps its plain background.
+            replayCamera.clearFlags = !orbit.TopDown && RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             if (timeline == null)
             {
                 return;
@@ -435,6 +540,16 @@ namespace PviHarness.Replay
                 timeline.Advance(Time.unscaledDeltaTime);
             }
             ShowPlayhead();
+        }
+
+        /// <summary>Hides a setting's ceiling while the camera is above it (zoomed out), so it never covers the field.</summary>
+        private void HideCeilingFromAbove()
+        {
+            Transform ceiling = settingRoot == null ? null : settingRoot.Find(SettingBuilder.CeilingName);
+            if (ceiling != null)
+            {
+                ceiling.gameObject.SetActive(replayCamera.transform.position.y < SettingBuilder.CeilingHideAboveMeters);
+            }
         }
 
         /// <summary>Moves the robot to the (blended) pose at the playhead, colors its wheels, updates the trail.</summary>
@@ -538,7 +653,11 @@ namespace PviHarness.Replay
                     if (live != null && live.Initialized) LivePlay(); else used = false;
                     break;
                 case KeyCode.Escape:
-                    if (liveRunning) LiveStop(); else used = false;
+                    // Esc closes the Visuals screen first; otherwise it is STOP in a live run.
+                    if (hud.VisualsOpen) hud.VisualsOpen = false; else if (liveRunning) LiveStop(); else used = false;
+                    break;
+                case KeyCode.V:
+                    hud.VisualsOpen = !hud.VisualsOpen;
                     break;
                 case KeyCode.N:
                     if (!liveRunning) OpenNeighbour(-1);
@@ -551,6 +670,9 @@ namespace PviHarness.Replay
                     break;
                 case KeyCode.U:
                     TogglePhysics();
+                    break;
+                case KeyCode.L:
+                    ToggleLiveMode();
                     break;
                 default:
                     // While a live run is going, the timeline always follows the newest moment.

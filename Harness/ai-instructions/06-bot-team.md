@@ -56,11 +56,18 @@ Finished lists: A (momentum + PhysicsBackend, calibration checklist, Team B/C ch
 AprilTags, Pedro route tests, Save as test), C7–C9 (live Unity view, standalone app, season
 fields). All of these are in commit `3dbf96e`.
 
+### Decided by the user
+
+- **Team B and C (2026-10-24):** "Don't mess with them for now, just keep them up to date."
+  Their fake robots stay copies of the shared Team A hardware, and change only when TeamCode's
+  Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user
+  says so.
+- **Never push** (see §4, rule 6).
+
 ### Waiting on the user
 
 - When the team can measure the real robot (`CALIBRATION.md`).
 - Team A's real length: Pedro's routes need 16 in or less, and the placeholder is 18 in.
-- Team B/C hardware configs: now, or wait for their own TeamCode wrappers?
 - AprilTags placed on the field (camera field of view and range; should Java read `fields/*.json`?).
 - CI (it needs a file outside `Harness/`, which the user adds, and a pushed branch; see rule 6).
 - Official BIOBUZZ field CAD or drawings. Some positions in `fields/biobuzz-2026.json` are

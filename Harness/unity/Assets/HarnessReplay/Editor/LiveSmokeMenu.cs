@@ -39,6 +39,69 @@ namespace PviHarness.Replay.Editor
             EditorApplication.Exit(ok ? 0 : 1);
         }
 
+        /// <summary>
+        /// <b>Harness → Live Mode Smoke Test</b>: like the Live Smoke Test, but the Live mode
+        /// launcher starts the harness side itself (no gradlew command), and afterwards it checks
+        /// that switching Live mode off really ended it. Needs nothing listening on port 7465 first.
+        /// Batch: <c>-executeMethod PviHarness.Replay.Editor.LiveSmokeMenu.RunLiveModeFromCommandLine</c>.
+        /// </summary>
+        [MenuItem("Harness/Live Mode Smoke Test")]
+        public static void RunLiveMode()
+        {
+            bool ok = RunLiveModeSmoke(out string report);
+            File.WriteAllText(ResultPath, report);
+            Debug.Log("[HarnessReplay] Live mode smoke test " + (ok ? "passed" : "FAILED") + ":\n" + report);
+        }
+
+        /// <summary>For -executeMethod in batch mode: runs the Live mode check, then quits with 0 (passed) or 1.</summary>
+        public static void RunLiveModeFromCommandLine()
+        {
+            bool ok = RunLiveModeSmoke(out string report);
+            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
+            File.WriteAllText(ResultPath, report);
+            EditorApplication.Exit(ok ? 0 : 1);
+        }
+
+        private static bool RunLiveModeSmoke(out string report)
+        {
+            var text = new StringBuilder();
+            int port = TcpBridgeTransport.DefaultPort;
+            if (HarnessLauncher.IsListening(port))
+            {
+                report = "FAILED: something is already listening on port " + port + "; stop it first so the launcher is tested.";
+                return false;
+            }
+            string harness = HarnessLauncher.ResolveHarnessFolder(new string[0], Application.dataPath, true);
+            using (var launcher = new HarnessLauncher(harness, port))
+            {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                launcher.Start(0);
+                // An Editor tool may wait; the game's Live mode button never does (it polls each frame).
+                while (launcher.State == HarnessLauncher.LaunchState.Starting)
+                {
+                    System.Threading.Thread.Sleep(250);
+                    launcher.Poll(clock.Elapsed.TotalSeconds);
+                }
+                text.AppendLine("Launcher: " + launcher.State + " after " + clock.Elapsed.TotalSeconds.ToString("0.0") + " s"
+                    + (launcher.Problem == null ? "" : " (" + launcher.Problem + ")"));
+                if (launcher.State != HarnessLauncher.LaunchState.Running)
+                {
+                    report = text.AppendLine("FAILED").ToString();
+                    return false;
+                }
+                bool smoke = RunSmoke(out string smokeReport);
+                text.Append(smokeReport);
+                launcher.Stop();
+                System.Threading.Thread.Sleep(1000);
+                bool stopped = !HarnessLauncher.IsListening(port);
+                text.AppendLine("After Live mode off: port " + port + (stopped ? " is free" : " is STILL in use"));
+                bool ok = smoke && stopped;
+                text.AppendLine(ok ? "LIVE MODE PASSED" : "LIVE MODE FAILED");
+                report = text.ToString();
+                return ok;
+            }
+        }
+
         private static bool RunSmoke(out string report)
         {
             var text = new StringBuilder();

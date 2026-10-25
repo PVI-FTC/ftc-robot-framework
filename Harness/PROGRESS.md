@@ -150,6 +150,292 @@ How the steps fit the rules in `ai-instructions/`:
 
 ---
 
+## Robot profiles and modularity
+
+**Goal (from the user, 2026-10-24):** make the harness as modular as possible, so any FTC team's
+code can hook in with little work. Today it is built around PVI's Team A. Planned only; no code
+yet. WorkerBot owns the RP rows and TestBot adds its own rows below.
+
+What the harness assumes about the robot today (checked in the code 2026-10-24):
+
+- `OpModeRunner` always tracks position with `WheelReader.teamA()` and `DriveModels.teamA()`
+  (Team A's mecanum motor names, directions and speeds from `TeamAPedroConfiguration`), whatever
+  OpMode or `FakeHardwareMap` it is given. `BridgeSession` uses `WheelReader.teamA()` too.
+- The physics only knows mecanum: `WheelPushes` has four named wheels, `PhysicsBackend.DriveCommand`
+  carries a `WheelPushes`, and `MomentumPhysics` / `PoseEstimator` use `MecanumKinematics`.
+- `RobotConfigs` is built from PVI's `DriveHardware` / `IntakeHardware` constants, with the
+  Pinpoint name from `TeamAPedroHarnessAccess` (a harness file in Team A's TeamCode package, because
+  the Pedro constants are package-private). `teamB()` / `teamC()` are copies of `teamA()`.
+- `Dynamics.teamA()` reads Pedro's zero-power accelerations through the same access file.
+- The bridge's `driveCommand` JSON writes `frontLeft`/`frontRight`/`rearLeft`/`rearRight`, and the
+  viewer's robot drawing (`FieldPainter`) finds the wheels by those names.
+- `RecordedTestWriter` only knows the `teamA`/`teamB`/`teamC`/`driveOnly` configs.
+- `RunRecorder` reads autonomous step names from the `"Auto Step"` telemetry caption only.
+- `build.gradle` compiles a fixed `../TeamCode/src/main/java` against a fixed `robotLibs` list
+  (SDK 12.0.0, Pedro 2.1.2 + telemetry 1.0.0, Panels 1.0.12).
+- `HarnessAgent` only moves `org.firstinspires.ftc.`, `com.qualcomm.`, `com.pedropathing.` and
+  `com.bylazar.` onto simulated time.
+- The viewer's scenarios and the bridge's OpMode list name Team A's OpModes (TestBot's and
+  UnityBot's files; see their rows).
+
+| Step | What | Owner | Status |
+|---|---|---|---|
+| RP1 | **A `RobotProfile`**: one place per robot that says everything the harness needs to know about it. Team A/B/C become the first three profiles. Details below. | WorkerBot | planned |
+| RP2 | **The runner, physics and sensors read the profile** instead of Team A statics; a robot the harness can't track says so clearly. | WorkerBot | planned |
+| RP3 | **Other drivetrains**: tank/differential first, so non-mecanum robots get position tracking. | WorkerBot | planned |
+| RP4 | **Build settings in one place**: TeamCode path, library list and the agent's package list, with a clear message when TeamCode needs a missing library. | WorkerBot | planned |
+| RP5 | **The bridge and recorded tests use the profile** (wheel names, robot config) instead of names written into the code. | WorkerBot | planned |
+| RP6 | **`LinearOpMode` support**: `runOpMode()` runs in step with simulated time, with `waitForStart`, `sleep`, `opModeIsActive` and `isStopRequested` working as on the robot. Today a LinearOpMode silently does nothing. | TestBot | planned |
+| RP7 | **More hardware fakes**, most common first: IMU, CR servo, distance, touch, color, dead wheels, OTOS, Limelight, analog. Motion-driven ones read the physics; world-driven ones are scriptable. | TestBot | planned |
+| RP8 | **OpMode discovery**: find TeamCode's `@TeleOp` / `@Autonomous` classes automatically for the viewer, bridge, Save as test and the profile's OpMode list. | TestBot | planned |
+| RP9 | **SDK-version safety test**: fails with a plain message when the harness's SDK copies, its reflection into SDK internals, or its library versions no longer match the SDK. | TestBot | planned |
+| RP10 | **"Bring your own robot" guide**, a starter test template, and a smoke test that runs every discovered OpMode and names missing devices or crashes. | TestBot | planned |
+
+**RP1: `RobotProfile`.**
+
+- **What changes:** a new `pvi.harness.profile` package. A `RobotProfile` holds:
+  - its name (`"teamA"`), which also goes in the recording header;
+  - its OpModes (TeleOp and autonomous classes, for the viewer and bridge lists);
+  - its hardware config, as a method that builds the `FakeHardwareMap` (device names and types);
+  - its drivetrain: type (mecanum, tank, none), motor names, which direction drives forward, and
+    full-power speeds as `ModelValue`s;
+  - its localizer: Pinpoint (name and offsets), none, or drive encoders only;
+  - its dynamics (`Dynamics`, or none for the instant model) and robot size;
+  - its conventions, such as the telemetry caption for autonomous step names (default `"Auto Step"`).
+  - `RobotProfiles.teamA()/teamB()/teamC()` wrap today's `RobotConfigs`, `WheelReader.teamA()`,
+    `DriveModels.teamA()` and `Dynamics.teamA()`, which stay as thin shortcuts so no test breaks.
+- **Format, recommended: a Java class per robot.** It can read the robot's own constants live
+  (`DriveHardware.FRONT_LEFT_MOTOR_NAME`, Pedro constants through a `HarnessAccess` file), so it
+  never drifts from TeamCode and a renamed constant is a compile error. Students already read Java,
+  it needs no JSON parser in the core, and placeholders stay marked with `ModelValue`. A data file
+  would copy numbers by hand that already exist in TeamCode, so it would go stale. A data file can
+  be added later for teams with no Java constants to read, with a small adapter that builds the
+  same `RobotProfile`.
+- **Files:** new `profile/RobotProfile.java`, `profile/RobotProfiles.java`, `profile/Drivetrain.java`
+  (type, names, directions), `profile/Localizer.java`; `RobotConfigs`, `DriveModels`, `WheelReader`
+  delegate to them. README: a "Add your robot" section.
+- **Depends on:** nothing.
+- **Size:** medium (about 4 new small classes, a README section).
+- **Tested by:** a `RobotProfileTest`: Team A's profile gives exactly today's motor names,
+  directions, speeds and Pinpoint name; the whole existing suite passes unchanged; a made-up
+  profile with other motor names builds a matching `FakeHardwareMap`.
+
+**RP2: the runner, physics and sensors read the profile.**
+
+- **What changes:** `new OpModeRunner(opMode, profile)` (the `FakeHardwareMap` constructor stays,
+  using Team A's drivetrain as today). The runner takes its `WheelReader`, `DriveModel` and
+  `Dynamics` from the profile. The Pinpoint is fed only when the profile has one. When the drivetrain
+  is `none` or a motor is missing, the run reports one clear line ("position not tracked: robot
+  'x' has no drivetrain in its profile") instead of guessing, as `untrackedReason` does now.
+  `RunRecorder` uses the profile's step caption.
+- **Files:** `runtime/OpModeRunner`, `runtime/RunRecorder`, `physics/PoseEstimator`,
+  `physics/WheelReader`, `hardware/FakeHardwareMap` (Pinpoint stepping), README.
+- **Depends on:** RP1.
+- **Size:** medium.
+- **Tested by:** Team A runs give the same poses as before (existing route and drive tests);
+  a profile with renamed motors is tracked; a profile with drivetrain `none` runs and reports
+  why it isn't tracked; a custom step caption shows up in the recording.
+
+**RP3: other drivetrains (tank/differential first).**
+
+- **What changes:** a `TankKinematics` next to `MecanumKinematics` (left/right sides, any number
+  of motors per side; forward speed and turn rate, no strafing). `PhysicsBackend.DriveCommand`
+  carries a drivetrain-neutral command (forward, strafe, turn powers, plus braking) instead of
+  four mecanum wheels, so `MomentumPhysics` and Unity's physics work for both. The mecanum wheel
+  values stay available for the bridge.
+- **Files:** new `physics/TankKinematics.java`, `physics/PhysicsBackend`, `physics/MomentumPhysics`,
+  `physics/PoseEstimator`, `physics/WheelReader` (per drivetrain), README physics section.
+- **Depends on:** RP2. Changing `DriveCommand` touches UnityBot's `RemotePhysics` and the bridge's
+  `driveCommand` message, so agree the new message (and its version bump) with UnityBot first.
+- **Size:** medium to large.
+- **Tested by:** `TankKinematicsTest` (both sides forward drives straight, opposite sides spins in
+  place, strafing input does nothing); a tank profile driving a scripted TeleOp ends where the
+  math says; all mecanum tests unchanged.
+
+**RP4: build settings in one place.**
+
+- **What changes:** `Harness/gradle.properties` (new, inside `Harness/`) holds `teamCodeDir`
+  (default `../TeamCode/src/main/java`), the robot library list, and the agent's package list
+  (default today's four, e.g. add `com.acmerobotics.` for RoadRunner). `build.gradle` reads them;
+  the agent gets its list as an agent argument. When TeamCode fails to compile because a package
+  is missing (`package com.acmerobotics... does not exist`), the build prints which setting to add
+  the library to.
+- **Files:** new `Harness/gradle.properties`, `build.gradle`, `agent/HarnessAgent.java`, README
+  "Using your own TeamCode" section, `ai-instructions/03-workflow.md` (the `robotLibs` line).
+- **Depends on:** nothing (can go before RP1).
+- **Size:** small to medium.
+- **Tested by:** an agent test that a class in an added package follows simulated time; the
+  normal suite passes with the defaults; a manual check that a wrong `teamCodeDir` gives the clear
+  message (Gradle settings are hard to unit-test).
+
+**RP5: the bridge and recorded tests use the profile.**
+
+- **What changes:** recordings already carry the robot config name; `RecordedTestWriter` looks it
+  up in `RobotProfiles` instead of a fixed `switch`, so a new profile works with **Save as test**
+  and replays without editing the writer. The bridge's `driveCommand` and the viewer's wheel
+  drawing use the profile's wheel names.
+- **Files:** `recorded/RecordedTestWriter`, `bridge/BridgeSession` (UnityBot's file: agree first),
+  `viewer/FieldPainter`, README.
+- **Depends on:** RP1 (writer), RP2 (bridge).
+- **Size:** small.
+- **Tested by:** a recorded drive from a made-up profile generates a test that compiles and
+  passes; an unknown config name still gives today's clear message; bridge tests unchanged for
+  Team A.
+
+**RP6: `LinearOpMode` support.**
+
+- **Why:** the SDK's `LinearOpMode` makes `init()`, `loop()` and the rest empty `final` methods and
+  runs `runOpMode()` on its own thread. The runner calls `init()`/`loop()` directly, so a
+  LinearOpMode does nothing and no error is shown. Team A has none (all 10 of its OpModes are
+  iterative), but most teams and the SDK samples use them.
+- **What changes:** the runner runs `runOpMode()` on one extra thread, in **lock-step** with
+  `SimClock`: each cycle it hands control to the OpMode thread and waits until that thread
+  reaches a sync point, then moves time one loop period. Sync points are the SDK's own:
+  `waitForStart()`, `idle()` (which `opModeIsActive()` calls), `sleep(ms)`, `isStarted()` and
+  `isStopRequested()`. The Java agent rewrites `Thread.sleep` / `Thread.yield` in robot classes to
+  `SimTime` hooks, so `sleep(500)` lasts 500 ms of simulated time (today `Thread.sleep` is real
+  time). PLAY and STOP go through the SDK's package-private `internalOnStart` /
+  `internalOnStopRequested`, through a `HarnessAccess` file in the SDK's package. Telemetry and
+  gamepads arrive between steps, as now.
+- **Risks:** a loop with no sync point (`while (!gamepad1.a) { }`) never hands control back, so a
+  watchdog fails the test after a few real seconds with "the OpMode didn't call idle(),
+  opModeIsActive() or sleep() for 3 s". An exception on the OpMode thread goes into `RunResult`
+  like any crash. Only one OpMode thread runs at a time, so `SimTime`'s one-clock rule still
+  holds. It is the harness's first thread besides the viewer's, so it needs the user's OK
+  (04-code-style.md asks before adding concurrency).
+- **Files:** `runtime/OpModeRunner` (WorkerBot; or a new `runtime/LinearOpModeDriver` it calls),
+  `agent/HarnessAgent` and `SimTime`, a new
+  `com/qualcomm/robotcore/eventloop/opmode/LinearOpModeHarnessAccess.java`, README.
+- **Depends on:** nothing.
+- **Size:** large.
+- **Tested by:** small sample-style LinearOpModes in `src/test`: drive for `sleep(1000)` (the robot
+  moves for exactly 50 loops), wait for start, loop on `opModeIsActive()` until STOP, stop
+  requested during init, a crash in `runOpMode()`, and a busy loop the watchdog catches. Each is
+  checked to fail when broken, and gives the same result every run.
+
+**RP7: more hardware fakes.**
+
+- **What changes:** new fakes, in order of how often FTC teams use them:
+  1. **IMU** (the SDK `IMU` interface, BHI260AP / BNO055): yaw from the physics heading, plus an
+     optional scripted drift or offset. Most common: field-centric drive and turns use it.
+  2. **CR servo**: power in, like a motor without an encoder.
+  3. **Distance sensor** (REV 2 m): scripted readings; later, distance to the field walls.
+  4. **Touch sensor / digital channel**: scripted pressed and released.
+  5. **Color sensor** (REV v3, `NormalizedColorSensor`): scripted color, e.g. "red sample from 2.1 s".
+  6. **Dead wheels** (two- or three-wheel odometry on motor encoder ports): counts from the
+     robot's real motion, not motor power.
+  7. **SparkFun OTOS**: pose from the physics, like `FakePinpoint`.
+  8. **Limelight 3A**: scripted results, reusing `SeenAprilTag` for its AprilTag pipeline.
+  9. **Analog input**: scripted volts.
+
+  Rule: what the robot's motion decides (IMU, dead wheels, OTOS) comes from the physics; what the
+  world decides (game pieces, buttons, distances) comes from one `SensorScript` timeline in the
+  `GamepadScript` / `AprilTagScript` style.
+- **Files:** new `hardware/Fake*` classes and `hardware/SensorScript`; `FakeHardwareMap.add*` and
+  `stepSensors` (WorkerBot: agree first); README sensor section.
+- **Depends on:** RP1 (which devices a profile's robot has); the physics-driven ones on RP2.
+- **Size:** small each for IMU, CR servo, touch and analog; medium for color, dead wheels, OTOS
+  and Limelight.
+- **Tested by:** each fake read through the real SDK calls (e.g.
+  `imu.getRobotYawPitchRollAngles()` after a scripted turn), plus a small TeamCode-style OpMode in
+  `src/test` that uses it. Each is checked to fail when broken.
+
+**RP8: OpMode discovery.**
+
+- **What changes:** a core `runtime/OpModeCatalog` finds every `@TeleOp` / `@Autonomous` class
+  under the TeamCode package roots (skipping `@Disabled`) and returns plain records: class name,
+  display `name`, `group`, period and `preselectTeleOp`. The viewer's hand-written lists
+  (`Scenarios`, `LiveDrive.options()`), the bridge's `BridgeOpModes`, and the file search in
+  `RecordedTestWriter.findOpModeClass` (used by `makeTest` and Save as test) all read it. RP1's
+  profile OpMode list defaults to the catalog, so a team doesn't have to list OpModes by hand.
+  Reading the annotations is a small, plain use of reflection, so this needs the user's OK too
+  (the alternative is reading the `.java` files as text, as `findOpModeClass` already does).
+- **Files:** new `runtime/OpModeCatalog`; then small edits in `viewer/Scenarios` and
+  `viewer/LiveDrive` (WorkerBot), `bridge/BridgeOpModes` (UnityBot), `recorded/RecordedTestWriter`
+  (WorkerBot) and `viewer/SaveAsTest`.
+- **Depends on:** RP1 (package roots, and which profile's robot an OpMode runs on).
+- **Size:** medium.
+- **Tested by:** finds each of Team A's annotated OpModes with the right name and period;
+  `@Disabled` ones are skipped; a test-only annotated OpMode shows up without editing any list.
+
+**RP9: SDK-version safety test.**
+
+- **What changes:** one `SdkCompatibilityTest` that fails with a plain message when the SDK
+  changes under the harness:
+  - the harness copies of `VisionPortal` and `AprilTagProcessorImpl` still have every public
+    constructor and method of the SDK classes in the `Vision` jar (the SDK's versions are loaded
+    from the jar in a separate class loader and compared by signature);
+  - every non-public SDK field or method the harness reaches into (today `OpModeRunner`'s stop
+    flag and OpMode-manager link; RP6's internal calls later) still exists with the expected type;
+  - `build.gradle`'s `robotLibs` versions match `../build.dependencies.gradle` (read only), so a
+    team's SDK upgrade can't be missed.
+- **Files:** a new test only (it could share a list of the reflected names with `OpModeRunner`,
+  if WorkerBot agrees).
+- **Depends on:** nothing; RP4 later moves the version list.
+- **Size:** small.
+- **Tested by:** it is the test. Checked to fail by renaming a method in a harness copy and by
+  changing a version string.
+
+**RP10: "Bring your own robot" guide and starter tests.**
+
+- **What changes:**
+  - `BRING_YOUR_OWN_ROBOT.md`, linked from `GETTING_STARTED.md`: point the harness at your
+    TeamCode (RP4), write a profile with your device names and drivetrain (RP1), run the smoke
+    test, read its report, copy the starter test.
+  - `EveryOpModeSmokeTest`: a JUnit `@TestFactory` with one test per discovered OpMode (RP8). Each
+    runs INIT, a few init loops, START, 2 s of loops and STOP on the profile's robot, and fails
+    with a plain line such as `missing device "armMotor" (DcMotorEx)` or the OpMode's crash.
+  - `MyFirstRobotTest.java`, a starter template with the script → set up → run → check comments.
+- **Files:** the new guide and tests; a link in `GETTING_STARTED.md` and the README top.
+- **Depends on:** RP1 and RP8 (and RP6 for teams whose OpModes are linear).
+- **Size:** medium.
+- **Tested by:** the smoke test passes on Team A, and fails naming the device on a profile with a
+  device removed.
+
+**Suggested order:** RP4 and RP1 (independent), then RP2, then RP5 and RP3. TestBot's RP9 and
+RP6 need nothing first and can run alongside; then RP8 (after RP1), RP7 (after RP1 and RP2) and
+RP10 (after RP8).
+
+---
+
+## Field walls from the official CAD
+
+The official BIOBUZZ field CAD (processed 2026-10-25, see `art-inbox/processed/field/manifest.json`)
+puts the inside of the walls at **±70.585 in**. That is where the tile edge and the rail's inner
+face are. The harness's physics walls are at **±72 in** today (`Pose.FIELD_HALF_WIDTH_INCHES`), so
+the simulated robot can drive 1.4 in further than the real one at every wall.
+
+| Step | What | Owner | Status |
+|---|---|---|---|
+| FW1 | Physics walls at the CAD's ±70.585 in | WorkerBot | planned, waiting: the user said on 2026-10-25 to leave it until Team A's robot length is measured ([CALIBRATION.md](CALIBRATION.md) step 1) |
+
+- **What changes:**
+  - Add a new `Pose.WALL_HALF_WIDTH_INCHES` = 70.585, stored as a `ModelValue` marked measured
+    from the official CAD.
+  - `MomentumPhysics` wall limits, the `DriveChecks` "never hits a wall" check, the viewer's
+    wall drawing and its red flash, and the wall tests use it.
+  - `FIELD_HALF_WIDTH_INCHES` stays 72, because Pedro's frame (`Pose.fromPedro`, 0–144 in) and
+    the viewer's field scale are built on it. The 1.4 in strip between them is drawn as the wall.
+- **Files:** `physics/Pose`, `physics/MomentumPhysics`, `recorded/DriveChecks`,
+  `viewer/FieldPainter` (and maybe `FieldCoordinates`), tests `RealCodeMotionTest`,
+  `BatteryTest`, `PedroRouteTest`, `RobotPartsDrawingTest`, plus README "How motion is simulated"
+  and CALIBRATION.md.
+- **Depends on:** nothing. Overlaps TestBot's `PedroRouteTest`, so agree first.
+- **Size:** small.
+- **Tested by:**
+  - A robot driving into the +x wall stops with its bumper at 70.585 in.
+  - The viewer flashes the new wall line.
+  - The Pedro routes still finish within their tolerances.
+- **Question for the user first:** Pedro routes start the robot 8 in from Pedro's 144 in edge, for
+  example `(56, 8)`. With walls at 70.585, that leaves 6.6 in from the real wall to the robot's
+  centre, so the robot fits only if it is **at most 13.2 in** in that direction. With 72 in
+  walls the limit is 16 in. Either Team A's real robot is small enough, or Pedro's coordinates
+  in TeamCode assume a 144 in field and the start poses need checking on the real field.
+- **Unity:** `FtcToUnity.FieldHalfWidthInches` = 72 is UnityBot's. Tell UnityBot when FW1 lands
+  (it already has the CAD numbers).
+
+---
+
 ## Known issues and housekeeping
 
 - `SimTime` allows one active clock per process, so only one runner can loop at a time.
@@ -163,8 +449,10 @@ How the steps fit the rules in `ai-instructions/`:
 - `RobotConfigs.teamB()` and `teamC()` are copies of Team A for now. Checked 2026-10-24 (A3): `TeamBRobot` and
   `TeamCRobot` still use the shared `RobotHardware` (drive motors `frontLeft`/`frontRight`/`rearLeft`/`rearRight`
   and `intake`; `VisionHardware` looks up no device) and carry "replace after Team B/C hardware is known" TODOs,
-  so the configs stay as they are. (They also include Team A's `pinpoint`, which B and C never look up.) Revisit
-  when either team gets its own hardware wrappers.
+  so the configs stay as they are. (They also include Team A's `pinpoint`, which B and C never look up.)
+  **Decided by the user 2026-10-24:** "Dont mess with them for now just keep them up to date". So: no own
+  hardware for Team B/C yet; they keep copying `teamA()` (any device added to Team A's fake robot comes along);
+  if TeamCode's Team B/C code changes (new devices or wrappers), update their configs to match and tell the user.
 
 ---
 
@@ -174,6 +462,16 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-25 | **Real people** (user provided Mixamo characters): `People.cs` puts seated fans (frozen sit/clap poses, shared per character, no shadows) in the hall bleachers and the lower 5 rows of the stadium stands, and animated drive teams in alliance shirts at the hall's tables; random character, outfit colors, height and turn per person. `Editor/PeopleBuilder.cs` (**Harness → Build People**) and `PeopleImport.cs` turn the Mixamo downloads into `Resources/People` (59 MB); `PeopleTests` (4, break-checked). Not yet measured: frame rate of the full hall crowd in the app | Unity 72/72 pass |
+| 2026-10-25 | **Camera preset viewpoints** (user request via WorkerBot): keys 1–7 and View buttons above the field: Audience, Red drive team, Blue drive team, Top-down, Corner, HIVE close-up, Robot chase (follows and turns with the robot). Eased moves; free orbit/zoom still work afterwards; camera can look up (pitch down to -30°) but never goes below the floor; `-preset N` start-up option. Mixamo character Ch08 imported as a humanoid (`Editor/PeopleImport`), clothes recolourable per person (not yet placed). 3 `OrbitCameraTests` (pitch sign break-checked) | Unity 68/68 |
+| 2026-10-25 | **Settings art fixes** (user feedback): NASA models converted again keeping each part's own material (the astronaut was pink/green and the lunar module's 12 materials were merged into one); NASA's Space Exploration Vehicle (pressurized lunar rover, 413 k triangles) replaces the box rover (box stays the fallback); stadium benches removed (they read as troughs). People stay capsules until the user provides models (Mixamo; art-inbox README section 5). Checked in the built app | Unity 65/65 |
+| 2026-10-25 | **Settings art** (user approved the list; Unity AI unavailable): downloaded 25 free assets (Poly Haven and ambientCG, CC0; NASA) into art-inbox/downloads, converted NASA's Draco .glb models to OBJ, and imported 219 MB into `Resources/Settings/<setting>`. `SettingAssets` (skybox per setting, textured surfaces with normal/AO maps, models sized to real size and stood on the ground, plain fallback), `Editor/SettingArtImport` (sky as cubemap, normal maps), camera shows the sky in 3D only, build keeps the Skybox shader and a normal-mapped Standard variant. Hall: Gym 01 sky, wood floor, block walls, laptops/gamepads/tool cart/chest. Stadium: night sky (exposure 0.12), grass, red rubber track, concrete, benches. Moon: NASA star map and Blue Marble Earth, moon dust, metal pad, NASA lunar module/astronaut/habitat, moon rocks. Credits in `Art/CREDITS.md`. 3 `SettingAssetsTests` (sizing break-checked; the field-clear test also caught the unscaled astronaut). Checked in the built app with pictures | Unity 65/65 |
+| 2026-10-25 | **Official BIOBUZZ field CAD in Unity**: the user's CAD export (15.2 M triangles) was split, slimmed to 1.2 M and turned into the FTC frame by WorkerBot (art-inbox/processed). Imported into `Resources/Field/biobuzz-2026` (12 parts, 39 MB) and `Resources/GamePieces/biobuzz-2026` (balls); `Editor/FieldModelImport` (calculated normals 40°, no compression); `FtcToUnity.FtcModelRotation`; `FieldBuilder.BuildSeason` draws the CAD when present (and the file's parts outside the field), hiding the plain floor and walls; boxes stay the fallback. `fields/biobuzz-2026.json` updated with WorkerBot's CAD measurements (loading zones, gardens, frame base and top bar, flowers, all 16 tags; accuracy `cad`). Checked in the built app: top-down and 3D match the manual's layout. 2 new `FieldLayoutTests` (orientation, all parts present), the orientation test break-checked. Unity AI generation still blocked: no models offered (Unity account has no Unity AI entitlement) | Unity 62/62 |
+| 2026-10-25 | Processed the official BIOBUZZ field CAD for UnityBot (art-inbox/processed/field, 15.2 M → 1.2 M triangles, FTC frame) and planned FW1: physics walls at the CAD's ±70.585 in. Docs only. | not run (no code change) |
+| 2026-10-24 | Planned "Robot profiles and modularity" (RP1–RP5, WorkerBot): what the harness assumes about Team A today, and the profile, runner, drivetrain, build and bridge steps. Docs only. | not run (no code change) |
+| 2026-10-24 | **Visuals screen and settings** (user request): the Field button is now **Visuals** (V), a screen to pick the arena (plain field or a season field) and the setting around it. `SettingBuilder`: Mission control (the old dark look), Competition hall (gym, bleachers with a seeded crowd, banners, drive-team stations, scoreboard, ceiling lights), Night stadium (grass, running track, stands, floodlight towers with spot lights, goal posts, stars, Moon), Moon base (regolith, craters, rocks, habitat domes, antenna, rover, stars, Earth); each sets the sky, fill light and sun. Scenery is decoration only: nothing above the floor inside the field square, no colliders, fixed seed. Choices remembered; `-setting`, `-view 3d`, `-zoom`, `-yaw` start-up options; zoom reaches 8x. 4 `SettingBuilderTests` (one caught a ceiling truss over the field, fixed); 3 breaks each failed exactly its test | Unity 60/60 |
+| 2026-10-24 | **DECODE 2025 field switched off** (user request): `fields/decode-2025.json` moved to `fields/disabled/`, which Unity doesn't read, so the field picker offers only the plain field and BIOBUZZ 2026 (move the file back to switch it on). `FieldLayoutTests` updated (active fields = BIOBUZZ only; the DECODE file is still checked where it is). Windows app rebuilt with Live mode, Unity physics and this change | Unity 56/56 |
+| 2026-10-24 | **Live mode button** (user request): Unity's **Live mode** button / L key starts the harness side itself (`HarnessLauncher`: hidden `cmd /c gradlew.bat unityBridge` from the Harness folder found next to the Editor or the .exe, JAVA_HOME or Android Studio's Java, output in `build/unity-bridge.log`; watches the port each frame without waiting), then lists the live OpModes. Off (or closing Unity) ends the run, Gradle and the bridge's own Java process (found with netstat); a hand-started bridge is used and left alone. The chooser's live row is a Start button too. 4 `HarnessLauncherTests`, each break-checked; **Harness -> Live Mode Smoke Test** in batch: launcher started the bridge in 2 s, harness and Unity physics passes ran (with a PS5 controller connected), and the port was free after Live mode off | Unity 56/56 |
 | 2026-10-24 | **W2**: momentum in the Swing viewer: `RecordingView.motion(index)` (speed, speed change, turn rate from the recorded poses; no format change needed) and `wallHitWithin(index, s)` (from the wall-hit events); a **Motion** card in `TelemetryPanel` (speed, turning, speeding-up/slowing-down bar) after TestBot's cards; the wall just hit **flashes red** for 0.4 s (`FieldPainter`, `FieldPanel`); motion line in `SidePanelText`. `RecordingMotionTest` (3) + 1 `RobotPartsDrawingTest`, each checked to fail when broken | viewer tests pass |
 | 2026-10-24 | **C10 / U3: Unity physics** (opt-in). Bridge **message format v3**: `load` takes `"physics": "unity"`; `loaded` adds `physics` and `robotPhysics` (speeds, size, momentum numbers, start); each `frame` adds `driveCommand` (wheel pushes + braking); `step`/`play` must then carry `physicsState` (pose, robot-frame speed, wall contact). `RemotePhysics` (bridge) implements `PhysicsBackend` and is plugged in with the public `PoseEstimator(model, wheels, start, backend)` + `usePositionEstimator`, so **no core file changed**. Unity: `DriveLaw` (MomentumPhysics' rules in C#), `UnityRobotPhysics` (PhysX Rigidbody robot, invisible walls and field-part colliders from `fields/*.json`, stepped by script 20 ms at a time), `LiveSession` v3, **Physics:** button / U key. Unity replay now also reads run recording format v3 (TestBot's T3 adds `aprilTags` per loop; not drawn yet). `BridgeUnityPhysicsTest` (5), `UnityRobotPhysicsTests` (6), a LiveSession test and a v3 loader test; each break (supply ignored, no drive command, state not required, harness physics kept; no traction limit, speed ignores PhysX, field parts ignored, state not sent) failed exactly its test | Bridge 22/22; Unity 52/52 |
 | 2026-10-24 | **T1** `GETTING_STARTED.md` (five steps for students, linked from the README top). **T2** `PedroRouteTest` prints each route's time from PLAY to "Sequence Complete" (LP-11 0.96 s, DECODE 12.86 s, Curving 19.56 s; printed, not checked); route-time table added to CALIBRATION.md (manager and WorkerBot OK). **T3** run recording **format v3**: each loop's `aprilTags` (camera, id, ftcPose-frame inches/degrees; older files load with none), `RunRecording.AprilTagState`, side panel **Tags in view** card (only for runs that saw a tag); README format section updated; UnityBot told (its loader accepts v1-2 only, and `BridgeSessionTest` expects the old loop keys). 6 new tests (`AprilTagVisionTest` +3, `TagsInViewCardTest` 3); breaking the recorder, the JSON writer or the card each failed tests | 235/236 (39 classes): only UnityBot's `BridgeSessionTest.framesUseTheRecordingLoopLayout`, which needs `aprilTags` in its expected keys |

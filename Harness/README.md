@@ -509,8 +509,9 @@ the Unity scripts. `unity-view.bat` offers to build it when it's missing.
 ### Season field files (`fields/`)
 
 Each FTC season's field is a JSON file in `Harness\fields\`: `biobuzz-2026.json` (BIOBUZZ,
-2026–27) and `decode-2025.json` (DECODE, 2025–26). Unity draws the chosen one on top of the plain
-tiled field (**Field:** button or G). The files are plain data with no Unity in them, so harness
+2026–27). DECODE (2025–26) is switched off: its file is in `fields\disabled\`, which Unity doesn't read
+(move it back up to offer it again). Unity draws the chosen one on top of the plain
+tiled field (Unity's **Visuals** screen, or G). The files are plain data with no Unity in them, so harness
 Java (for example scripted AprilTags) can read the same numbers. **Format version 1:**
 
 | Field | Type | Meaning |
@@ -529,8 +530,8 @@ Each **element**: `id`, `name`; `shape` (`"box"` or `"cylinder"`); `xInches`, `y
 (the part's **center**, z = height above the tiles); `lengthInches` (along +x), `widthInches` (along
 +y), `heightInches`; `diameterInches` (cylinders); `tiltDegrees` (a box is tilted first: positive
 raises its +x end), then `headingDegrees` (turned counter-clockwise from +x); `color` (`"#RRGGBB"`);
-`accuracy`: `"nominal"` (the manual's dimensions, ±1 in), `"approximate"` (worked out from the
-manual's figures, can be a few inches off) or `"sdk"`.
+`accuracy`: `"cad"` (measured from FIRST's official field CAD), `"nominal"` (the manual's dimensions,
+±1 in), `"approximate"` (worked out from the manual's figures, can be a few inches off) or `"sdk"`.
 
 Each **AprilTag**: `id` (int), `name`, `sizeInches` (the black square); `cluster` (the SDK's cluster
 name for BIOBUZZ's 4-tag stickers, else null) and `clusterOffsetInches` `{x, y, z}` (the SDK's
@@ -546,9 +547,11 @@ Where the numbers come from:
   the same library TeamCode uses. DECODE's goal tags (20, 24) are exact; the obelisk tags (21–23)
   have no field position in the SDK. BIOBUZZ's clusters have no field position in the SDK either,
   because they move, so their starting positions are worked out from the manual (`approximate`).
-- **BIOBUZZ parts:** Competition Manual TU06, Section 9 (frame, HIVE and CELL, FLOWER, zones) and
-  Figure 10-2 (starting tilt). Tube and pipe sizes aren't in the manual (drawn 1.5 in).
-  Replace `approximate` numbers with official CAD measurements when available.
+- **BIOBUZZ parts:** FIRST's official field CAD (measured on 2026-10-25) for the loading zones,
+  gardens, frame base and top bar, flowers and all 16 AprilTag positions (`"cad"`). The rest comes
+  from Competition Manual TU06, Section 9, and Figure 10-2 (starting tilt). The frame legs are still
+  `approximate`: the CAD's legs also lean inward, which one tilt can't describe. Unity draws the
+  CAD itself when it is in the project (`unity/README.md`, "The official field CAD").
 - **DECODE parts:** not added yet (needs the DECODE manual or CAD); only its tags are in the file.
 
 An optional `"field": "<id>"` in a run recording's header would make Unity open that field. Unity
@@ -566,6 +569,10 @@ Start the harness side from `Harness\`:
 .\gradlew.bat unityBridge                    # listens on 127.0.0.1:7465
 .\gradlew.bat unityBridge -Pport=7500
 ```
+
+**Or skip the command:** Unity's **Live mode** button (or L) runs `gradlew.bat unityBridge` for
+you, hidden, with its output in `build\unity-bridge.log`, and ends it again when switched off or
+when Unity closes (`HarnessLauncher.cs`).
 
 It only accepts connections from this computer, serves one client at a time, and keeps running
 for the next client until you press Ctrl+C. Then, in Unity (`unity/README.md`), open the Replay

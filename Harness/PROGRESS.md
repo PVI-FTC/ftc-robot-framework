@@ -4,7 +4,7 @@ Where the FTC test harness stands, what is being worked on and what comes next. 
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
 **Last updated:** 2026-10-25
-**Test status:** 252 tests in 42 classes, all passing (`.\gradlew.bat test`, 2026-10-25, with the bots' uncommitted work); Unity 77/77
+**Test status:** 264 tests in 44 classes, all passing (`.\gradlew.bat test`, 2026-10-25, with the bots' uncommitted work); Unity 78/78
 **Git:** committed on branch `Team2-Testing` (local only, not pushed)
 **Next up:** position estimator Step 15 (opt-in switches; decide their behavior with the user)
 
@@ -180,18 +180,22 @@ What the harness assumes about the robot today (checked in the code 2026-10-24):
 
 | Step | What | Owner | Status |
 |---|---|---|---|
-| RP1 | **A `RobotProfile`**: one place per robot that says everything the harness needs to know about it. Team A/B/C become the first three profiles. Details below. | WorkerBot | planned |
-| RP2 | **The runner, physics and sensors read the profile** instead of Team A statics; a robot the harness can't track says so clearly. | WorkerBot | planned |
-| RP3 | **Other drivetrains**: tank/differential first, so non-mecanum robots get position tracking. | WorkerBot | planned |
-| RP4 | **Build settings in one place**: TeamCode path, library list and the agent's package list, with a clear message when TeamCode needs a missing library. | WorkerBot | planned |
-| RP5 | **The bridge and recorded tests use the profile** (wheel names, robot config) instead of names written into the code. | WorkerBot | planned |
+| RP1 | **The robot profile is one config file** (user, 2026-10-25): `Harness/harness.properties` read by `runtime/HarnessConfig` (`java.util.Properties`): motor and Pinpoint names, robot size and calibration values (each `measured` or `placeholder`), field, viewer switch. Fails early on missing, unknown or bad keys. Keys in README "The config file". | WorkerBot | ✅ Done 2026-10-25 (W4; `HarnessConfigTest`, 8). Not read by the runner yet (RP2) |
+| RP2 | **The runner, physics and sensors read the config** instead of Team A statics. The core stops using `TeamAPedroHarnessAccess`, which becomes an optional PVI extra (built only when the config says so) that checks the config's Pedro numbers against Team A's real constants. In other repos the Pedro numbers go into the config. | WorkerBot | planned |
+| RP3 | **Other drivetrains**: tank/differential. **Parked**: the user chose mecanum + Pinpoint only for now (2026-10-25). | WorkerBot | 💤 parked |
+| RP4 | **Build settings in one place**: `build.gradle` reads the TeamCode path from `harness.properties` and the library list and versions from the host's `../build.dependencies.gradle` (one library set, the host's), minus Android-only `host.skipLibraries`. Passes the list to tests as `harness.robotLibraries`. Agent package list: not moved yet. | WorkerBot | ✅ Done 2026-10-25 (W4; full suite 264/264; checked by `SdkCompatibilityTest`) |
+| RP5 | **The bridge and recorded tests use the config** (wheel names, robot config) instead of names written into the code. | WorkerBot | planned |
 | RP6 | **`LinearOpMode` support**: `runOpMode()` runs in step with simulated time, with `waitForStart`, `sleep`, `opModeIsActive` and `isStopRequested` working as on the robot. Today a LinearOpMode silently does nothing. | TestBot | planned |
 | RP7 | **More hardware fakes**, most common first: IMU, CR servo, distance, touch, color, dead wheels, OTOS, Limelight, analog. Motion-driven ones read the physics; world-driven ones are scriptable. | TestBot | planned |
 | RP8 | **OpMode discovery**: find TeamCode's `@TeleOp` / `@Autonomous` classes automatically for the viewer, bridge, Save as test and the profile's OpMode list. | TestBot | planned |
-| RP9 | **SDK-version safety test**: fails with a plain message when the harness's SDK copies, its reflection into SDK internals, or its library versions no longer match the SDK. | TestBot | planned |
+| RP9 | **SDK-version safety test**: fails with a plain message when the harness's SDK copies, its reflection into SDK internals, or its library versions no longer match the SDK. | TestBot | ✅ Done 2026-10-25 (`SdkCompatibilityTest`, 3 tests; names of the reflected fields kept in the test) |
 | RP10 | **"Bring your own robot" guide**, a starter test template, and a smoke test that runs every discovered OpMode and names missing devices or crashes. | TestBot | planned |
 
 **RP1: `RobotProfile`.**
+
+> **Changed by the user's answers (2026-10-25):** the profile is `harness.properties` plus
+> `HarnessConfig`, not a Java class per team. Mecanum + Pinpoint only, and one library set
+> (the host's). The plan below is the earlier version, kept for the ideas RP2 and RP5 still use.
 
 - **What changes:** a new `pvi.harness.profile` package. A `RobotProfile` holds:
   - its name (`"teamA"`), which also goes in the recording header;
@@ -253,6 +257,10 @@ What the harness assumes about the robot today (checked in the code 2026-10-24):
   math says; all mecanum tests unchanged.
 
 **RP4: build settings in one place.**
+
+> **Changed (2026-10-25):** the settings are in `harness.properties`, not `gradle.properties`. The
+> library list is read from the host's `build.dependencies.gradle` instead of being typed into
+> the file. The agent's package list hasn't moved yet.
 
 - **What changes:** `Harness/gradle.properties` (new, inside `Harness/`) holds `teamCodeDir`
   (default `../TeamCode/src/main/java`), the robot library list, and the agent's package list
@@ -480,6 +488,10 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-25 | **W4: RP4 + RP1** (WorkerBot): new `harness.properties` (config v1: TeamCode path, host dependency file, Android-only skip list, drive motor and Pinpoint names, robot facts as `number \| measured or placeholder \| source`, field, `viewer.open`). `build.gradle` reads it: TeamCode path from the file, robot libraries from `../build.dependencies.gradle` minus `host.skipLibraries` (same 7 as before), passed to tests as `harness.robotLibraries`; clear errors for a missing key, bad path or wrong version. New `runtime/HarnessConfig` (reads the file, lists every problem at once) and `HarnessConfigTest` (8, each failed in one of two break rounds). README "The config file", maintainer note and `03-workflow.md` updated. Not connected to the runner yet (RP2); agent package list not moved | 264/264 pass (TestBot's combined run) |
+| 2026-10-25 | **T5** (TestBot): the harness `AprilTagProcessorImpl` copy gets the SDK's `TAG` ("AprilTagProcessorImpl"); `SdkCompatibilityTest` now also compares public fields (name, type, static, final). Its library checks follow RP4: the Vision version and the harness's library list come from `harness.robotLibraries`, and the version test checks they equal `../build.dependencies.gradle` minus `host.skipLibraries`, and that every skipped name is in that file. Break-checked: TAG removed, a stale skip name added; both restored. Full run includes WorkerBot's RP4 (`HarnessConfigTest`) | 264/264 pass |
+| 2026-10-25 | **C11.1 HIVE NECTAR positions** (UnityBot, agreed with WorkerBot): the 6 NECTAR in the upward CELLs were a level row (z 51.8) on a CELL floor tipped 30°, so they floated up to 2.8 in or sank 0.8 in. Measured the CELLs in the official CAD (floor, back wall and alliance-side wall, tipped about the pivot at z 43.95) and placed them per manual 10.3.1: `BioBuzzPieces` CELL_X {9.57, 12.69, 15.80}, CELL_Y 21.03, per-ball CELL_Z {49.86, 51.66, 53.46} (were {7.37, 10.97, 14.57}, 20.95, 51.8); blue mirrored. Unity drawing was already right. New `GamePiecesTest.cellNectarSitOnTheTiltedCellFloorAgainstTheBackWall` and Unity `CellNectarTests` (rays against the CAD HIVE meshes), both break-checked against the old numbers. Checked in the app (pictures `build/unity-c11-cell-nectar-preset5/6.png`) | Java 256/256, Unity 78/78 |
+| 2026-10-25 | **RP9** (TestBot): `SdkCompatibilityTest` checks that the harness copies of `VisionPortal` / `AprilTagProcessorImpl` have every public constructor and method of the Vision jar's classes (nested classes too; loaded in a separate class loader), that `OpModeRunner`'s reflected `OpMode` fields `stopRequested` and `internalOpModeServices` still exist with usable types, and that `build.gradle`'s robotLibs versions match `../build.dependencies.gradle`. Each checked to fail (renamed `VisionPortal.makeMultiPortalView`, Pedro 2.1.1, wrong field name). Found, not fixed: the SDK's `AprilTagProcessorImpl` has a public `TAG` field the copy lacks (fields aren't checked yet) | 255/255 pass |
 | 2026-10-25 | **Game pieces GP4** (UnityBot): bridge protocol v4 (`pieces` in `loaded` and each frame), Unity reads run recording v4 and draws POLLEN/NECTAR with the CAD balls, rolling the ones that move, in replays and live mode; `GamePieceTests` (4, break-checked); bridge tests updated to v4. Checked with a real recording (the teleop turn knocks the 4 pre-loads about 25 in) and in the rebuilt app | Java 252/252, Unity 77/77 pass |
 | 2026-10-25 | Game pieces GP1–GP3 (WorkerBot): BIOBUZZ's 44 balls in every tracked run; the robot pushes loose ones; run recording v4 (`pieces` in header and loops); Swing viewer draws them; README. New `GamePiecesTest` (8), `GamePiecesRecordingTest` (4), `GamePiecesDrawingTest` (2); `RunRecordingTest` updated for v4. | New tests pass; full suite 252 run, 5 failed on the v4 change: 2 fixed (mine), 3 in the bridge and vision tests sent to UnityBot and TestBot |
 | 2026-10-25 | **See-through walls and HIVEs** (user request): the BIOBUZZ CAD's clear panels (perimeter, red and blue HIVE) are drawn as see-through plastic with `Legacy Shaders/Transparent/Specular`, which the build always includes (the Standard shader's transparent modes were clear in the Editor but solid in the app, because the build left out that shader version); trim, rails and the HIVE frame stay solid. `FieldLayoutTests.WallAndHivePanelsAreSeeThrough` (break-checked). Field boxes made in the Editor tests now remove their colliders without an edit-mode error. Panels made clearer at the user's request (opacity 0.22 to 0.11) | Unity 73/73 pass |

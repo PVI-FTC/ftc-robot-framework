@@ -647,6 +647,50 @@ Unity drives the clock, so a run only moves when Unity asks; with real controlle
 repeatable as the driver, and its saved recording replays exactly. The OpModes
 Unity can pick are listed in `src/bridge/java/pvi/harness/bridge/BridgeOpModes.java`.
 
+### The config file (`harness.properties`)
+
+`Harness/harness.properties` holds every setting a team changes to use the harness in its own
+FTC repo. `build.gradle` reads the build settings, and `pvi.harness.runtime.HarnessConfig` reads
+the robot profile (`HarnessConfig.load()`). It's a plain Java `.properties` file: `key=value`
+lines, `#` starts a comment, and a line ending in `\` carries on the next line. Paths are relative
+to the `Harness` folder.
+
+**Format version:** `config.version=1`. This number goes up whenever keys are added, renamed or
+removed. Both the build and `HarnessConfig` refuse a file with a different version and say which
+one they expect.
+
+Reading fails early with one message listing every problem. That includes a missing key, a key
+the harness doesn't know (usually a typo), a value that isn't a number, or a fact without
+`measured` / `placeholder`.
+
+| Key | Type | Meaning | PVI's value |
+|---|---|---|---|
+| `config.version` | integer | Layout of this file (see above) | `1` |
+| `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../TeamCode/src/main/java` |
+| `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../build.dependencies.gradle` |
+| `host.skipLibraries` | `group:name` list, comma-separated (may be empty) | Libraries in that list that only work on Android, so the harness leaves them out | `org.firstinspires.ftc:Inspection`, `:Blocks`, `:RobotServer`, `:OnBotJava`, `androidx.appcompat:appcompat` |
+| `drive.frontLeft`, `drive.frontRight`, `drive.rearLeft`, `drive.rearRight` | text | The mecanum drive motors' names in the robot configuration | `frontLeft`, `frontRight`, `rearLeft`, `rearRight` |
+| `pinpoint` | text | The Pinpoint's name in the robot configuration | `pinpoint` |
+| `robot.lengthInches` | fact, inches | Robot length, bumper to bumper | `18`, placeholder |
+| `robot.widthInches` | fact, inches | Robot width, bumper to bumper | `18`, placeholder |
+| `drive.turnRateDegreesPerSecond` | fact, deg/s | Fastest spin at full power | `180`, placeholder |
+| `drive.responseTimeSeconds` | fact, seconds | Drive motors' response time (63% of a speed change) | `0.10`, placeholder |
+| `drive.maxAccelerationInchesPerSecondSquared` | fact, in/s² | Traction limit: fastest speed-up before the wheels slip | `200`, placeholder |
+| `drive.speedVoltage` | fact, volts | Battery voltage the drive speeds were measured at | `12.5`, placeholder |
+| `field` | text | The season field: a file in `fields/` without `.json` | `biobuzz-2026` |
+| `viewer.open` | `true` / `false` | Step 15 (not built yet): open the viewer after a run. Normal test runs never open a window, whatever this says | `false` |
+
+A **fact** is written `number | measured or placeholder | where it came from`, for example
+`robot.lengthInches=17.5 | measured | tape measure at the robot, 2026-10-30`. The number must be
+above zero. Write `measured` only after measuring on the real robot ([CALIBRATION.md](CALIBRATION.md)).
+`HarnessConfig` turns each fact into a `ModelValue`, so reports show guesses as `TO MEASURE`.
+
+The test task passes the libraries it really uses to the tests as the system property
+`harness.robotLibraries` (`group:name:version`, comma-separated, in the host file's order).
+
+**Not connected yet:** the runner, physics and sensors still use Team A's values from TeamCode
+(RP2 connects them to this file).
+
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |
@@ -887,8 +931,10 @@ see Troubleshooting.
 
 ## 8. For maintainers
 
-- **Library versions are copied by hand.** When `build.dependencies.gradle` in the main repo changes
-  an FTC SDK or Pedro version, update the `robotLibs` lines in `Harness/build.gradle` to match.
+- **Library versions come from the robot build.** `build.gradle` reads the main repo's
+  `build.dependencies.gradle` (only reads it) and uses the same libraries and versions, minus the
+  Android-only ones in `host.skipLibraries` (see "The config file"). After an SDK upgrade,
+  `SdkCompatibilityTest` says if the harness copies of SDK classes need updating.
 - **The viewer is its own source set** (`src/viewer/java`). It may use the harness core, but the
   core can't even see it, so window code can never leak into the simulation. Tests run with
   `java.awt.headless=true`, so `gradlew test` never opens a window.
@@ -907,7 +953,7 @@ src/main/java/pvi/harness/
               FakeWebcam, AprilTagScript, SeenAprilTag (scripted AprilTags)
   ds/         Driver Station side: FakeTelemetry, GamepadScript, GamepadDriver, rumble records
   runtime/    OpModeRunner, SimClock, RunResult, MatchPeriod, RunRecorder / RunRecording / RunRecordingJson,
-              JsonReader (small JSON reader, no library)
+              JsonReader (small JSON reader, no library), HarnessConfig (reads harness.properties)
 src/viewer/java/pvi/harness/viewer/
   FieldCoordinates  inches <-> pixels (the only place the y axis is flipped)
   FieldPainter      draws field, trail, robot box, heading arrow, legend
@@ -955,6 +1001,6 @@ src/bridge/java/pvi/harness/bridge/
     FTC SDK`). The real ones need Android, a camera and native code. Java picks the harness's
     copies because the harness's classes come first on the class path
     (`AprilTagVisionTest.robotCodeGetsTheHarnessVisionPortal` checks this). Their public
-    methods must match the SDK's `Vision` version in `build.gradle`: check them when the SDK is
+    methods must match the SDK's `Vision` version in `../build.dependencies.gradle`: check them when the SDK is
     upgraded. Everything else in the SDK's vision library (builders, tag libraries, detection
     classes, pose math) is the SDK's own.

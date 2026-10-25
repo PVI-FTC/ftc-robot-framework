@@ -46,10 +46,15 @@ import pvi.harness.hardware.SeenAprilTag;
  * (always 0) and decision margin (always {@link #FAKE_DECISION_MARGIN}).</p>
  *
  * <p>Java uses this class instead of the SDK's because the harness's classes come first on
- * the class path. The constructor and public methods must keep matching the SDK version the
- * harness builds against ({@code Vision:12.0.0} in {@code build.gradle}).</p>
+ * the class path. The constructor, public methods and public fields must keep matching the SDK
+ * version the harness builds against (the {@code Vision} version in
+ * {@code ../build.dependencies.gradle}).
+ * {@code SdkCompatibilityTest} checks this.</p>
  */
 public class AprilTagProcessorImpl extends AprilTagProcessor {
+
+    /** The SDK's log tag for this class (same value as the SDK, which uses it for Android log messages). */
+    public static final String TAG = "AprilTagProcessorImpl";
 
     /** The SDK's "how clearly was the tag seen" number; a clear sighting, made up. */
     public static final float FAKE_DECISION_MARGIN = 100f;

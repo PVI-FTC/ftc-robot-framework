@@ -64,6 +64,32 @@ class GamePiecesTest {
     }
 
     /**
+     * WHAT: The CELL NECTAR sit up the 30 degree tipped CELL floor, where the official CAD and
+     * manual 10.3.1 put them: red ball 1, against the back wall, is lowest, and blue is the point
+     * mirror of red (each ball keeps its own height).
+     *
+     * <p>WHY: A level row of balls floated above, or sank into, the tipped floor. Unity's
+     * {@code CellNectarTests} checks the same spots against the CAD itself.</p>
+     */
+    @Test
+    void cellNectarSitOnTheTiltedCellFloorAgainstTheBackWall() {
+        List<GamePiece> start = BioBuzzPieces.start(Pose.ORIGIN, SIZE);
+        GamePiece red1 = start.stream().filter(p -> p.id().equals("red-nectar-cell-1")).findFirst().orElseThrow();
+        GamePiece red3 = start.stream().filter(p -> p.id().equals("red-nectar-cell-3")).findFirst().orElseThrow();
+        GamePiece blue1 = start.stream().filter(p -> p.id().equals("blue-nectar-cell-1")).findFirst().orElseThrow();
+        GamePiece blue3 = start.stream().filter(p -> p.id().equals("blue-nectar-cell-3")).findFirst().orElseThrow();
+
+        assertEquals(9.57, red1.xInches(), 0.01);
+        assertEquals(-21.03, red1.yInches(), 0.01);
+        assertEquals(49.86, red1.zInches(), 0.01, "ball 1 is lowest, against the back wall");
+        assertEquals(53.46, red3.zInches(), 0.01, "ball 3 is highest, up the slope");
+        assertEquals(-red1.xInches(), blue3.xInches(), 1e-9, "blue mirrors red in x");
+        assertEquals(-red1.yInches(), blue3.yInches(), 1e-9, "blue mirrors red in y");
+        assertEquals(red1.zInches(), blue3.zInches(), 1e-9, "a mirrored ball keeps its own height");
+        assertEquals(red3.zInches(), blue1.zInches(), 1e-9, "a mirrored ball keeps its own height");
+    }
+
+    /**
      * WHAT: The 4 pre-loads touch the robot's back edge; when the robot's back is against a wall,
      * they touch its front edge instead.
      *

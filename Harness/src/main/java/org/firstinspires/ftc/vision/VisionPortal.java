@@ -37,7 +37,8 @@ import pvi.harness.hardware.SeenAprilTag;
  *
  * <p>Java uses this class instead of the SDK's because the harness's classes come first on
  * the class path. Its public methods must keep matching the SDK version the harness builds
- * against ({@code Vision:12.0.0} in {@code build.gradle}).</p>
+ * against (the {@code Vision} version in {@code ../build.dependencies.gradle}).
+ * {@code SdkCompatibilityTest} checks this.</p>
  */
 public abstract class VisionPortal implements CameraStreamSource {
 

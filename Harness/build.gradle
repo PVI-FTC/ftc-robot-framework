@@ -15,10 +15,33 @@ plugins {
 }
 
 // ---------------------------------------------------------------------------
+// Settings from harness.properties: the one file to change when the harness is
+// dropped into another FTC repo (README.md, "The config file"). Java reads the same
+// file through pvi.harness.runtime.HarnessConfig.
+// ---------------------------------------------------------------------------
+def harnessSettings = new Properties()
+file('harness.properties').withReader('UTF-8') { harnessSettings.load(it) }
+if (harnessSettings.getProperty('config.version')?.trim() != '1') {
+    throw new GradleException("harness.properties: this harness reads config.version 1, the file says "
+            + "${harnessSettings.getProperty('config.version')}. See README.md, \"The config file\".")
+}
+// One setting by name, with a clear error if it is missing.
+def setting = { String key ->
+    String value = harnessSettings.getProperty(key)?.trim()
+    if (!value) {
+        throw new GradleException("harness.properties: ${key} is missing. See README.md, \"The config file\".")
+    }
+    value
+}
+
+// ---------------------------------------------------------------------------
 // The robot code is compiled straight from TeamCode. Nothing is copied, so the
 // harness always tests whatever is currently checked out.
 // ---------------------------------------------------------------------------
-def teamCodeSrc = file('../TeamCode/src/main/java')
+def teamCodeSrc = file(setting('teamCode.sourceDir'))
+if (!teamCodeSrc.isDirectory()) {
+    throw new GradleException("harness.properties: teamCode.sourceDir points to ${teamCodeSrc}, which is not a folder.")
+}
 
 sourceSets {
     // The Java agent (src/agent/java) is built separately: it is packaged as its own jar
@@ -118,23 +141,36 @@ dependencies {
 }
 
 configurations {
-    // Same libraries as build.dependencies.gradle (kept in sync by hand).
+    // The robot build's libraries, read from its build.dependencies.gradle (below).
     robotLibs {
         canBeConsumed = false   // nothing else depends on this list...
         canBeResolved = true    // ...but it can be downloaded
     }
 }
 
+// The robot libraries TeamCode uses: every "implementation 'group:name:version'" (or "api")
+// line in the robot build's dependency file, which is only read, never changed. Libraries
+// that only work on Android are left out (host.skipLibraries). So when the team upgrades the
+// SDK or Pedro, the harness uses the new versions automatically.
+def hostDependencies = file(setting('host.dependenciesFile'))
+if (!hostDependencies.isFile()) {
+    throw new GradleException("harness.properties: host.dependenciesFile points to ${hostDependencies}, which is not a file.")
+}
+def skipLibraries = (harnessSettings.getProperty('host.skipLibraries') ?: '')
+        .split(',').collect { it.trim() }.findAll { it }
+def robotLibraries = []   // "group:name:version", in the order the robot build lists them
+(hostDependencies.getText('UTF-8') =~ /(?m)^\s*(?:implementation|api)\s*\(?\s*['"]([^:'"]+):([^:'"]+):([^:'"]+)['"]/).each { match ->
+    if (!skipLibraries.contains("${match[1]}:${match[2]}".toString())) {
+        robotLibraries << "${match[1]}:${match[2]}:${match[3]}".toString()
+    }
+}
+if (robotLibraries.isEmpty()) {
+    throw new GradleException("Found no \"implementation 'group:name:version'\" lines in ${hostDependencies}"
+            + " (after host.skipLibraries). Check host.dependenciesFile in harness.properties.")
+}
+
 dependencies {
-    // The robot libraries TeamCode uses. KEEP THESE VERSIONS THE SAME as the
-    // repository's build.dependencies.gradle when the team upgrades.
-    robotLibs 'org.firstinspires.ftc:RobotCore:12.0.0'
-    robotLibs 'org.firstinspires.ftc:Hardware:12.0.0'
-    robotLibs 'org.firstinspires.ftc:FtcCommon:12.0.0'
-    robotLibs 'org.firstinspires.ftc:Vision:12.0.0'
-    robotLibs 'com.pedropathing:ftc:2.1.2'
-    robotLibs 'com.pedropathing:telemetry:1.0.0'
-    robotLibs 'com.bylazar:fullpanels:1.0.12'
+    robotLibraries.each { robotLibs it }
 }
 
 // The robot libraries (and everything they depend on) as plain .jar files, via AarToJar.
@@ -218,6 +254,9 @@ tasks.named('test') {
     // Tests never open a window: with headless mode on, any attempt fails instead of showing
     // one, and the viewer's drawing code still works on off-screen images.
     systemProperty 'java.awt.headless', 'true'
+    // The robot libraries this build really uses ("group:name:version", comma-separated), so
+    // SdkCompatibilityTest can check them against the robot build.
+    systemProperty 'harness.robotLibraries', robotLibraries.join(',')
     // Byte Buddy probes sun.misc.Unsafe at startup; this silences Java 24+'s warning about it.
     jvmArgs '--sun-misc-unsafe-memory-access=allow'
     // What to print while tests run.

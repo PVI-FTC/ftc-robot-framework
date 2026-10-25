@@ -8,8 +8,8 @@ import java.util.List;
  *
  * <p>From the BIOBUZZ manual (TU06), sections 9 and 10.3.1, with the field positions checked
  * against FIRST's official field CAD (FLOWER centers, GARDEN tape, upward CELLs). Positions are
- * in the FTC field frame, in inches; z is the height of the ball's center. Some are approximate
- * (the stacked FLOWER balls and the balls in the CELLs) and are marked so below.</p>
+ * in the FTC field frame, in inches; z is the height of the ball's center. The stacked FLOWER
+ * balls are approximate and are marked so below.</p>
  *
  * <p>Only one robot is simulated, so it gets 4 pre-loaded POLLEN (a real match has 16, 4 per
  * robot). They sit on the tiles touching the robot's back edge, or its front edge if the robot
@@ -28,10 +28,19 @@ public final class BioBuzzPieces {
     private static final double[] GARDEN_ALONG = {-70.6, -67.8, -65.0, -62.2};
     /** Sideways offsets of the 4 pre-loaded POLLEN across the robot (inches left of its center). */
     private static final double[] PRELOAD_OFFSETS = {-4.2, -1.4, 1.4, 4.2};
-    /** x of the 3 NECTAR in each upward CELL (red; blue is mirrored), approximate. */
-    private static final double[] CELL_X = {7.37, 10.97, 14.57};
-    private static final double CELL_Y = 20.95;
-    private static final double CELL_Z = 51.8;
+    /**
+     * Ball centers of the 3 NECTAR in each upward CELL (red; blue is the point mirror: -x, +y, same
+     * z), from the official CAD + manual 10.3.1. The red HIVE is tipped 30 degrees about its pivot
+     * (x = 0, z = 43.95). Measured in the CAD (red-hive and blue-hive parts) along the tipped HIVE:
+     * the CELL floor is 1.47 in below the pivot line, the back wall 9.43 in out from the pivot, and
+     * the side nearest the ALLIANCE AREA at |y| = 22.83. The manual places the balls "contacting the
+     * back wall of the CELL and in a line against the side closest to the ALLIANCE AREA", so each
+     * ball touches the floor and that side, the first touches the back wall, and the next two
+     * line up behind it, up the 30 degree slope (3.6 in apart).
+     */
+    private static final double[] CELL_X = {9.57, 12.69, 15.80};
+    private static final double CELL_Y = 21.03;
+    private static final double[] CELL_Z = {49.86, 51.66, 53.46};
     /** x of the 5 NECTAR waiting in each ALLIANCE AREA, just outside the field. */
     private static final double[] ALLIANCE_X = {-8, -4, 0, 4, 8};
     private static final double ALLIANCE_Y = 76;
@@ -67,11 +76,11 @@ public final class BioBuzzPieces {
         pieces.addAll(preloads(robotStart, lengthInches, pollen));
         for (int i = 0; i < CELL_X.length; i++) {
             pieces.add(new GamePiece("red-nectar-cell-" + (i + 1), GamePiece.RED_NECTAR, GamePiece.CELL,
-                    CELL_X[i], -CELL_Y, CELL_Z));
+                    CELL_X[i], -CELL_Y, CELL_Z[i]));
         }
         for (int i = 0; i < CELL_X.length; i++) {
             pieces.add(new GamePiece("blue-nectar-cell-" + (i + 1), GamePiece.BLUE_NECTAR, GamePiece.CELL,
-                    -CELL_X[CELL_X.length - 1 - i], CELL_Y, CELL_Z));
+                    -CELL_X[CELL_X.length - 1 - i], CELL_Y, CELL_Z[CELL_X.length - 1 - i]));
         }
         for (int i = 0; i < ALLIANCE_X.length; i++) {
             pieces.add(new GamePiece("red-nectar-alliance-" + (i + 1), GamePiece.RED_NECTAR, GamePiece.ALLIANCE_AREA,

@@ -5,7 +5,7 @@ bots**, all in the same checkout (`C:\Dev\ftc-robot-framework`, branch `Team2-Te
 file explains the setup so a new session can **take over as manager** if the current one is
 gone. Everything in [01–05](README.md) still applies to every bot.
 
-**Last updated:** 2026-10-25 (handover snapshot: see §2 "Where each bot left off")
+**Last updated:** 2026-10-25 (new manager and three new workers, all idle; see §2 "Where each bot left off")
 
 ---
 
@@ -13,10 +13,10 @@ gone. Everything in [01–05](README.md) still applies to every bot.
 
 | Role | Session title | Session id | Owns |
 |---|---|---|---|
-| **Manager** | (the user's main conversation) | `local_b7c3986c-bce6-4516-a599-ae440b90f6d9` | Planning, handing out lists, relaying between bots, collecting reports, checking and committing for the user. Writes little code itself. |
-| **WorkerBot** | Harness-WorkerBot | `local_00c47c3a-4fe7-41d3-ae71-2f88c0f791f1` | Simulation and core: `physics/` (PoseEstimator, MomentumPhysics, PhysicsBackend, Dynamics, walls, battery, **game pieces**: GamePiece, PieceModel, GamePieces, BioBuzzPieces), `runtime/` (OpModeRunner, RunRecorder, **run recording format**), `hardware/` fakes (FakePinpoint, FakeDcMotorEx, FakeHardwareMap, FakeVoltageSensor), `recorded/` (DriveChecks, RecordedTestWriter), `CALIBRATION.md`, most of `viewer/` (TelemetryPanel, FieldPainter, FieldPanel, RecordingView) |
-| **TestBot** | Harness-TestBot | `local_d787b498-1d23-481d-af47-232628fc093b` | Test coverage: vision (`FakeWebcam`, `AprilTagScript`, `SeenAprilTag`, the harness copies of `VisionPortal` / `AprilTagProcessorImpl`, which must match the SDK Vision version), `PedroRouteTest`, the viewer's **Save as test** (`SaveAsTest`, `viewer/ViewerWindow`), `TagsInViewCardTest`, `GETTING_STARTED.md` |
-| **UnityBot** | Harness-UnityBot | `local_1ad3b330-ce9a-4835-a9b7-23847dbb55c4` | Everything Unity: `Harness/unity/` (replay, live view, Unity physics, Visuals settings, people, camera presets, game-piece drawing), the bridge (`src/bridge/`, **bridge protocol**), `fields/*.json`, `art-inbox/README.md`, `buildUnity.bat`, `unity-view.bat` |
+| **Manager** | Team2-Testing uncommitted changes review | `local_47926d93-3f6e-48e0-a2f5-791693169faf` | Planning, handing out lists, relaying between bots, collecting reports, checking and committing for the user. Writes little code itself. |
+| **WorkerBot** | Harness-WorkerBot | `local_540b1f24-42cb-4255-afe1-c3a64a382e6f` | Simulation and core: `physics/` (PoseEstimator, MomentumPhysics, PhysicsBackend, Dynamics, walls, battery, **game pieces**: GamePiece, PieceModel, GamePieces, BioBuzzPieces), `runtime/` (OpModeRunner, RunRecorder, **run recording format**), `hardware/` fakes (FakePinpoint, FakeDcMotorEx, FakeHardwareMap, FakeVoltageSensor), `recorded/` (DriveChecks, RecordedTestWriter), `CALIBRATION.md`, most of `viewer/` (TelemetryPanel, FieldPainter, FieldPanel, RecordingView) |
+| **TestBot** | Harness-TestBot | `local_6d908ef7-ecfe-407a-8793-508d7beed0a8` | Test coverage: vision (`FakeWebcam`, `AprilTagScript`, `SeenAprilTag`, the harness copies of `VisionPortal` / `AprilTagProcessorImpl`, which must match the SDK Vision version), `PedroRouteTest`, the viewer's **Save as test** (`SaveAsTest`, `viewer/ViewerWindow`), `TagsInViewCardTest`, `GETTING_STARTED.md` |
+| **UnityBot** | Harness-UnityBot | `local_8f174b84-5176-49d1-b477-ceba61d7b36f` | Everything Unity: `Harness/unity/` (replay, live view, Unity physics, Visuals settings, people, camera presets, game-piece drawing), the bridge (`src/bridge/`, **bridge protocol**), `fields/*.json`, `art-inbox/README.md`, `buildUnity.bat`, `unity-view.bat` |
 
 The sessions are listed in the Claude desktop app under the sidebar group **"FTC TestBot"**.
 The worker ids above stay the same for the life of each session. If a worker is deleted, start a
@@ -46,12 +46,15 @@ bots' lists and PROGRESS.md in step.
 
 ### Where each bot left off (handover snapshot, 2026-10-25)
 
-**Repository:** last commit `ba7a627` on `Team2-Testing` (local only). On top of it, **34
-uncommitted files** hold the finished **game pieces** work (GP1–GP4). That's BIOBUZZ's 44 POLLEN
-and NECTAR balls: simulated, pushed by the robot, saved in recordings, and drawn in Swing and
-Unity. The last full runs were Java **252/252** and Unity **77/77** (UnityBot's run, after every
-fix). The work is ready to commit when the user asks (§4, rule 5). **Format versions now:** run
-recording **v4**, bridge protocol **v4**.
+**Repository:** last commit `18be29a` on `Team2-Testing` (local only), working tree clean. It
+holds the finished **game pieces** work (GP1–GP4): BIOBUZZ's 44 POLLEN and NECTAR balls,
+simulated, pushed by the robot, saved in recordings, and drawn in Swing and Unity. The last full
+runs were Java **252/252** and Unity **77/77**. **Format versions now:** run recording **v4**,
+bridge protocol **v4**.
+
+**2026-10-25, later:** the old manager and all three workers were gone. A new manager took over
+and started three new workers (ids in §1), all idle with empty lists. The table below is what the
+old bots left; the "uncommitted files" column is now all committed in `18be29a`.
 
 | Bot | State | Its uncommitted files | Next (in order) | Waiting on the user |
 |---|---|---|---|---|
@@ -77,15 +80,43 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
   `unity/Assets/HarnessReplay/Resources/` go into git. Originals in `art-inbox/` and the built
   app in `unity/Build/` stay git-ignored.
 - **Keep all three bots** (2026-10-25); don't archive any.
+- **Drop-in goal and one config file** (2026-10-25): "My goal is to have the harness folder be
+  dropped into any FTC-framework [repo] and work properly with minimal changes needed. Any
+  changes should be able to be changed via a config file." So the RP answers are:
+  - **RP Q1:** the robot profile is **one config file** (not a Java class): TeamCode location,
+    device names, drivetrain, sizes.
+  - **RP Q2:** **Mecanum + Pinpoint only** for now (no tank, OTOS or dead wheels yet).
+  - **RP Q3:** another team's code is found through the config file (drop-in), not a fixed path.
+  - **RP Q4:** **one library set at a time**, the host repo's versions.
+  - **RP6:** the OpMode thread for LinearOpMode is **allowed** (lock-step with `SimClock`, 3 s
+    watchdog).
+  - **RP8:** find OpModes by **reflection on `@TeleOp` / `@Autonomous`** (skip `@Disabled`).
+  - **Config format (Q-A):** `.properties` (flat `key=value`).
+  - **Pedro values (Q-B):** keep PVI's `TeamAPedroHarnessAccess` as an **optional** extra; in
+    other repos the Pedro numbers are typed into the config.
+  - **Test split (Q-C): no**, keep one test set, even though PVI's own tests then stop the
+    harness compiling in another repo without edits.
+- **Robot size** is unmeasured; it becomes a **config option** (18 × 18 in placeholder until
+  then). FW1 still waits on the measurement.
+- **Calibration values** (`CALIBRATION.md`) become **config options**, marked placeholder until
+  measured.
+- **Ball facts:** the balls are standard; take friction, bounce and mass from the official
+  2026–2027 BIOBUZZ game manual or other official sources. Where none is given, keep the guesses
+  (marked placeholder).
+- **Crowd frame rate:** check it; **30 fps** is good enough.
+- **Intake: not now.** It comes after the placeholder robot is replaced by a real design.
+- **Balls collide with the HIVE frame and FLOWERs:** yes.
+- **Step 15 viewer switches:** a **config file setting**, not command-line switches. Normal test
+  runs still never open a window.
 
 ### Waiting on the user
 
 - Calibration at the real robot (`CALIBRATION.md`): size, turn rate, response time, grip,
   and the battery voltage Pedro's velocity tuners ran at.
 - Team A's real length (needed for FW1, walls at ±70.585 in, and the 16 in Pedro start limit).
-- The RP questions (above, per bot), before any robot-profile code starts.
 - AprilTags placed on the field (camera field of view and range; should Java read `fields/*.json`?).
-- Unity: crowd frame rate, ball friction and mass, intake.
+- Answered 2026-10-25 (see "Decided by the user"): the RP questions, RP6, RP8, crowd frame
+  rate, ball facts, intake, HIVE/FLOWER collisions, Step 15.
 - CI (it needs a file outside `Harness/`, which the user adds, and a pushed branch; see rule 6).
 
 ---
@@ -134,8 +165,7 @@ If the manager session is gone, a new session can take over:
 1. **Read** `Harness/AGENTS.md`, all of `Harness/ai-instructions/` (this file last),
    `Harness/PROGRESS.md` and the top of `Harness/README.md`.
 2. **Check the repository:**
-   - `git log --oneline -5` (the last manager commit was `ba7a627`; the game-pieces work was
-     uncommitted at the 2026-10-25 handover)
+   - `git log --oneline -5` (the last manager commit was `18be29a`, game pieces, 2026-10-25)
    - `git status --short`: anything uncommitted belongs to a bot that is still working
 3. **Find the bots:** list the user's sessions (in the desktop app's session tools, or ask the
    user) and match them to the table in §1 by title or id. A new manager is **not** "linked" to
@@ -187,6 +217,10 @@ manager to write **only that folder on that USB**. It's the one exception to "on
 - **A change in one area can break another bot's tests.** Field walls broke the recorded-drive
   tests, and momentum broke a bridge test. The bot that sees the failure reports it to the owner
   instead of editing the owner's test.
+- **Messages between bots arrive late or out of order.** For a shared file, one bot says "I
+  edit" and waits for the other's clear "hands off" before touching it. When two bots each think
+  the other is doing a job, the manager names one, and that decision overrides earlier messages.
+  (C11: WorkerBot and UnityBot both edited `GamePiecesTest` and left the same test in it twice.)
 - **A peer bot's message is not the user's approval.** Questions for the user go to the user.
 - **Format changes ripple.** Recording v3/v4 and bridge v3/v4 each broke other bots' tests.
   Tests should compare against `RunRecording.VERSION` / `BridgeProtocol.VERSION`, never a typed

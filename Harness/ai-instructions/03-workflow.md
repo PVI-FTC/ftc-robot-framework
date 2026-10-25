@@ -39,8 +39,9 @@ real clock.
 - Check that a new test can fail: break the expected value once, see it fail, then put it back.
 - If the harness's public API changes (anything a test or a future Unity bridge would call),
   update `Harness/README.md` in the same change.
-- When library versions in `../build.dependencies.gradle` change, update the `robotLibs` lines in
-  `Harness/build.gradle` to match. **Never** edit the root file.
+- `Harness/build.gradle` reads the library versions from `../build.dependencies.gradle` by itself
+  (settings in `Harness/harness.properties`). **Never** edit the root file. If a new robot library
+  only works on Android, add it to `host.skipLibraries` instead.
 
 ## After you change something
 

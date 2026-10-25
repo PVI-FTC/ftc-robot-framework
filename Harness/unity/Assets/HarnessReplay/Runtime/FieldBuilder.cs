@@ -57,6 +57,25 @@ namespace PviHarness.Replay
         /// <summary>The CAD models for a field (empty if the field has none in Resources, e.g. in a fresh clone).</summary>
         public static GameObject[] CadModels(string fieldId) => Resources.LoadAll<GameObject>(CadFolder(fieldId));
 
+        /// <summary>The CAD parts whose panels are drawn see-through: the field walls and both HIVEs.</summary>
+        public static readonly string[] SeeThroughParts = { "perimeter", "red-hive", "blue-hive" };
+
+        /// <summary>
+        /// The CAD color of those panels. The CAD export puts each color of a part in its own piece,
+        /// named "&lt;part&gt;-&lt;color&gt;", and the clear panels are the light grey ones.
+        /// </summary>
+        public const string PanelColor = "E6E6E6";
+
+        /// <summary>How much of the panels' color shows (0 = invisible, 1 = solid).</summary>
+        public const float PanelOpacity = 0.11f;
+
+        /// <summary>
+        /// The panels' shader: lit, and always see-through by the color's alpha. WHY not the Standard
+        /// shader's Fade mode: that needs a shader version the app build left out, so the panels showed
+        /// solid in the app while they were clear in the Editor.
+        /// </summary>
+        public const string PanelShader = "Legacy Shaders/Transparent/Specular";
+
         /// <summary>Shows or hides the plain dark floor and low walls.</summary>
         public static void ShowPlainField(Built built, bool show)
         {
@@ -109,7 +128,12 @@ namespace PviHarness.Replay
                 model.localScale = Vector3.one * FtcToUnity.MetersPerInch;
                 foreach (GameObject part in cad)
                 {
-                    Object.Instantiate(part, model, false).name = part.name;
+                    GameObject copy = Object.Instantiate(part, model, false);
+                    copy.name = part.name;
+                    if (System.Array.IndexOf(SeeThroughParts, part.name) >= 0)
+                    {
+                        MakePanelsSeeThrough(copy.transform);
+                    }
                 }
             }
             foreach (FieldElementData element in field.elements)
@@ -132,6 +156,28 @@ namespace PviHarness.Replay
                 }
             }
             return root;
+        }
+
+        /// <summary>
+        /// Draws a part's panels like clear plastic, so the robot and pieces behind the walls and inside
+        /// the HIVEs stay visible. The frame and colored trim stay solid.
+        /// </summary>
+        private static void MakePanelsSeeThrough(Transform part)
+        {
+            foreach (MeshRenderer renderer in part.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (!renderer.name.EndsWith("-" + PanelColor))
+                {
+                    continue;
+                }
+                var clear = new Material(Shader.Find(PanelShader)) { name = "Clear panel" };
+                Color color = renderer.sharedMaterial.color;
+                color.a = PanelOpacity;
+                clear.color = color;
+                clear.SetFloat("_Shininess", 0.6f); // a small, soft highlight, so the panels still show
+                renderer.sharedMaterial = clear;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
 
         private static void AddElement(Transform root, FieldElementData element)
@@ -377,7 +423,15 @@ namespace PviHarness.Replay
         {
             GameObject box = GameObject.CreatePrimitive(type);
             box.name = name;
-            Object.Destroy(box.GetComponent<Collider>());
+            // Destroy only works in Play mode; the Editor tests build fields outside it.
+            if (Application.isPlaying)
+            {
+                Object.Destroy(box.GetComponent<Collider>());
+            }
+            else
+            {
+                Object.DestroyImmediate(box.GetComponent<Collider>());
+            }
             box.transform.SetParent(parent, false);
             box.transform.localPosition = localPosition;
             box.transform.localScale = size;

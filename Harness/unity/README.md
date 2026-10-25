@@ -167,6 +167,12 @@ simple shapes from `Harness/fields/biobuzz-2026.json` are drawn as before.
 - **How it's drawn:** `FieldBuilder.BuildSeason` places every model in `Resources/Field/<field id>`
   with `FtcToUnity.FtcModelRotation` and inch-to-meter scaling. Import settings (calculated normals at
   40°, no compression) are in `Editor/FieldModelImport.cs`.
+- **See-through walls and HIVEs:** the clear panels of the perimeter and both HIVEs (the CAD's light
+  grey `E6E6E6` pieces) are drawn like clear plastic (`FieldBuilder.SeeThroughParts`, `PanelOpacity`
+  0.11), so the robot and the pieces behind or inside them stay visible. The rails, the HIVE frame and
+  the colored trim stay solid. They use `Legacy Shaders/Transparent/Specular` (`FieldBuilder.PanelShader`),
+  which the build always includes: the Standard shader's Fade mode looked clear in the Editor but solid
+  in the app, because the build left that shader version out.
 - **Physics:** Unity's physics still uses the simple shapes from the field file, which now use the
   CAD's measurements.
 

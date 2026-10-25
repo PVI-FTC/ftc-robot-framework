@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace PviHarness.Replay.Tests
 {
@@ -192,6 +193,38 @@ namespace PviHarness.Replay.Tests
                 "tiles", "perimeter", "hive-frame", "red-hive", "blue-hive", "flower-far", "flower-blue-wall",
                 "flower-red-wall", "flower-audience", "tape", "apriltags", "other",
             }, parts);
+        }
+
+        /// <summary>
+        /// WHAT: In the drawn BIOBUZZ field the wall and HIVE panels are see-through, while their trim and
+        /// the HIVE frame stay solid.
+        /// WHY: The user asked to see through the walls and HIVEs (to the robot and the pieces inside).
+        /// </summary>
+        [Test]
+        public void WallAndHivePanelsAreSeeThrough()
+        {
+            // The alliance-area boxes recolor their material, which Unity warns about outside Play mode only.
+            LogAssert.ignoreFailingMessages = true;
+            var parent = new GameObject("Test field").transform;
+            try
+            {
+                FieldBuilder.BuildSeason(parent, LoadField("biobuzz-2026"));
+                Renderer[] renderers = parent.GetComponentsInChildren<Renderer>();
+                foreach (string panel in new[] { "perimeter-E6E6E6", "red-hive-E6E6E6", "blue-hive-E6E6E6" })
+                {
+                    Material material = renderers.Single(r => r.name == panel).sharedMaterial;
+                    Assert.Less(material.color.a, 0.5f, panel + " lets most light through");
+                    Assert.GreaterOrEqual(material.renderQueue, 3000, panel + " is drawn as transparent");
+                }
+                foreach (string solid in new[] { "red-hive-FF0000", "blue-hive-0000FF", "hive-frame-E6E6E6", "perimeter-B3B3B3" })
+                {
+                    Assert.Less(renderers.Single(r => r.name == solid).sharedMaterial.renderQueue, 3000, solid + " stays solid");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(parent.gameObject);
+            }
         }
 
         /// <summary>

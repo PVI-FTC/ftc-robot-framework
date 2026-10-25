@@ -61,10 +61,14 @@ namespace PviHarness.Replay.Editor
         }
 
         /// <summary>
-        /// The shaders FieldBuilder uses: three looked up by name with Shader.Find, and Standard, which
-        /// the default material of its CreatePrimitive boxes (walls, wheels) needs.
+        /// The shaders FieldBuilder uses: the ones looked up by name with Shader.Find (including the
+        /// see-through panels' <see cref="FieldBuilder.PanelShader"/>), and Standard, which the default
+        /// material of its CreatePrimitive boxes (walls, wheels) needs.
         /// </summary>
-        public static readonly string[] ShadersFoundByName = { "Sprites/Default", "Unlit/Color", "Unlit/Texture", "Standard", "Skybox/Cubemap" };
+        public static readonly string[] ShadersFoundByName =
+        {
+            "Sprites/Default", "Unlit/Color", "Unlit/Texture", "Standard", "Skybox/Cubemap", FieldBuilder.PanelShader,
+        };
 
         /// <summary>
         /// A material saved in the project with the Standard shader's normal-map version switched on.

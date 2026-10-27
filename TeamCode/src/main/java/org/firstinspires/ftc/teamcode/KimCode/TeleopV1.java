@@ -78,7 +78,7 @@ public final class TeleopV1 extends LinearOpMode {
                 input.update();
                 // Remember: Y stick is negative when pushed forward.
                 // Counteract imperfect strafing.
-                controller.update(-input.getLeftStickY(), input.getLeftStickX(), input.getRightStickX());
+                controller.update(-input.getLeftStickY(), -input.getLeftStickX(), -input.getRightStickX());
 
                 LLResult result = controller.getLatestVisionResult();
                 if (result != null && result.isValid()) {

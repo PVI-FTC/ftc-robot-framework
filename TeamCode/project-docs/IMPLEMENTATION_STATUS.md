@@ -12,6 +12,10 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Fixed the standalone `KimCode/TeleopV1` mecanum rotation and strafe mappings by negating the
+  right-stick X and left-stick X inputs before passing them to Pedro's manual drive API. Forward
+  and reverse mappings are unchanged; this corrects left/right rotation and strafe direction at
+  the TeleOp input boundary.
 - Pedro 3 migration completed in the current working tree: `revhub:3.0.2` and `tuning:1.0.1`
   replace the Pedro 2 artifacts. The Pedro 3 `pedro/procedures` sources are present, with
   `Constants.java` and `Tuning.java` copied directly from the reference `pedro3` project.

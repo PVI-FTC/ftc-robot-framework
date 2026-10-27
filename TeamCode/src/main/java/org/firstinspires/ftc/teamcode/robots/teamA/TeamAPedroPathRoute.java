@@ -1,25 +1,19 @@
 package org.firstinspires.ftc.teamcode.robots.teamA;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
+import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
 
 /** Team A paths that can be selected from the Pedro autonomous menu. */
 public enum TeamAPedroPathRoute {
     LP11_PILOT("LP-11 Pilot (24 in)", 0.0, 0.0, 0.0, 24.0, 0.0, 0.0),
     DECODE_ROUTE("DECODE Route", 56.0, 8.0, 90.0, 48.0, 81.0, 135.0),
-    CURVING_TEST("Curving Test", 56.0, 8.0, 90.0,
-            24.30746863099743, 93.82603876301096, 179.84797452163),
-    ILLEGAL_PATH("Illegal Path", 56.0, 8.0, 90.0,
-            103.42511867493754, 32.68189726856656, 90.0);
+    CURVING_TEST("Curving Test", 56.0, 8.0, 90.0, 24.30746863099743, 93.82603876301096, 179.84797452163),
+    ILLEGAL_PATH("Illegal Path", 56.0, 8.0, 90.0, 103.42511867493754, 32.68189726856656, 90.0);
 
     private final String displayName;
-    private final double startXInches;
-    private final double startYInches;
-    private final double startHeadingDegrees;
-    private final double endXInches;
-    private final double endYInches;
-    private final double endHeadingDegrees;
+    private final double startXInches, startYInches, startHeadingDegrees;
+    private final double endXInches, endYInches, endHeadingDegrees;
 
     TeamAPedroPathRoute(String displayName, double startXInches, double startYInches,
             double startHeadingDegrees, double endXInches, double endYInches,
@@ -45,18 +39,13 @@ public enum TeamAPedroPathRoute {
         return new Pose(startXInches, startYInches, getStartHeadingRadians());
     }
 
-    PathChain build(Follower follower) {
+    Path build(Follower follower) {
         switch (this) {
-            case LP11_PILOT:
-                return TeamAPedroPilotPath.build(follower);
-            case DECODE_ROUTE:
-                return TeamAPedroDecodePath.build(follower);
-            case CURVING_TEST:
-                return TeamAPedroCurvingTestPath.build(follower);
-            case ILLEGAL_PATH:
-                return TeamAPedroIllegalPath.build(follower);
-            default:
-                throw new IllegalStateException("No Team A Pedro path builder exists for " + this);
+            case LP11_PILOT: return TeamAPedroPilotPath.build(follower);
+            case DECODE_ROUTE: return TeamAPedroDecodePath.build(follower);
+            case CURVING_TEST: return TeamAPedroCurvingTestPath.build(follower);
+            case ILLEGAL_PATH: return TeamAPedroIllegalPath.build(follower);
+            default: throw new IllegalStateException("No Team A Pedro path builder exists for " + this);
         }
     }
 }

@@ -2,8 +2,7 @@
 
 This guide records the Pedro Pathing configuration and tuning evidence for the current Team A
 robot, then turns that evidence into a repeatable setup process for a future robot. It is written
-for the versions currently pinned in this repository: Pedro FTC `2.1.2`, Pedro telemetry `1.0.0`,
-and FullPanels `1.0.12`.
+for the versions currently pinned in this repository: Pedro RevHub `3.0.2` and Pedro tuning `1.0.1`.
 
 Do not copy Team A's physical or tuned values into another robot without measuring and testing that
 robot. Motor directions, pod offsets, encoder directions, mass, velocities, gains, braking values,
@@ -21,40 +20,60 @@ Use these sources in this order when this document and the code disagree:
 
 The current follower is created by
 [`TeamAPedroFollowerFactory.java`](../src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroFollowerFactory.java).
-It combines `FollowerConstants`, `MecanumConstants`, `PinpointConstants`, and `PathConstraints`.
+It combines Pedro 3 `ForesightConfig`, `MecanumConfig`, and `PinpointConfig`.
 
-## Current Team A configuration at a glance
+## Current Pedro 3 implementation workflow
+
+The active Pedro 3 files are:
+
+- `pedro/Constants.java` and `pedro/Tuning.java`, copied from the local `pedro3` reference.
+- `pedro/procedures/`, containing the version-matched AutoTune procedures.
+- `robots/teamA/TeamAPedroConfiguration.java`, which adapts the recorded Team A configuration to
+  the Pedro 3 follower.
+- `robots/teamA/TeamAPedroFollowerFactory.java`, which creates the RevHub Mecanum + Pinpoint +
+  Foresight follower.
+- `KimCode/TeleopV1.java`, an independent Pedro 3 TeleOp entry point.
+
+Build verification does not require a phone, Control Hub, emulator, or other target device. From
+the repository root, run:
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug
+```
+
+Android Studio can perform the same device-free check through **Build > Make Project**. The green
+Run button is different: it installs and launches the APK and therefore requires a target device.
+
+The current `Constants.create()` is intentionally still the reference placeholder and returns
+`null`. Complete the Foresight output and follower construction there before attempting to drive
+with `KimCode/TeleopV1`.
+
+## Recorded Team A hardware facts
 
 | Category | Current value | Unit or meaning | Replace for a future robot? |
 | --- | --- | --- | --- |
-| Robot mass | `4.85` | kilograms | Yes; weigh the complete competition robot |
-| Application maximum power | `0.20` | fraction of full output | Yes; choose after testing |
-| Tuning maximum power | `1.0` | full output used by official tuners | Reassess before tuning |
-| Forward maximum velocity | `62.61374213751846` | inches/second | Yes; run Forward Velocity Tuner |
-| Lateral maximum velocity | `49.757958599901585` | inches/second | Yes; run Lateral Velocity Tuner |
-| Forward zero-power acceleration | `-42.4832745291992` | inches/second squared | Yes if using the PIDF route; currently also recorded in code |
-| Lateral zero-power acceleration | `-50.60694780564594` | inches/second squared | Yes if using the PIDF route; currently also recorded in code |
-| Heading PIDF | `P=2.2`, `I=0.2`, `D=0.189`, `F=0.02` | heading correction | Yes; run Heading Tuner |
-| Predictive Braking | `P=0.15`, `kLinear=0.051792761842529726`, `kQuadratic=0.002367856854157051` | braking controller | Yes; run Predictive Braking Tuner and Line test |
-| Centripetal scaling | `0.0` | disabled for Predictive Braking | Confirm for selected drive algorithm |
-| Parametric end constraint | `0.97` | path completion threshold | Validate with Line/path tests |
-| Path timeout | `100.0` | milliseconds | Validate for the new robot |
-| Default starting pose | `(0, 0, 0)` | inches, inches, radians | Set for the intended field start |
-| Distance unit | `INCH` | Pinpoint configuration | Usually keep, but be consistent |
+| Drivetrain | Four-wheel mecanum | Hardware type | Confirm on the robot |
+| Motor names | `frontLeft`, `frontRight`, `rearLeft`, `rearRight` | Driver Station configuration | Match the robot configuration |
+| Left motor directions | `REVERSE` | Recorded Team A setting | Recheck with wheels raised |
+| Right motor directions | `FORWARD` | Recorded Team A setting | Recheck with wheels raised |
+| Pinpoint name | `pinpoint` | Hardware map name | Match the robot configuration |
+| Pinpoint pod | goBILDA 4-Bar Odometry Pod | Recorded Team A hardware | Inspect the installed pod |
+| Pinpoint offsets | X `-10.0 in`, Y `-6.25 in` | Recorded Team A values | Re-measure after hardware changes |
+| Pinpoint encoder directions | Both `REVERSED` | Recorded Team A setting | Recheck with measured motion |
+| Distance unit | `INCH` | Pinpoint and path coordinate unit | Keep consistent |
 
-The current code values supersede earlier trial averages such as `52.375 in/s` forward and
-`42.019 in/s` lateral. Earlier `10.052 in/s` forward and `7.359 in/s` lateral observations were
-restricted `0.20`-power shakedowns and are not maximum-velocity constants.
+Earlier velocity, braking, and heading results are retained below as Pedro 2/Panels evidence.
+They are not accepted Pedro 3 tuning results. Run Pedro 3 AutoTune on the current robot before
+using those values for path following.
 
 ## Software and build configuration
 
 | Item | Current repository value |
 | --- | --- |
-| FTC SDK | `11.2.1` |
-| Pedro FTC | `com.pedropathing:ftc:2.1.2` |
-| Pedro telemetry | `com.pedropathing:telemetry:1.0.0` |
-| FullPanels | `com.bylazar:fullpanels:1.0.12` |
-| Maven repository | `https://mymaven.bylazar.com/releases` |
+| FTC SDK | `12.0.0` |
+| Pedro RevHub | `com.pedropathing:revhub:3.0.2` |
+| Pedro tuning | `com.pedropathing:tuning:1.0.1` |
+| Maven repository added for Pedro | `https://repo.dairy.foundation/releases/` |
 | Compile SDK | `34` |
 | Minimum SDK | `24` |
 | Target SDK | `28` |
@@ -125,9 +144,8 @@ measure the full bumper-to-bumper length and width and update every Visualizer p
 If another localizer such as drive encoders requires wheelbase dimensions, also measure the distance
 between front/rear wheel centers and left/right wheel centers.
 
-Panels draws the robot as a circle with `ROBOT_RADIUS = 9` inches in `TeamAPedroTuning.Drawing`.
-That is a display value, not a verified physical dimension. Change it if an accurate dashboard
-footprint matters.
+The current Pedro 3 AutoTune page does not use the removed Panels drawing workflow. Any visualizer
+or robot-footprint values below are historical display evidence, not runtime geometry.
 
 ## Pinpoint and odometry configuration
 
@@ -151,7 +169,11 @@ Team A used manual offset measurements. The Offsets Tuner was not used to produc
 `-6.25` and `-10.0` values. If a future robot uses Offsets Tuner, temporarily set both offsets to
 zero only for that test, then store the reported final offsets in source code.
 
-## Exact current runtime constants
+## Historical Pedro 2 runtime constants
+
+The following block documents the former Pedro 2 representation for historical comparison only.
+It is not valid Pedro 3 source. The active Pedro 3 representation is in
+`TeamAPedroConfiguration.java` and uses `ForesightConfig`, `MecanumConfig`, and `PinpointConfig`.
 
 The active values in `recordedTeamAConfiguration()` are equivalent to:
 
@@ -209,14 +231,15 @@ The following are not custom Team A runtime values and should not be presented a
 - Global deceleration/braking strength for every route.
 - Kalman filter covariance overrides.
 
-Team A selected Predictive Braking instead of the alternative translational/drive PIDF tuning
-route. Values not shown in `TeamAPedroConfiguration` remain Pedro `2.1.2` library defaults and may
-change when Pedro is upgraded. Re-run the version-matched workflow after an upgrade.
+The following data describes the former Pedro 2 implementation. It is historical evidence only;
+the current Pedro 3 configuration and tuner outputs use different config classes and must be
+validated with the pinned Pedro 3 version.
 
 ## Completed physical localization and direction tests
 
-These checks used `Team A Pedro Diagnostic`, not the path menu. During the unpowered portion the
-drive state remained disabled. The diagnostic's restricted raised-wheel controls are right bumper
+These earlier physical observations used `Team A Pedro Diagnostic` with the former Pedro 2
+integration, not the path menu. The unpowered portion kept the drive state disabled; the restricted
+raised-wheel checks used right bumper
 plus exactly one of A (forward), B (left), or Y (counterclockwise); releasing right bumper or
 holding X disables drive.
 
@@ -237,16 +260,24 @@ holding X disables drive.
 For a future robot, change one sign or direction at a time, rebuild, and repeat the same observation.
 Do not correct several unknown directions simultaneously.
 
+## Historical pre-migration tuning records
+
+The following recorded tables describe the earlier Pedro 2/Panels workflow. They are retained as
+historical evidence and must not be used as the current Pedro 3 tuner menu or API instructions.
+The current Pedro 3 tuning entry point is the robot-hosted AutoTune page at
+`http://192.168.43.1:10158`, with Mecanum, Pinpoint, and Foresight registered in `Tuning.java`.
+
 ## Tuning programs and recorded results
 
-All Pedro tuners are selected from the Driver Station OpMode `Team A Pedro Tuning`.
+Pedro 3 tuners are selected from the robot-hosted AutoTune page, not a Driver Station
+`Team A Pedro Tuning` OpMode.
 
-### Current tuning-program parameters
+### Historical Pedro 2 tuning-program parameters
 
 These values control the tests themselves. They are not all robot constants, but they may need to
 change when another robot has different speed, available floor space, or stopping distance.
 
-| Program | Current source parameter | Purpose |
+| Program | Former source parameter | Purpose |
 | --- | --- | --- |
 | All selected tuners | `OFFICIAL_TUNING_MAX_POWER = 1.0` | Overrides the normal `0.20` application ceiling during official tuning |
 | Forward Tuner | `DISTANCE = 48 in` | Manual localization distance |
@@ -268,12 +299,12 @@ change when another robot has different speed, available floor space, or stoppin
 Most tuners use a field pose around `(72, 72)` so their test geometry is visible in Panels. That is
 a tuner display/test origin, not the autonomous starting pose.
 
-### Completed and used for the current configuration
+### Completed and used for the former Pedro 2 configuration
 
 | Menu path | Program or test | How it was used | Recorded result |
 | --- | --- | --- | --- |
-| Automatic | Forward Velocity Tuner | Full-power 48-inch run; averages the latest velocity samples | Current `xVelocity=62.61374213751846 in/s` |
-| Automatic | Lateral Velocity Tuner | Full-power 48-inch left run | Current `yVelocity=49.757958599901585 in/s` |
+| Automatic | Forward Velocity Tuner | Full-power 48-inch run; averages the latest velocity samples | Recorded `xVelocity=62.61374213751846 in/s` |
+| Automatic | Lateral Velocity Tuner | Full-power 48-inch left run | Recorded `yVelocity=49.757958599901585 in/s` |
 | Automatic | Forward Zero Power Acceleration Tuner | Accelerate to 30 in/s, cut power, average deceleration | `-42.4832745291992 in/s^2` |
 | Automatic | Lateral Zero Power Acceleration Tuner | Accelerate left to 30 in/s, cut power, average deceleration | `-50.60694780564594 in/s^2` |
 | Manual | Heading Tuner | Alternating 40-inch line; heading PIDF adjusted through Panels | `P=2.2`, `I=0.2`, `D=0.189`, `F=0.02`; returned to original heading |
@@ -285,7 +316,7 @@ The Predictive Braking Tuner's 12 power samples are
 `1.0, 1.0, 1.0, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2`. Each drive sample lasts
 `1000 ms`; braking uses `-0.2` times the current travel direction.
 
-The Line test tried Predictive Braking P values `0.4`, `0.3`, `0.2`, and `0.15`. At `0.4`, one
+The former Pedro 2 Line test tried Predictive Braking P values `0.4`, `0.3`, `0.2`, and `0.15`. At `0.4`, one
 validation produced heavy holding jitter. Panels did not apply the attempted change to `0.3`, so
 the remaining values were changed in code and re-uploaded. The accepted `0.15` test had only very
 slight jitter and no overshoot or drift.
@@ -319,16 +350,16 @@ slight jitter and no overshoot or drift.
 `Localization Test` behavior was covered by the narrower LP-09 diagnostic and its recorded tests.
 Do not infer that every item visible in the tuning menu was completed.
 
-## Panels usage in this project
+## Pedro 3 AutoTune usage
 
-Panels is integrated into `TeamAPedroTuning` for telemetry, field drawing, pose history, and live
-configuration. The tuning selector uses the same controls as the path selector:
+Pedro 3 tuning runs through the robot-hosted AutoTune page at
+`http://192.168.43.1:10158`, not through the removed Panels menu or a Driver Station selector.
+The registered procedures are Mecanum, Pinpoint, and Foresight. The Foresight procedure generates
+Java source; it does not silently edit `Constants.java`. Copy its generated `ForesightConfig` into
+that file, rebuild, and then run the Tests procedure before trusting a path.
 
-- D-pad: move the menu cursor.
-- Right bumper: select.
-- Left bumper: return to the previous menu.
-
-When connected to the robot Wi-Fi, Panels is normally available at `192.168.43.1:8001`.
+The old Panels workflow described below is retained only as historical evidence from the former
+Pedro 2 implementation.
 
 ### Tests that used Panels
 
@@ -365,7 +396,7 @@ Record, photograph, or diagram all of the following before editing constants:
 
 ### 2. Install and verify the pinned software
 
-1. Add the byLazar Maven repository and the three pinned dependencies.
+1. Add the Dairy Maven repository and the pinned `revhub` and `tuning` dependencies.
 2. Set compile SDK 34 and use Java 17 for this repository version.
 3. Gradle Sync in Android Studio.
 4. Run `.\gradlew.bat TeamCode:assembleDebug`.
@@ -374,7 +405,8 @@ Record, photograph, or diagram all of the following before editing constants:
 
 ### 3. Enter only measured initialization constants
 
-Create new team-specific `FollowerConstants`, `MecanumConstants`, and localizer constants. Enter
+Create new team-specific `ForesightConfig`, `MecanumConfig`, and `PinpointConfig` objects in
+`Constants.java`. Enter
 mass, names, measured offsets, pod model/resolution, and an intentionally conservative maximum
 power. Keep manual and path-following permissions closed until their tests pass.
 
@@ -396,16 +428,17 @@ the OpMode `stop()` callback all remove output before ground tuning.
 
 ### 6. Run the version-matched tuning workflow
 
-For the Predictive Braking route used by Team A:
+For the current Pedro 3 Foresight route:
 
-1. Forward Velocity Tuner; repeat and check consistency.
-2. Lateral Velocity Tuner; repeat and check consistency.
-3. Heading Tuner; adjust PIDF in Panels and copy accepted values to code.
-4. Predictive Braking Tuner; record `kLinear` and `kQuadratic`.
-5. Start Predictive Braking P near `0.1` and set centripetal scaling to zero.
-6. Line test; increase or decrease P to obtain accurate settling without holding jitter.
-7. Validate the parametric end constraint and timeout.
-8. Rebuild and re-run Line after every final source-code update.
+1. Run the Mecanum tuner and verify motor names/directions.
+2. Run the Pinpoint tuner and verify pod directions/offsets.
+3. Run Foresight Velocity and Deceleration procedures.
+4. Run Heading Braking and Heading Tuner procedures.
+5. Run Forward/Strafe Braking procedures.
+6. Run Forward/Strafe Translational procedures.
+7. Copy the generated `ForesightConfig` Java output into `Constants.java`.
+8. `Tests.java` is present but not registered in `Tuning.java`; register it when ready, then rebuild
+   and validate a short path.
 
 If the team selects the traditional PIDF route instead, follow the version-matched Pedro sequence
 for zero-power acceleration, translational PIDF, drive PIDF, and centripetal tuning. Do not combine
@@ -422,21 +455,18 @@ longer curves, sharp heading changes, and competition paths.
 | What changes | Where to update in this repository | Required validation |
 | --- | --- | --- |
 | Dependency versions | `build.dependencies.gradle` and matching tuning adaptation | Sync, API inspection, full rebuild, repeat all tuning |
-| Robot mass | `FollowerConstants.mass(...)` | Reweigh complete robot |
-| Motor names | `MecanumConstants.*MotorName(...)` | Driver Station configuration and initialization |
-| Motor directions | `MecanumConstants.*MotorDirection(...)` | Raised-wheel forward/strafe/turn checks |
-| Application power | `APPLICATION_MAX_POWER` and `MecanumConstants.maxPower(...)` | Controlled path and stop tests |
-| Maximum velocities | `MecanumConstants.xVelocity/yVelocity` | Repeat automatic velocity tuners |
-| Zero-power accelerations | `FollowerConstants.forward/lateralZeroPowerAcceleration` | Repeat automatic deceleration tuners if used |
-| Heading PIDF | `FollowerConstants.headingPIDFCoefficients` | Heading Tuner and Line |
-| Drive algorithm | Predictive Braking or PIDF fields in `FollowerConstants` | Run the complete selected branch |
-| Predictive coefficients | `PredictiveBrakingCoefficients(P, linear, quadratic)` | Predictive Braking Tuner and Line |
-| Centripetal scaling | `FollowerConstants.centripetalScaling` | Follow selected algorithm guidance and curve test |
-| Pinpoint name | `PinpointConstants.hardwareMapName` | Hardware-map lookup and stable pose |
-| Pod model/resolution | `encoderResolution` or custom resolution | Physical pod inspection and distance checks |
-| Pod offsets | `forwardPodY/strafePodX` | Manual measurement or Offsets Tuner, then pose tests |
-| Encoder directions | `forward/strafeEncoderDirection` | Unpowered forward and left checks |
-| Yaw scalar | `PinpointConstants.yawScalar`, only if deliberately enabled | Measured rotation tests |
+| Robot mass | `ForesightConfig`/team configuration | Reweigh complete robot |
+| Motor names | `MecanumConfig.*Name` | Driver Station configuration and initialization |
+| Motor directions | `MecanumConfig.*Direction` | Raised-wheel forward/strafe/turn checks |
+| Application power | `APPLICATION_MAX_POWER` and follower controls | Controlled path and stop tests |
+| Maximum velocities | `ForesightConfig.maxAchievable*Velocity` | Repeat Foresight velocity tuners |
+| Natural deceleration | `ForesightConfig.natural*Deceleration` | Repeat Foresight deceleration tuners |
+| Heading/translational gains | `ForesightConfig` controller fields | Foresight tuning and Tests |
+| Braking coefficients | `ForesightConfig.*BrakeCoefficients` | Forward/Strafe Braking tuners |
+| Pinpoint name | `PinpointConfig.name` | Hardware-map lookup and stable pose |
+| Pod model/resolution | `PinpointConfig.podType` and resolution fields | Physical pod inspection and distance checks |
+| Pod offsets | `PinpointConfig.xPodOffset/yPodOffset` | Pinpoint tuner, then pose tests |
+| Encoder directions | `PinpointConfig.xPodDirection/yPodDirection` | Unpowered forward and left checks |
 | Starting pose | `TeamAPedroConfiguration` and each `TeamAPedroPathRoute` | Confirm field placement and telemetry before START |
 | Path end values | `PathConstraints` | Line and real path completion tests |
 | Robot dimensions | Every `.pp` Visualizer project and optional Panels `ROBOT_RADIUS` | Physical measurement and collision review |

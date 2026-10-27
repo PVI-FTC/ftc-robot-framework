@@ -134,12 +134,13 @@ The baseline intentionally defers:
   A Scheduler should be introduced only when commands, cancellation, parallel execution, subsystem
   requirements, and default behaviors create a demonstrated need.
 
-## Planned localization and pathing pilot
-This section records intended design only. It does not mean Pedro Pathing, Pinpoint, a follower, or a path has been implemented. `IMPLEMENTATION_STATUS.md` remains the record of code that actually exists.
+## Pedro 3 localization and pathing pilot
+This section records the current design and safety boundaries for the Pedro Pathing pilot.
+`IMPLEMENTATION_STATUS.md` remains the record of code that actually exists.
 
 ### Team-selectable composition
 - The existing `TeamARobot` remains the simple Team A robot and continues to use the shared baseline drivetrain.
-- A future, separate `TeamAPedroRobot` will be the Team A pilot composition. Other teams remain free to keep the simple robot or later provide their own team-specific pathing composition.
+- The separate `TeamAPedroRobot` is the Team A pilot composition. Other teams remain free to keep the simple robot or later provide their own team-specific pathing composition.
 - Vendor classes such as Pedro `Follower`, `Path`, `PathChain`, and `Pose` stay in the selected team package. Common Robot, subsystem, autonomous, and localization APIs remain vendor-neutral.
 
 ### Ownership and dependencies
@@ -153,11 +154,16 @@ Pathing OpMode
 - This flow continues to point downward. OpModes do not access motors, Pinpoint, `HardwareMap`, or the follower directly.
 - The Pedro pilot composition will be the only owner of its four drive motors and Pinpoint device. It must not also initialize those motors through the existing `DriveHardware` composition.
 - Manual drive, following a path, cancellation, and stop will be requested through the Robot public API. The drive FSM will select one active mode, so two controllers cannot command the same motors.
+- The standalone `KimCode/TeleopV1` entry point is intentionally separate from `TeamAPedroRobot` and
+  `TeamAPedroPathStep`; it uses the Pedro 3 follower through its own private controller and maps
+  gamepad input through `InputManager`.
 
 ### Lifecycle and entry paths
-- During the future pathing robot initialization, team-specific code may obtain the required hardware through the allowed hardware boundary and create the follower. It will use only inspected hardware configuration.
-- Each FTC loop, TeleOp maps gamepad input through `InputManager` and the Robot public API. Autonomous updates `AutoSequence` and uses Robot public APIs; it does not use `InputManager`.
-- The follower will be updated exactly once per loop by the pathing-capable Robot/subsystem lifecycle. It must not use blocking waits, loops, or a new scheduler.
+- During pathing robot initialization, team-specific code obtains the required hardware through the allowed hardware boundary and creates the Pedro 3 follower. It uses only inspected hardware configuration.
+- The standalone KimCode TeleOp maps gamepad input through `InputManager` and updates its private
+  Pedro controller each loop. The Team A autonomous path selector uses `AutoSequence` and the
+  `TeamAPedroRobot` public API; autonomous does not use `InputManager`.
+- The follower is updated exactly once per loop by the pathing-capable Robot/subsystem lifecycle. It must not use blocking waits, loops, or a new scheduler.
 - On cancellation or FTC stop, the active pathing mode must command safe zero drivetrain output before any later motor command is possible.
 
 ### Visualization, safety, and deferred decisions
@@ -177,3 +183,6 @@ Pathing OpMode
 - Path following is a third permission. It stays closed until localization, motor and encoder
   directions, required tuning, constraints, and stop behavior have been physically verified and
   accepted.
+- A successful Gradle build proves compilation and packaging only. It does not prove that
+  `Constants.create()` has been completed, that hardware names match the robot configuration, or
+  that tuning and path accuracy are safe on a physical robot.

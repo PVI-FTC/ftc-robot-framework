@@ -166,6 +166,20 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
 - **To change it:** once Team A has BIOBUZZ routes, a bot updates the route tests to run with the
   field elements on.
 
+## D13 · Unity bridge tests work in any repo (2026-10-27)
+
+- **Found:** WorkerBot rehearsed the drop-in in a pretend "other team" repo (different motor names,
+  no Pedro, one LinearOpMode), following the guide exactly. The harness dropped in and its smoke
+  test passed first time. But 5 Unity bridge test classes used PVI's OpMode names and failed there.
+- **Decided:** UnityBot makes those bridge tests generic (they use the config's robot and the
+  OpModes the harness finds, and only PVI-specific checks are skipped outside PVI), rather than
+  adding them to the guide's delete list.
+- **Why:** your goal is "drop in with minimal changes". A shorter delete list, and keeping the
+  bridge tested in every repo, both serve it.
+- **To change it:** nothing to do. (The guide also got 3 fixes from the rehearsal: setting
+  `viewer.defaultTeleOp`, not keeping the original `MyFirstRobotTest`, and marking another
+  robot's speeds as placeholders until measured.)
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

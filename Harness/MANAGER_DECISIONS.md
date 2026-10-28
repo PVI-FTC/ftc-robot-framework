@@ -61,3 +61,25 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   keeps them looking the same where possible and never removes the full crowd.
 - **To change it:** pick a different default in the app's Visuals settings, or tell the manager.
   (If the crowd already runs at 30 fps or more, nothing is changed, and this entry says so later.)
+- **Outcome:** not needed. UnityBot measured the full hall crowd at a steady **60 fps** (the
+  vsync limit) in every heavy view on this PC (RTX 2060, Ultra quality), so nothing was changed.
+  The app gained a measuring option, `-fpslog <file>`, documented in `unity/README.md`.
+
+## D6 · Ball mass, bounce and friction (2026-10-27)
+
+- **Decided:** keep today's guesses (marked placeholder) for ball mass, bounce and rolling
+  friction. The official manual's sizes are now used (POLLEN 2.8 in, NECTAR 3.6 in, manual TU06
+  §9.8, marked measured).
+- **Why:** you said to use the manual or online sources and otherwise keep the guesses. The
+  BIOBUZZ Competition Manual (TU06, already in `Harness/fields/sources/`) gives only the sizes,
+  material and the AndyMark part numbers (am-5851 / am-5852). The manager counted AndyMark's own
+  product pages for those parts as an acceptable online source, but they refused automated access
+  (HTTP 429), and a web search found no published weight.
+- **To change it:** weigh one POLLEN and one NECTAR (and, if you like, roll them on a tile), or
+  paste the AndyMark weight; a bot then puts the numbers in, marked measured.
+
+## Pedro 3 merge (2026-10-27)
+
+- Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).
+  It changed only TeamCode and `build.dependencies.gradle`; no harness file. WorkerBot is fixing the
+  harness for Pedro 3 (list W8).

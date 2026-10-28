@@ -6,28 +6,33 @@ checklist is for the team at the robot: what to measure, how, and exactly which 
 each measurement replaces. Bring a tape measure, a phone stopwatch, the robot on a full field,
 and a laptop with Android Studio.
 
-Every value lives in `Harness/src/main/java/pvi/harness/physics/`, in a `ModelValue`. To record
-a measurement, change `ModelValue.placeholder(value, unit, reason)` to
-`ModelValue.measured(value, unit, source)`, where the source says who measured it, when, and how,
-for example `"tape measure, bumper to bumper, J. Smith 2026-11-02"`. Then run
-`.\gradlew.bat test` from `Harness\`.
+Every value is one line in `Harness/harness.properties`, written
+`number | measured or placeholder | where it came from`. To record a measurement, put the number
+in, change `placeholder` to `measured`, and replace the text after the last `|` with who measured
+it, when, and how, for example
+`robot.lengthInches=17.5 | measured | tape measure, bumper to bumper, J. Smith 2026-11-02`. Then
+run `.\gradlew.bat test` from `Harness\`.
 
 ## What is already measured (no action needed)
 
 | Value | Where it comes from |
 |---|---|
-| Forward speed (62.61 in/s) and strafe speed (49.76 in/s) | Pedro `xVelocity` / `yVelocity` in `TeamAPedroConfiguration` (Pedro's velocity tuners), read live |
-| Forward coasting (42.48 in/s²) and sideways coasting (50.61 in/s²) | Pedro `forwardZeroPowerAcceleration` / `lateralZeroPowerAcceleration` (Pedro's zero-power acceleration tuners), read live |
+| Forward speed (62.61 in/s) and strafe speed (49.76 in/s) | `drive.forwardSpeedInchesPerSecond` / `drive.strafeSpeedInchesPerSecond`: copies of Pedro's `maxAchievableForwardVelocity` / `maxAchievableStrafeVelocity` in `TeamAPedroConfiguration` (Pedro's velocity tuners) |
+| Forward coasting (42.48 in/s²) and sideways coasting (50.61 in/s²) | `drive.forwardCoastInchesPerSecondSquared` / `drive.lateralCoastInchesPerSecondSquared`: copies of Pedro's `naturalForwardDeceleration` / `naturalStrafeDeceleration` (Pedro's zero-power acceleration tuners) |
+
+These are copies, not read live: `TeamAConfigMatchesPedroTest` (a PVI extra) fails and names the
+line to update when Pedro is re-tuned and the copy isn't.
 
 If the robot changes (new wheels, more weight), re-run those Pedro tuners and update
-`TeamAPedroConfiguration`. The harness picks up the new values by itself.
+`TeamAPedroConfiguration`, then copy the new numbers into those four `harness.properties` lines
+(`TeamAConfigMatchesPedroTest` tells you which ones).
 
 ## Checklist
 
 ### 1. Robot length and width (5 minutes)
 
 - **Measure:** bumper to bumper, front to back (length) and side to side (width), in inches.
-- **Replaces:** `DriveModels.teamA()`, the two `18.0` `ModelValue.INCHES` placeholders.
+- **Replaces:** `robot.lengthInches` and `robot.widthInches` in `harness.properties` (both `18 | placeholder` today).
 - **Why it matters:** where the robot stops against a wall, the robot box in the viewer, and the
   "never hits a wall" check in generated tests.
 - **Sanity check:** Pedro's routes start the robot's center 8 in from a wall (`(56, 8)`), so the
@@ -40,7 +45,7 @@ If the robot changes (new wheels, more weight), re-run those Pedro tuners and up
   2 s, starting already spinning (spin 1 s first, then time 2 s). Read the heading from the
   Pinpoint before and after (the TeleOp or a Pedro OpMode shows it on the Driver Station).
   Turn rate = degrees turned ÷ 2 s. Do it three times, both directions, and use the average.
-- **Replaces:** `DriveModels.teamA()`, the `180.0` `ModelValue.DEGREES_PER_SECOND` placeholder.
+- **Replaces:** `drive.turnRateDegreesPerSecond` in `harness.properties` (`180 | placeholder` today).
 - **Why it matters:** how fast the simulated robot turns, and so how Pedro's heading control
   behaves in the harness.
 
@@ -57,8 +62,8 @@ These are the momentum values: how quickly the robot speeds up.
     (speed change ÷ time between two loops, averaged over a few loops).
   - **Response time** = after that first steep part, the time it takes to close 63% of the
     remaining gap to full speed, in seconds.
-- **Replaces:** `Dynamics.teamA()`, `0.10` `Dynamics.SECONDS` (response time) and `200.0`
-  `Dynamics.INCHES_PER_SECOND_SQUARED` (maximum acceleration).
+- **Replaces:** `drive.responseTimeSeconds` (`0.10`) and
+  `drive.maxAccelerationInchesPerSecondSquared` (`200`) in `harness.properties`, both placeholders today.
 - **Why it matters:** how far the robot overshoots and how Pedro's braking behaves.
 
 ### 4. Other motors' encoders (only if a test needs them)
@@ -86,7 +91,7 @@ These are the momentum values: how quickly the robot speeds up.
 ### Route times and end errors to compare (for step 3)
 
 The harness numbers come from `PedroRouteTest`, which prints them each run (for example
-`DECODE Route finished 12.86 s after PLAY, ended 0.095 in and 0.03 deg from its target`). The
+`DECODE Route finished 13.54 s after PLAY, ended 0.192 in and -0.04 deg from its target`). The
 time is from PLAY until the Driver Station first shows **Sequence Complete: true**. Fill in the
 robot columns at the robot, timing the same way. The harness numbers are from before
 calibration (placeholder robot size, response time and traction), so rerun the test after
@@ -94,11 +99,11 @@ steps 1-3 and update them.
 
 | Route | Harness time (s) | Harness end error | Robot time (s) | Robot end error | Date |
 |---|---|---|---|---|---|
-| LP-11 Pilot (24 in) | 0.96 | 0.24 in, 0.0° | | | |
-| DECODE Route | 12.86 | 0.10 in, 0.0° | | | |
-| Curving Test | 19.56 | 0.25 in, 1.6° | | | |
+| LP-11 Pilot (24 in) | 1.06 | 0.16 in, 0.0° | | | |
+| DECODE Route | 13.54 | 0.19 in, 0.0° | | | |
+| Curving Test | 17.78 | 0.16 in, 0.0° | | | |
 
-Harness numbers measured 2026-10-24.
+Harness numbers measured 2026-10-27 with Pedro 3 (Team A's new Foresight path follower). With Pedro 2 (2026-10-24) they were 0.96 s / 0.24 in, 12.86 s / 0.10 in and 19.56 s / 0.25 in, 1.6°.
 
 ## A helper OpMode that would make this easier (not added)
 

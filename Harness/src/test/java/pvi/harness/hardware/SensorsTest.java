@@ -9,7 +9,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 import org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAPedroPilotAutoOpMode;
-import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
+import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroPathRoute;
 import org.junit.jupiter.api.Test;
 
 import java.util.regex.Matcher;
@@ -248,7 +248,7 @@ class SensorsTest {
     @Test
     void teamARobotHasAPinpointAndBatteryVoltage() {
         FakeHardwareMap robot = RobotConfigs.teamA();
-        String name = TeamAPedroHarnessAccess.recordedPinpointConstants().hardwareMapName;
+        String name = pvi.harness.runtime.HarnessConfig.load().pinpointName();
 
         assertNotNull(robot.get(GoBildaPinpointDriver.class, name));
         assertEquals(FakeVoltageSensor.DEFAULT_VOLTS, robot.voltageSensor.iterator().next().getVoltage(), 1e-9);
@@ -278,10 +278,12 @@ class SensorsTest {
         RunResult result = runner.run(1.0, 30.0);
 
         result.assertNoException();
-        assertEquals("DECODE Route", result.telemetry().lastValue("Path"));
+        assertEquals("DECODE Route", result.telemetry().lastValue("Selected Route"));
         assertTrue(runner.hardwareMap().pinpoint("pinpoint").updateCount() > 1000, "Pedro read the Pinpoint every loop");
 
-        double[] start = parsePose(result.telemetry().lastValue("Expected Start"));
+        // Where Pedro thinks the route starts (Pedro 3's OpMode no longer shows it; the route knows).
+        TeamAPedroPathRoute route = TeamAPedroPathRoute.DECODE_ROUTE;
+        double[] start = {route.getStartXInches(), route.getStartYInches(), Math.toDegrees(route.getStartHeadingRadians())};
         double[] pedro = parsePose(result.telemetry().lastValue("Current Pose"));
         Pose harness = runner.positionEstimator().pose();
         assertTrue(harness.distanceInchesTo(Pose.ORIGIN) > 12.0, "the robot really moved: " + harness);

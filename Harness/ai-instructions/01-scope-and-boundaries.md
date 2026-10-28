@@ -51,8 +51,9 @@ folder does not.
 ## Robot packages inside the harness
 
 Some harness files have to use a TeamCode package name to read package-private values, such as
-`src/main/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroHarnessAccess.java`. That's
-allowed because the file lives in `Harness/`. Rules for these bridge files:
+`src/pvi/java/org/firstinspires/ftc/teamcode/robots/teamA/TeamAPedroHarnessAccess.java` (a PVI
+extra, built only with `pvi.extras=true` in `harness.properties`; the harness core never uses
+it). That's allowed because the file lives in `Harness/`. Rules for these bridge files:
 
 - They only **read** robot values. They never change robot behavior.
 - Their class comment starts with `HARNESS FILE, not robot code.`

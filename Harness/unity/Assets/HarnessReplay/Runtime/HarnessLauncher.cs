@@ -34,6 +34,11 @@ namespace PviHarness.Replay
         public const double StartTimeoutSeconds = 180;
         /// <summary>Android Studio's Java, which the harness docs use for Gradle.</summary>
         public const string AndroidStudioJava = @"C:\Program Files\Android\Android Studio\jbr";
+        /// <summary>The oldest Java the harness build runs on.</summary>
+        public const int MinimumJava = 17;
+        /// <summary>What Live mode says when there is no Java it can use (the window puts "Live mode: " first).</summary>
+        public const string NeedsJavaMessage = "Needs Java 17 or newer: install Android Studio or a "
+            + "Java 17+ JDK (adoptium.net) and set JAVA_HOME.";
 
         private readonly string harnessFolder;
         private readonly int port;
@@ -117,6 +122,79 @@ namespace PviHarness.Replay
             return -1;
         }
 
+        /// <summary>
+        /// Why there is no Java that gradlew.bat could use, or null if there is one. gradlew.bat uses
+        /// <paramref name="javaHome"/> when it is set, else the first java.exe on
+        /// <paramref name="pathVariable"/> (the PATH). A Java whose version can be read from its
+        /// <c>release</c> file must be 17 or newer; one without that file is given the benefit of the
+        /// doubt (Gradle then says what is wrong in the log).
+        /// </summary>
+        public static string JavaProblem(string javaHome, string pathVariable)
+        {
+            if (!string.IsNullOrEmpty(javaHome))
+            {
+                if (!File.Exists(Path.Combine(javaHome, "bin", "java.exe")))
+                {
+                    return "JAVA_HOME (" + javaHome + ") has no bin\\java.exe";
+                }
+                return TooOld(javaHome, "JAVA_HOME (" + javaHome + ")");
+            }
+            foreach (string folder in (pathVariable ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string java;
+                try
+                {
+                    java = Path.Combine(folder.Trim().Trim('"'), "java.exe");
+                }
+                catch (ArgumentException)
+                {
+                    continue; // a PATH entry with characters a path can't have
+                }
+                if (File.Exists(java))
+                {
+                    return TooOld(Path.GetDirectoryName(Path.GetDirectoryName(java)), "The java on PATH (" + java + ")");
+                }
+            }
+            return "no JAVA_HOME, no Android Studio Java and no java on PATH";
+        }
+
+        /// <summary>
+        /// The Java version in a Java folder's <c>release</c> file (JAVA_VERSION="17.0.9" is 17, and
+        /// "1.8.0_392" is 8), or -1 if the file is missing or can't be read.
+        /// </summary>
+        public static int JavaMajorVersion(string javaFolder)
+        {
+            try
+            {
+                string release = Path.Combine(javaFolder ?? "", "release");
+                if (!File.Exists(release))
+                {
+                    return -1;
+                }
+                string line = File.ReadAllLines(release).FirstOrDefault(l => l.StartsWith("JAVA_VERSION=", StringComparison.Ordinal));
+                if (line == null)
+                {
+                    return -1;
+                }
+                string[] parts = line.Substring("JAVA_VERSION=".Length).Trim().Trim('"').Split('.', '_', '-', '+');
+                if (!int.TryParse(parts[0], out int major))
+                {
+                    return -1;
+                }
+                return major == 1 && parts.Length > 1 && int.TryParse(parts[1], out int old) ? old : major;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException)
+            {
+                return -1;
+            }
+        }
+
+        private static string TooOld(string javaFolder, string which)
+        {
+            int major = JavaMajorVersion(javaFolder);
+            return major >= 0 && major < MinimumJava ? which + " is Java " + major : null;
+        }
+
         /// <summary>True if something is listening on this computer's port (no connection is made).</summary>
         public static bool IsListening(int port)
         {
@@ -156,6 +234,14 @@ namespace PviHarness.Replay
             if (string.IsNullOrEmpty(javaHome) && Directory.Exists(AndroidStudioJava))
             {
                 javaHome = AndroidStudioJava;
+            }
+            string noJava = JavaProblem(javaHome, Environment.GetEnvironmentVariable("PATH"));
+            if (noJava != null)
+            {
+                // Gradle can't run at all, so its log would only be an old one: say what to install instead.
+                Problem = NeedsJavaMessage + " (" + noJava + ")";
+                State = LaunchState.Failed;
+                return;
             }
             try
             {

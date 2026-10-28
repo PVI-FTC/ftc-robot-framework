@@ -3,6 +3,9 @@ package pvi.harness.runtime;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.qualcomm.robotcore.hardware.DcMotorSimple.Direction;
+
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,15 +20,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HarnessConfigTest {
     /** A complete, valid file, so each test can break one line of it. */
     private static final String GOOD = String.join("\n",
-            "config.version=1",
+            "config.version=" + HarnessConfig.VERSION,
             "teamCode.sourceDir=../TeamCode/src/main/java",
+            "teamCode.opModePackages=org.example.robot, org.example.shared",
             "host.dependenciesFile=../build.dependencies.gradle",
             "host.skipLibraries=org.firstinspires.ftc:Blocks, androidx.appcompat:appcompat",
+            "robot.name=Test Bot",
             "drive.frontLeft=fl",
             "drive.frontRight=fr",
             "drive.rearLeft=rl",
             "drive.rearRight=rr",
             "pinpoint=odo",
+            "hardware.otherMotors=",
+            "hardware.servos=",
+            "devices.imu=imu",
+            "devices.crServos=",
+            "devices.distanceSensors=frontDistance, rearDistance",
+            "devices.touchSensors=",
+            "devices.colorSensors=",
+            "devices.analogInputs=",
+            "devices.otos=",
+            "devices.limelights=",
+            "devices.webcams=",
+            "devices.deadWheels=leftOdo:parallel:7.0, strafeOdo:perpendicular:-3.5",
+            "drive.frontLeft.direction=REVERSE",
+            "drive.frontRight.direction=FORWARD",
+            "drive.rearLeft.direction=REVERSE",
+            "drive.rearRight.direction=FORWARD",
+            "drive.forwardSpeedInchesPerSecond=60 | measured | velocity tuner",
+            "drive.strafeSpeedInchesPerSecond=50 | measured | velocity tuner",
+            "drive.forwardCoastInchesPerSecondSquared=40 | measured | zero power tuner",
+            "drive.lateralCoastInchesPerSecondSquared=45 | measured | zero power tuner",
+            "pvi.extras=false",
             "robot.lengthInches=17.5 | measured | tape measure, 2026-10-25",
             "robot.widthInches=18 | placeholder | not measured yet",
             "drive.turnRateDegreesPerSecond=180 | placeholder | not measured yet",
@@ -33,7 +59,11 @@ class HarnessConfigTest {
             "drive.maxAccelerationInchesPerSecondSquared=200 | placeholder | not measured yet",
             "drive.speedVoltage=12.5 | placeholder | not measured yet",
             "field=biobuzz-2026",
-            "viewer.open=false");
+            "field.robotObstacles=true",
+            "viewer.open=false",
+            "viewer.defaultTeleOp=",
+            "smokeTest.skipOpModes=KimCode TeleopV1, Old Test OpMode",
+            "smokeTest.notDrivingTeleOps=Camera Tool");
 
     private static String messageFor(String text) {
         return assertThrows(IllegalArgumentException.class, () -> HarnessConfig.fromText(text, "test.properties"))
@@ -50,10 +80,17 @@ class HarnessConfigTest {
     void theRealSettingsFileReadsCleanly() {
         HarnessConfig config = HarnessConfig.load(Path.of(HarnessConfig.FILE_NAME));
 
+        // Reading cleanly is the check in any repo; the values below are PVI's own robot.
+        Assumptions.assumeTrue(config.pviExtras(), "PVI's values; another team's file has its own");
         assertEquals("../TeamCode/src/main/java", config.teamCodeSourceDir());
         assertEquals(new HarnessConfig.DriveMotorNames("frontLeft", "frontRight", "rearLeft", "rearRight"),
                 config.driveMotors());
         assertEquals("pinpoint", config.pinpointName());
+        assertEquals("Team A", config.robotName());
+        assertEquals(List.of("intake"), config.otherMotors());
+        assertEquals(new HarnessConfig.DriveMotorDirections(Direction.REVERSE, Direction.FORWARD,
+                Direction.REVERSE, Direction.FORWARD), config.driveDirections(), "left REVERSE, right FORWARD");
+        assertTrue(config.forwardSpeed().measured(), "Team A's speeds come from Pedro's tuners");
         assertEquals(18.0, config.lengthInches().value());
         assertFalse(config.lengthInches().measured(), "the robot size is still a placeholder");
         assertEquals(5, config.skipLibraries().size(), "the five Android-only libraries");
@@ -131,6 +168,58 @@ class HarnessConfigTest {
     }
 
     /**
+     * WHAT: Each drive motor's forward direction is read as FORWARD or REVERSE, and anything else
+     * fails with the key.
+     *
+     * <p>WHY: A wrong direction makes the simulated robot drive the wrong way, so a typo must stop
+     * the run, not quietly count as FORWARD.</p>
+     */
+    @Test
+    void aDriveDirectionMustBeForwardOrReverse() {
+        HarnessConfig config = HarnessConfig.fromText(GOOD, "test.properties");
+        assertEquals(new HarnessConfig.DriveMotorDirections(Direction.REVERSE, Direction.FORWARD,
+                Direction.REVERSE, Direction.FORWARD), config.driveDirections());
+
+        String message = messageFor(GOOD.replace("drive.rearLeft.direction=REVERSE", "drive.rearLeft.direction=backward"));
+        assertTrue(message.contains("drive.rearLeft.direction: expected FORWARD or REVERSE, got \"backward\""), message);
+    }
+
+    /**
+     * WHAT: A list such as {@code hardware.otherMotors} may be empty, but the key must be there.
+     *
+     * <p>WHY: An empty list is a real answer ("no other motors"); a missing key is usually a
+     * forgotten line.</p>
+     */
+    @Test
+    void aListMayBeEmptyButNotMissing() {
+        assertEquals(List.of(), HarnessConfig.fromText(GOOD, "test.properties").otherMotors());
+        assertEquals(List.of("KimCode TeleopV1", "Old Test OpMode"),
+                HarnessConfig.fromText(GOOD, "test.properties").smokeTestSkipOpModes());
+        assertEquals(List.of("Camera Tool"), HarnessConfig.fromText(GOOD, "test.properties").smokeTestNotDrivingTeleOps());
+        assertEquals(List.of("org.example.robot", "org.example.shared"),
+                HarnessConfig.fromText(GOOD, "test.properties").opModePackages());
+
+        String message = messageFor(GOOD.replace("hardware.otherMotors=\n", ""));
+        assertTrue(message.contains("hardware.otherMotors: missing"), message);
+    }
+
+    /**
+     * WHAT: Dead-wheel pods are read as name:parallel|perpendicular:inches; a wrong kind or a
+     * number that isn't one fails with the key and the item.
+     */
+    @Test
+    void deadWheelsAreReadWithTheirKindAndOffset() {
+        assertEquals(List.of(new HarnessConfig.DeadWheel("leftOdo", true, 7.0),
+                        new HarnessConfig.DeadWheel("strafeOdo", false, -3.5)),
+                HarnessConfig.fromText(GOOD, "test.properties").deadWheels());
+
+        String sideways = messageFor(GOOD.replace("strafeOdo:perpendicular:-3.5", "strafeOdo:sideways:-3.5"));
+        assertTrue(sideways.contains("devices.deadWheels: expected name:parallel:inches"), sideways);
+        String notNumber = messageFor(GOOD.replace("leftOdo:parallel:7.0", "leftOdo:parallel:seven"));
+        assertTrue(notNumber.contains("\"seven\" in \"leftOdo:parallel:seven\" is not a number"), notNumber);
+    }
+
+    /**
      * WHAT: Every problem is listed in one message, not just the first.
      *
      * <p>WHY: Fixing a file one error per run is slow.</p>
@@ -151,8 +240,9 @@ class HarnessConfigTest {
      */
     @Test
     void aDifferentConfigVersionIsRefused() {
-        String message = messageFor(GOOD.replace("config.version=1", "config.version=2"));
+        int other = HarnessConfig.VERSION + 1;
+        String message = messageFor(GOOD.replace("config.version=" + HarnessConfig.VERSION, "config.version=" + other));
 
-        assertTrue(message.contains("reads version " + HarnessConfig.VERSION + ", the file says 2"), message);
+        assertTrue(message.contains("reads version " + HarnessConfig.VERSION + ", the file says " + other), message);
     }
 }

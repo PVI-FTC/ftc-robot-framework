@@ -54,7 +54,7 @@ public final class RecordingViewer {
             if (fileGiven) {
                 ViewerWindow.open(recording, name);
             } else {
-                LiveDrive.Option teamA = LiveDrive.options().get(0);
+                LiveDrive.Option teamA = LiveDrive.defaultOption();
                 System.out.println("Starting live drive: " + teamA.title() + " (press Enter for PLAY)");
                 ViewerWindow.openDriving(recording, name, teamA);
             }

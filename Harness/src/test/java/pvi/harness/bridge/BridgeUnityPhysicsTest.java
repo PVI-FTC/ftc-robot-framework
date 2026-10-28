@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import pvi.harness.physics.DriveModels;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.JsonReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,8 +37,8 @@ class BridgeUnityPhysicsTest {
     }
 
     private Map<String, Object> loadTeleOp(String physics) {
-        send("{\"type\": \"hello\", \"version\": 4}");
-        return send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"physics\": \"" + physics + "\"}");
+        send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}");
+        return send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\", \"physics\": \"" + physics + "\"}");
     }
 
     @SuppressWarnings("unchecked")
@@ -88,7 +89,7 @@ class BridgeUnityPhysicsTest {
     }
 
     /**
-     * WHAT: "loaded" tells Unity how to move this robot like the harness would: Team A's speeds,
+     * WHAT: "loaded" tells Unity how to move this robot like the harness would: the configured robot's speeds,
      * response and traction numbers, size and start pose.
      */
     @Test
@@ -96,10 +97,10 @@ class BridgeUnityPhysicsTest {
     void loadedDescribesTheRobotForUnitysPhysics() {
         Map<String, Object> robot = (Map<String, Object>) loadTeleOp("unity").get("robotPhysics");
 
-        assertEquals(DriveModels.teamA().forwardInchesPerSecond(), (Double) robot.get("forwardInchesPerSecond"), 1e-5);
-        assertEquals(DriveModels.teamA().dynamics().maxAcceleration().value(),
+        assertEquals(DriveModels.fromConfig(HarnessConfig.load()).forwardInchesPerSecond(), (Double) robot.get("forwardInchesPerSecond"), 1e-5);
+        assertEquals(DriveModels.fromConfig(HarnessConfig.load()).dynamics().maxAcceleration().value(),
                 (Double) robot.get("maxAccelerationInchesPerSecondSquared"), 1e-5);
-        assertEquals(DriveModels.teamA().lengthInches(), (Double) robot.get("lengthInches"), 1e-5);
+        assertEquals(DriveModels.fromConfig(HarnessConfig.load()).lengthInches(), (Double) robot.get("lengthInches"), 1e-5);
         assertEquals(0.0, (Double) ((Map<String, Object>) robot.get("start")).get("xInches"), 1e-9);
     }
 
@@ -120,6 +121,31 @@ class BridgeUnityPhysicsTest {
     }
 
     /**
+     * WHAT: An obstacle contact Unity reports (version 5) becomes the same "Robot hit the HIVE frame"
+     * event the harness's own physics makes; "loaded" tells Unity whether the field elements block
+     * the robot (harness.properties field.robotObstacles).
+     * WHY: Both physics modes must give the same events, so recorded tests can check them.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void anObstacleContactFromUnityIsAnObstacleHit() {
+        Map<String, Object> robot = (Map<String, Object>) loadTeleOp("unity").get("robotPhysics");
+        assertEquals(HarnessConfig.load().robotObstacles(), robot.get("robotObstacles"));
+        send("{\"type\": \"init\"}");
+        send("{\"type\": \"play\", \"physicsState\": " + state(0, 0, 0, 0, "") + "}");
+
+        String touching = state(0, -15.16, 0, 0, "").replace("\"wallContact\": \"\"",
+                "\"wallContact\": \"\", \"obstacleContact\": \"HIVE frame\"");
+        Map<String, Object> frame = send("{\"type\": \"step\", \"physicsState\": " + touching + "}");
+
+        assertTrue(String.valueOf(frame.get("events")).contains("Robot hit the HIVE frame"), "events: " + frame.get("events"));
+        Map<String, Object> bad = send("{\"type\": \"step\", \"physicsState\": "
+                + touching.replace("\"HIVE frame\"", "7") + "}");
+        assertEquals("error", bad.get("type"));
+        assertTrue(String.valueOf(bad.get("message")).contains("obstacleContact"), String.valueOf(bad));
+    }
+
+    /**
      * WHAT: Mix-ups get clear errors and the session carries on: a step without physicsState under
      * Unity's physics, a physicsState under the harness's own, a wrong "physics" value, a
      * non-number in physicsState.
@@ -135,10 +161,10 @@ class BridgeUnityPhysicsTest {
         Map<String, Object> badNumber = send("{\"type\": \"step\", \"physicsState\": {\"xInches\": \"far\"}}");
         assertTrue(((String) badNumber.get("message")).contains("physicsState.xInches must be a number"), String.valueOf(badNumber));
 
-        Map<String, Object> wrong = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"physics\": \"real\"}");
+        Map<String, Object> wrong = send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\", \"physics\": \"real\"}");
         assertTrue(((String) wrong.get("message")).contains("\"physics\" must be"), String.valueOf(wrong));
 
-        assertEquals("harness", send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}").get("physics"));
+        assertEquals("harness", send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\"}").get("physics"));
         send("{\"type\": \"init\"}");
         Map<String, Object> notWanted = send("{\"type\": \"step\", \"physicsState\": " + state(0, 0, 0, 0, "") + "}");
         assertTrue(((String) notWanted.get("message")).contains("must not carry"), String.valueOf(notWanted));

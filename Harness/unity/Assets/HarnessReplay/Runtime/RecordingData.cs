@@ -97,6 +97,28 @@ namespace PviHarness.Replay
         /// Pieces not listed are where they were. <see cref="GamePieceTrack"/> adds these up.
         /// </summary>
         public List<PieceData> pieces = new List<PieceData>();
+        /// <summary>
+        /// The AprilTags in each fake webcam's latest picture during this call (version 3): what robot code
+        /// could detect. Empty with no webcam or no tag in view.
+        /// </summary>
+        public List<AprilTagSeenData> aprilTags = new List<AprilTagSeenData>();
+    }
+
+    /// <summary>
+    /// One AprilTag a webcam saw, measured from its lens like the SDK's ftcPose: right, forward and up
+    /// (inches) and yaw, pitch and roll (degrees). Where the webcam sits on the robot isn't recorded.
+    /// </summary>
+    public sealed class AprilTagSeenData
+    {
+        /// <summary>The webcam's configuration name, e.g. "logitechVisionWebcam".</summary>
+        public string camera;
+        public int id;
+        public double rightInches;
+        public double forwardInches;
+        public double upInches;
+        public double yawDegrees;
+        public double pitchDegrees;
+        public double rollDegrees;
     }
 
     /// <summary>

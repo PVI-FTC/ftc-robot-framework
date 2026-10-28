@@ -4,9 +4,9 @@ A Unity project for watching harness runs in 3D. It is part of the FTC test harn
 the rules in [`../ai-instructions/`](../ai-instructions/README.md), especially
 [02-unity-readiness.md](../ai-instructions/02-unity-readiness.md).
 
-**Status:** Stage U1 (replay) works: it replays the run recordings the harness saves in
-`Harness/build/recordings/` (the same `.json` files the Swing viewer opens). Nothing here talks
-to the harness live yet; that is Stage U2. See [`../PROGRESS.md`](../PROGRESS.md).
+**Status:** all three stages work: U1 replays the run recordings the harness saves in
+`Harness/build/recordings/` (the same `.json` files the Swing viewer opens), U2 shows a live run
+over the bridge, and U3 lets Unity be the physics for driving and blocking. See [`../PROGRESS.md`](../PROGRESS.md).
 
 ## Open it
 
@@ -25,7 +25,7 @@ to the harness live yet; that is Stage U2. See [`../PROGRESS.md`](../PROGRESS.md
 The window is laid out like the Swing viewer, in the same dark "mission control" style: the
 **FTC HARNESS** header with the mission clock (`T+ 00:02.00`) and stage, the **Replay** chooser
 (click it to pick a recording; **Replays...** opens any file), the field with its caption and
-legend, the cards on the right (Vehicle, Position, Auto step, Motors, Driver Station, Events), both
+legend, the cards on the right (Vehicle, Position, Auto step, Motors, Driver Station, Events; a long OpMode name is cut with "..." in the Vehicle card, and the full name is in the header line), both
 gamepads with held buttons lit, and the playback bar at the bottom (buttons, Speed, time, slider).
 The field starts in a straight-down view that looks like the Swing field; T switches to an angled
 3D view. Wheels light cyan when driving forward and amber in reverse, like the Swing robot.
@@ -43,6 +43,8 @@ The field starts in a straight-down view that looks like the Swing field; T swit
 | T | Switch between top-down (the default, FTC +y up the screen, like the Swing viewer) and angled 3D |
 | 1–7 (or the View buttons above the field) | Preset viewpoints, with a smooth move: 1 Audience (behind the audience wall), 2 Red drive team, 3 Blue drive team (eye height, from each alliance area), 4 Top-down, 5 Corner (high, from the red/audience corner), 6 HIVE close-up (low, looking up at the cells and their AprilTags), 7 Robot chase (behind the robot, turning with it). Turning or zooming afterwards starts from that view |
 | F | Follow the robot |
+| A | Show or hide **what the webcams saw** (on by default, remembered; also on the Visuals screen): for a recording with AprilTag detections (format version 3+ `aprilTags`), a thin cyan line from the robot to each tag in view at that moment, with its id, and a **Tags in view** card worded exactly like the Swing viewer's (id, range, bearing, camera). Where the webcam sits on the robot isn't in the recording or `harness.properties`, so the lines start at the middle of the robot's top, facing its front, and end where the camera measured the tag (its ftcPose). Detections are scripted in tests, so a tag is drawn where the camera reported it, not at its place in the field file |
+| O | Show or hide the **ball obstacles** in magenta: the shapes the harness's balls bounce off (`pieceObstacles` in the field file: the HIVE frame's lips and feet, the FLOWER wall brackets and heads). Drawing only |
 | Right-drag, scroll (over the field) | Turn the camera (switches to 3D), zoom |
 
 The slider jumps anywhere in the run; the Speed box picks 0.25x to 4x. The Driver Station card
@@ -61,7 +63,7 @@ Watch the real TeamCode run **while you drive**, with your game controller:
    **Live mode** (or press **L**), right of the chooser. It starts the harness side for you in the
    background: the lamp goes amber while it starts (a few seconds; up to a minute the first time),
    then green.
-3. Open the **Replay** chooser and pick **Live: Team A TeleOp** (or another).
+3. Open the **Replay** chooser and pick **Live: Team A Mecanum Drive** (Team A's TeleOp; every TeamCode OpMode is listed).
    The header shows **LIVE**; the line under the chooser says what to press and which controller
    drives each gamepad.
 4. **Enter** = PLAY, **Esc** = STOP (or the buttons in the bottom bar). The run also stops by
@@ -78,7 +80,11 @@ Clicking **Live mode** again (or closing the app) ends the run and the harness s
 If you started `.\gradlew.bat unityBridge` yourself, Live mode just uses it and leaves it running.
 If it can't start, the button says **Failed** and the message names the reason and the log,
 `Harness/build/unity-bridge.log`. It needs the whole `Harness` folder (it runs `gradlew.bat`) and
-Java: `JAVA_HOME`, or Android Studio's Java, which it finds by itself.
+Java 17 or newer: `JAVA_HOME`, else Android Studio's Java (which it finds by itself), else `java` on
+the PATH. If none of those is a Java 17 or newer, Live mode doesn't try to start and says so: "Live
+mode: Needs Java 17 or newer: install Android Studio or a Java 17+ JDK (adoptium.net) and set
+JAVA_HOME", followed by what it found (for example "JAVA_HOME (...) is Java 11"). Replays don't
+need Java.
 
 **Harness → Live Smoke Test** checks the connection without a controller (needs `unityBridge`
 running). **Harness → Live Mode Smoke Test** does the same, but lets the Live mode launcher start and
@@ -91,8 +97,11 @@ and Unity's physics engine moves the robot instead of the harness's own physics.
 title then ends in "Unity physics".
 - The robot speeds up, slows down and coasts the same way as with the harness's physics
   (`DriveLaw.cs`, a copy of the harness's `MomentumPhysics`).
-- The walls and the solid parts of the field shown now (BIOBUZZ's HIVE frame and FLOWERS) really
-  stop the robot, and it slides along them. CELLS high above the floor don't block it.
+- The walls really stop the robot, and it slides along them. When the harness has
+  `field.robotObstacles=true` (the default), so do the field elements: the same 18 shapes the harness's
+  own physics uses (the field file's `pieceObstacles`: the HIVE frame's lips and feet, the FLOWERs' brackets
+  and heads), and a touch is reported as "Robot hit the HIVE frame" / "... FLOWER" in Events, just like
+  with the harness's physics (bridge format version 5). Press **O** to see the shapes.
 - The robot stays flat on the floor, and game pieces aren't simulated yet.
 - The choice is remembered. It can change only between live runs, and the field used for blocking
   is the one shown when the run starts.
@@ -147,8 +156,12 @@ the trail and Unity's physics are never affected. That's checked in `SettingBuil
   there.
 - **Import settings:** in `Editor/SettingArtImport.cs`. The top-down view keeps its plain dark background.
 
-Start-up options (handy for demos): `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-view 3d`,
-`-zoom 3` (times the normal distance), `-yaw 30` (degrees).
+Start-up options (handy for demos): `-at 5.4` (open the replay at that many seconds), `-obstacles` (start with the O drawing on), `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-view 3d`,
+`-zoom 3` (times the normal distance), `-yaw 30` (degrees). To check that a view draws smoothly,
+`-fpslog <file>` (with optional `-fpsseconds 10`) waits 5 s, measures the frame rate, writes the
+average, slowest-frame and 1%-low fps (plus the graphics card) to that file and closes the app
+(`FrameRateLog.cs`). On the team laptop (RTX 2060, 2560×1369, Ultra) the full competition-hall crowd
+holds 60 fps (the vsync limit) in every camera preset and a zoomed-out view (2026-10-27).
 
 ## The official field CAD
 

@@ -16,6 +16,7 @@ import pvi.harness.physics.Pose;
 import pvi.harness.physics.PoseEstimator;
 import pvi.harness.physics.WheelPushes;
 import pvi.harness.physics.WheelReader;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.JsonReader;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunRecorder;
@@ -83,7 +84,7 @@ public final class BridgeSession {
     /** Unity's physics when the run was loaded with "physics": "unity"; null for the harness's own. */
     private RemotePhysics remotePhysics;
     /** Reads the drive wheels for each frame's driveCommand, the same way the position estimate does. */
-    private final WheelReader wheels = WheelReader.teamA();
+    private final WheelReader wheels = WheelReader.fromConfig(HarnessConfig.load());
 
     /** A session that reads real controllers (Jamepad) when a run asks for them. */
     public BridgeSession() {
@@ -370,18 +371,24 @@ public final class BridgeSession {
             throw new IllegalArgumentException("This run uses Unity's physics (\"physics\": \"unity\"), so each "
                     + "\"step\" and \"play\" needs a \"physicsState\" object: {\"xInches\", \"yInches\", "
                     + "\"headingRadians\", \"forwardInchesPerSecond\", \"leftInchesPerSecond\", "
-                    + "\"counterClockwiseRadiansPerSecond\", \"wallContact\"}.");
+                    + "\"counterClockwiseRadiansPerSecond\", \"wallContact\", \"obstacleContact\" (optional)}.");
         }
         Map<String, Object> state = (Map<String, Object>) raw;
         Object contact = state.getOrDefault("wallContact", "");
         if (!(contact instanceof String)) {
             throw new IllegalArgumentException("physicsState.wallContact must be text like \"+x\", \"+x/-y\" or \"\".");
         }
+        // Version 5: which field elements Unity's robot is pressed against ("HIVE frame", "far FLOWER").
+        Object obstacles = state.getOrDefault("obstacleContact", "");
+        if (!(obstacles instanceof String)) {
+            throw new IllegalArgumentException("physicsState.obstacleContact must be text like \"HIVE frame\", "
+                    + "\"HIVE frame/far FLOWER\" or \"\".");
+        }
         remotePhysics.supply(new PhysicsBackend.State(
                 new Pose(number(state, "xInches"), number(state, "yInches"), number(state, "headingRadians")),
                 new MecanumKinematics.RobotVelocity(number(state, "forwardInchesPerSecond"),
                         number(state, "leftInchesPerSecond"), number(state, "counterClockwiseRadiansPerSecond")),
-                (String) contact));
+                (String) contact, (String) obstacles));
     }
 
     private static double number(Map<String, Object> object, String name) {
@@ -433,6 +440,7 @@ public final class BridgeSession {
                         d == null ? "null" : RunRecordingJson.number(d.forwardCoast().value()))
                 + ", " + field("lateralCoastInchesPerSecondSquared",
                         d == null ? "null" : RunRecordingJson.number(d.lateralCoast().value()))
+                + ", " + field("robotObstacles", String.valueOf(HarnessConfig.load().robotObstacles()))
                 + ", " + field("start", "{" + field("xInches", RunRecordingJson.number(start.xInches()))
                         + ", " + field("yInches", RunRecordingJson.number(start.yInches()))
                         + ", " + field("headingRadians", RunRecordingJson.number(start.headingRadians())) + "}")

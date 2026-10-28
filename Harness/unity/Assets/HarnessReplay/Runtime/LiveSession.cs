@@ -92,7 +92,7 @@ namespace PviHarness.Replay
     public sealed class LiveSession : IDisposable
     {
         /// <summary>The message format this client speaks.</summary>
-        public const int ProtocolVersion = 4;
+        public const int ProtocolVersion = 5;
 
         /// <summary>One OpMode the harness offers.</summary>
         public sealed class OpModeChoice

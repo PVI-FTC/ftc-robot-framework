@@ -97,7 +97,7 @@ namespace PviHarness.Replay
             if (recording != null)
             {
                 DrawFieldTexts(layout, recording, timeline);
-                DrawCards(layout.cards, recording, timeline.Index);
+                DrawCards(layout.cards, recording, timeline.Index, replay.ShowAprilTags);
                 DrawGamepads(layout.gamepads, recording.loops[timeline.Index]);
                 DrawControls(layout.controls, recording, timeline, replay);
             }
@@ -342,6 +342,13 @@ namespace PviHarness.Replay
                 }
             }
 
+            // What the webcams saw: on or off (the A key does the same).
+            var tagsSwitch = new Rect(panel.x + 24, panel.yMax - 20 - 28, 260, 28);
+            if (FlatButton(tagsSwitch, "AprilTag sight lines: " + (replay.ShowAprilTags ? "On" : "Off") + "  (A)"))
+            {
+                replay.SetShowAprilTags(!replay.ShowAprilTags);
+            }
+
             var done = new Rect(panel.xMax - 24 - 110, panel.yMax - 20 - 28, 110, 28);
             if (FlatButton(done, "Done  (V)"))
             {
@@ -513,7 +520,7 @@ namespace PviHarness.Replay
 
         // ---- Cards (the right-hand column) ---------------------------------------------------------
 
-        private void DrawCards(Rect area, RunRecordingData recording, int index)
+        private void DrawCards(Rect area, RunRecordingData recording, int index, bool showAprilTags)
         {
             HudTheme.Fill(area, HudTheme.Background);
             bool scroll = cardsContentHeight > area.height;
@@ -528,9 +535,11 @@ namespace PviHarness.Replay
             // Vehicle: what is running.
             y = Card("Vehicle", y, width, 44, top =>
             {
-                Readout(Pad + 12, top, "OpMode", header.opMode);
-                Readout(Pad + 12 + width * 2 / 5, top, "Period", header.period ?? "-");
-                Readout(Pad + 12 + width * 7 / 10, top, "Robot", header.robotConfig);
+                // Each value is cut to its column ("TeamAAprilTagVisi...") so a long OpMode name can't run
+                // into PERIOD; the full name is in the header line above.
+                Readout(Pad + 12, top, "OpMode", VehicleText(header.opMode, width, 0));
+                Readout(Pad + 12 + width * 2 / 5, top, "Period", VehicleText(header.period ?? "-", width, 1));
+                Readout(Pad + 12 + width * 7 / 10, top, "Robot", VehicleText(header.robotConfig, width, 2));
             }) + CardGap;
 
             // Position: big numbers.
@@ -553,6 +562,23 @@ namespace PviHarness.Replay
                 y = Card("Auto step", y, width, 28, top =>
                     HudTheme.DrawText(HudTheme.Ellipsize(loop.autoStep, HudTheme.Style("normal", 15), width - 24), Pad + 12, top + 20,
                         HudTheme.Style("normal", 15), HudTheme.Accent)) + CardGap;
+            }
+
+            // AprilTags the camera saw at this moment (only for runs that ever saw one), as the Swing viewer shows them.
+            if (showAprilTags && HudText.AnyAprilTags(recording))
+            {
+                List<string> tags = HudText.AprilTagLines(loop);
+                y = Card("Tags in view", y, width, tags.Count * 17 + 2, top =>
+                {
+                    GUIStyle mono = HudTheme.Style("mono", 12);
+                    float lineY = top + 13;
+                    foreach (string line in tags)
+                    {
+                        HudTheme.DrawText(HudTheme.Ellipsize(line, mono, width - 24), Pad + 12, lineY, mono,
+                            loop.aprilTags.Count == 0 ? HudTheme.Muted : HudTheme.Accent);
+                        lineY += 17;
+                    }
+                }) + CardGap;
             }
 
             // Motors and servos: a gauge each.
@@ -627,6 +653,23 @@ namespace PviHarness.Replay
         }
 
         /// <summary>A small label over a value.</summary>
+        /// <summary>
+        /// A Vehicle card value cut with "..." to fit its column (0 OpMode, 1 Period, 2 Robot) of a card
+        /// <paramref name="cardWidth"/> wide, in the readout font.
+        /// </summary>
+        public static string VehicleText(string value, float cardWidth, int column)
+        {
+            float[] starts = { 0f, cardWidth * 2 / 5, cardWidth * 7 / 10, cardWidth - 24 };
+            float room = starts[column + 1] - starts[column] - 12;
+            return HudTheme.Ellipsize(value ?? "", HudTheme.Style("normal", 15), room);
+        }
+
+        /// <summary>How wide a Vehicle card value is in the readout font (for tests).</summary>
+        public static float ReadoutWidth(string value)
+        {
+            return HudTheme.Width(value, HudTheme.Style("normal", 15));
+        }
+
         private static void Readout(float x, float top, string label, string value)
         {
             HudTheme.Label(label, x, top + 10, 9, HudTheme.Faint);

@@ -37,9 +37,14 @@ class BridgeSessionTest {
         return (Map<String, Object>) JsonReader.parse(session.handle(line));
     }
 
+    /** The TeleOp these tests drive: this repo's (viewer.defaultTeleOp, else the first TeleOp found). */
+    private static final String TELEOP = BridgeTestOpModes.teleOp().id();
+    /** Its front-left drive motor, by its configuration name. */
+    private static final String FRONT_LEFT = BridgeTestOpModes.frontLeft();
+
     /** hello + load, ready for "init". */
     private void connectAndLoad(String opMode) {
-        assertEquals("welcome", send("{\"type\": \"hello\", \"version\": 4}").get("type"));
+        assertEquals("welcome", send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}").get("type"));
         assertEquals("loaded", send("{\"type\": \"load\", \"opMode\": \"" + opMode + "\"}").get("type"));
     }
 
@@ -67,22 +72,26 @@ class BridgeSessionTest {
     // ---- Handshake ------------------------------------------------------------------------------
 
     /**
-     * WHAT: "hello" with version 4 gets "welcome" listing the OpModes Unity can run.
+     * WHAT: "hello" with the current version gets "welcome" listing the OpModes Unity can run.
      * WHY: Unity builds its menu from this list, and must know both sides speak the same version.
      */
     @Test
     @SuppressWarnings("unchecked")
     void helloListsTheOpModes() {
-        Map<String, Object> welcome = send("{\"type\": \"hello\", \"version\": 4, \"client\": \"test\"}");
+        Map<String, Object> welcome = send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + ", \"client\": \"test\"}");
 
         assertEquals("welcome", welcome.get("type"));
         assertEquals((double) BridgeProtocol.VERSION, welcome.get("version"));
         assertEquals(0.02, welcome.get("loopPeriodSeconds"));
         List<Object> opModes = (List<Object>) welcome.get("opModes");
-        Map<String, Object> first = (Map<String, Object>) opModes.get(0);
-        assertEquals("teamA-teleop", first.get("id"));
-        assertEquals("TELEOP", first.get("period"));
+        Map<String, Object> teleOp = (Map<String, Object>) opModes.stream()
+                .filter(o -> TELEOP.equals(((Map<String, Object>) o).get("id"))).findFirst().orElseThrow();
+        assertEquals(BridgeTestOpModes.teleOp().title(), teleOp.get("title"));
+        assertEquals("TELEOP", teleOp.get("period"));
         assertEquals(BridgeOpModes.all().size(), opModes.size());
+        if (BridgeTestOpModes.pvi()) {
+            assertEquals("Team A Mecanum Drive", teleOp.get("title"), "PVI's Team A TeleOp, by its Driver Station name");
+        }
     }
 
     /**
@@ -95,7 +104,7 @@ class BridgeSessionTest {
 
         assertEquals("error", reply.get("type"));
         String message = (String) reply.get("message");
-        assertTrue(message.contains("version 4") && message.contains("version 99"), message);
+        assertTrue(message.contains("version " + BridgeProtocol.VERSION) && message.contains("version 99"), message);
         assertTrue(session.isClosing());
     }
 
@@ -105,7 +114,7 @@ class BridgeSessionTest {
      * WHAT: A whole TeleOp run driven from "Unity": the robot drives forward while the gamepad
      * says full forward, and each frame carries the stage and pose.
      *
-     * <p>HOW: load Team A TeleOp, init, 10 init_loop steps, play, then 50 steps (1 s) with the left
+     * <p>HOW: load this repo's TeleOp (Team A's for PVI), init, 10 init_loop steps, play, then 50 steps (1 s) with the left
      * stick full forward, then stop. The robot ends well forward (over 30 in; Team A tops out at
      * 62.6 in/s), and the stop frame says finished.</p>
      *
@@ -113,7 +122,7 @@ class BridgeSessionTest {
      */
     @Test
     void unityGamepadDrivesTheRealTeleOp() {
-        connectAndLoad("teamA-teleop");
+        connectAndLoad(TELEOP);
 
         Map<String, Object> init = send("{\"type\": \"init\"}");
         assertEquals("INIT", loop(init).get("stage"));
@@ -129,7 +138,7 @@ class BridgeSessionTest {
 
         assertEquals("LOOP", loop(frame).get("stage"));
         assertEquals(1.0, (Double) loop(frame).get("matchTimeSeconds"), 1e-9);
-        assertEquals(1.0, power(frame, "frontLeft"), 1e-6);
+        assertEquals(1.0, power(frame, FRONT_LEFT), 1e-6);
         // How far exactly depends on the physics model (top speed 62.6 in/s); 1 s of full
         // forward must clearly move the robot forward.
         assertTrue(xInches(frame) > 30, "drove forward: " + xInches(frame));
@@ -137,7 +146,9 @@ class BridgeSessionTest {
         Map<String, Object> stopped = send("{\"type\": \"stop\"}");
         assertEquals("STOP", loop(stopped).get("stage"));
         assertEquals(Boolean.TRUE, stopped.get("finished"));
-        assertEquals(0.0, power(stopped, "frontLeft"), 1e-9, "TeamCode's stop() zeroes the drive");
+        if (BridgeTestOpModes.pvi()) {
+            assertEquals(0.0, power(stopped, FRONT_LEFT), 1e-9, "PVI's TeamCode stop() zeroes the drive");
+        }
     }
 
     /**
@@ -146,27 +157,29 @@ class BridgeSessionTest {
      */
     @Test
     void gamepadStaysHeldUntilUnitySendsANewOne() {
-        connectAndLoad("teamA-teleop");
+        connectAndLoad(TELEOP);
         send("{\"type\": \"init\"}");
         send("{\"type\": \"play\"}");
 
         send("{\"type\": \"step\", \"gamepad1\": " + FORWARD + "}");
         Map<String, Object> held = send("{\"type\": \"step\"}");
-        assertEquals(1.0, power(held, "frontLeft"), 1e-6, "still full forward");
+        assertEquals(1.0, power(held, FRONT_LEFT), 1e-6, "still full forward");
 
         Map<String, Object> released = send("{\"type\": \"step\", \"gamepad1\": " + RELEASED + "}");
-        assertEquals(0.0, power(released, "frontLeft"), 1e-9);
+        assertEquals(0.0, power(released, FRONT_LEFT), 1e-9);
     }
 
     /**
-     * WHAT: The run stops by itself at the end of the match, and stepping after that is refused.
-     * HOW: Team A's autonomous, stepping until the harness says finished. PLAY takes the first
-     * 20 ms, so 1499 steps reach 30 s (the same count as a normal 30 s test run); that frame is
-     * STOP at 30.00 s.
+     * WHAT: The run stops by itself (at the end of the 30 s match at the latest), and stepping after
+     * that is refused.
+     * HOW: this repo's first autonomous, stepping until the harness says finished. PVI's Team A
+     * autonomous runs the whole match: PLAY takes the first 20 ms, so 1499 steps reach 30 s (the
+     * same count as a normal 30 s test run) and that frame is STOP at 30.00 s. Another team's
+     * autonomous may finish sooner (a LinearOpMode that returns), which also ends the run.
      */
     @Test
     void autonomousStopsByItselfAtTheEndOfTheMatch() {
-        connectAndLoad("teamA-autonomous");
+        connectAndLoad(BridgeTestOpModes.autonomous().id());
         send("{\"type\": \"init\"}");
         send("{\"type\": \"play\"}");
 
@@ -177,11 +190,15 @@ class BridgeSessionTest {
             steps++;
         }
 
-        assertEquals(1499, steps);
         assertEquals("STOP", loop(frame).get("stage"));
-        assertEquals(30.0, (Double) loop(frame).get("matchTimeSeconds"), 1e-9);
         assertEquals(Boolean.TRUE, frame.get("finished"));
-        assertEquals(9.4, xInches(frame), 0.5, "the autonomous drives about 9.4 in");
+        assertTrue(steps <= 1499 && (Double) loop(frame).get("matchTimeSeconds") <= 30.0 + 1e-9,
+                "stopped by 30 s: " + steps + " steps");
+        if (BridgeTestOpModes.pvi()) {
+            assertEquals(1499, steps, "Team A's autonomous runs the whole match");
+            assertEquals(30.0, (Double) loop(frame).get("matchTimeSeconds"), 1e-9);
+            assertEquals(9.4, xInches(frame), 0.5, "Team A's autonomous drives about 9.4 in");
+        }
         assertEquals("error", send("{\"type\": \"step\"}").get("type"));
     }
 
@@ -194,7 +211,8 @@ class BridgeSessionTest {
     @Test
     @SuppressWarnings("unchecked")
     void eachRumbleArrivesOnce() {
-        connectAndLoad("rumble-demo");
+        BridgeTestOpModes.assumePvi(); // PVI's rumble demo
+        connectAndLoad("RumbleDemoTeleOp");
         send("{\"type\": \"init\"}");
 
         List<Map<String, Object>> frames = new ArrayList<>();
@@ -215,7 +233,7 @@ class BridgeSessionTest {
      */
     @Test
     void framesUseTheRecordingLoopLayout() {
-        connectAndLoad("teamA-teleop");
+        connectAndLoad(TELEOP);
 
         Map<String, Object> frame = send("{\"type\": \"init\"}");
 
@@ -231,7 +249,7 @@ class BridgeSessionTest {
      */
     @Test
     void saveWritesAReplayableRecording() throws Exception {
-        connectAndLoad("teamA-teleop");
+        connectAndLoad(TELEOP);
         send("{\"type\": \"init\"}");
         send("{\"type\": \"play\"}");
         for (int i = 0; i < 25; i++) {
@@ -246,7 +264,7 @@ class BridgeSessionTest {
         assertTrue(Files.exists(file), file.toString());
         RunRecording recording = RunRecordingJson.load(file);
         assertEquals(1 + 1 + 25 + 1, recording.loops().size(), "INIT, START, 25 loops, STOP");
-        assertEquals("TeamATeleOp", recording.header().opMode());
+        assertEquals(TELEOP, recording.header().opMode());
     }
 
     // ---- Mistakes ---------------------------------------------------------------------------------
@@ -257,14 +275,14 @@ class BridgeSessionTest {
      */
     @Test
     void mistakesGetClearErrorsAndTheSessionCarriesOn() {
-        assertTrue(message(send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}")).contains("hello"));
+        assertTrue(message(send("{\"type\": \"load\", \"opMode\": \"" + TELEOP + "\"}")).contains("hello"));
         assertTrue(message(send("not json")).contains("Not valid JSON"));
         assertTrue(message(send("[1, 2]")).contains("JSON object"));
         assertTrue(message(send("{\"type\": \"jump\"}")).contains("Unknown message type"));
-        send("{\"type\": \"hello\", \"version\": 4}");
+        send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}");
         assertTrue(message(send("{\"type\": \"step\"}")).contains("after \"init\""));
         assertTrue(message(send("{\"type\": \"load\", \"opMode\": \"nope\"}")).contains("Unknown OpMode \"nope\""));
-        send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}");
+        send("{\"type\": \"load\", \"opMode\": \"" + TELEOP + "\"}");
         send("{\"type\": \"init\"}");
         send("{\"type\": \"play\"}");
         String badPad = "{\"type\": \"step\", \"gamepad1\": {\"buttons\": [], \"leftStickX\": \"left\"}}";
@@ -290,8 +308,8 @@ class BridgeSessionTest {
      */
     @Test
     void sameMessagesGiveTheSameReplies() {
-        List<String> script = new ArrayList<>(List.of("{\"type\": \"hello\", \"version\": 4}",
-                "{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}", "{\"type\": \"init\"}", "{\"type\": \"play\"}"));
+        List<String> script = new ArrayList<>(List.of("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}",
+                "{\"type\": \"load\", \"opMode\": \"" + TELEOP + "\"}", "{\"type\": \"init\"}", "{\"type\": \"play\"}"));
         for (int i = 0; i < 56; i++) {
             script.add("{\"type\": \"step\", \"gamepad1\": " + (i % 20 < 10 ? FORWARD : RELEASED) + "}");
         }

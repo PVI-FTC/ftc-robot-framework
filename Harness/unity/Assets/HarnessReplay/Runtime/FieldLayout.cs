@@ -28,6 +28,35 @@ namespace PviHarness.Replay
         public string startingNote;
         public List<FieldElementData> elements = new List<FieldElementData>();
         public List<FieldTagData> aprilTags = new List<FieldTagData>();
+        /// <summary>What a ball rolling on the tiles can hit (version 2); empty in version 1 files.</summary>
+        public List<PieceObstacleData> pieceObstacles = new List<PieceObstacleData>();
+    }
+
+    /// <summary>
+    /// Something a POLLEN or NECTAR ball on the tiles can hit (field format version 2), for the
+    /// harness's ball physics. It has straight upright sides from <see cref="bottomInches"/> to
+    /// <see cref="topInches"/> above the tiles; a ball of radius r can hit it only if its bottom is
+    /// below the ball's top (2 r). A "box" lies along the x and y axes (<see cref="minXInches"/> to
+    /// <see cref="maxYInches"/>); a "cylinder" is upright (<see cref="xInches"/>, <see cref="yInches"/>,
+    /// <see cref="radiusInches"/>). FTC inches.
+    /// </summary>
+    public sealed class PieceObstacleData
+    {
+        public string id;
+        public string name;
+        /// <summary>"box" or "cylinder".</summary>
+        public string shape;
+        public double minXInches;
+        public double maxXInches;
+        public double minYInches;
+        public double maxYInches;
+        /// <summary>Cylinders only: the center and radius.</summary>
+        public double xInches;
+        public double yInches;
+        public double radiusInches;
+        public double bottomInches;
+        public double topInches;
+        public string accuracy;
     }
 
     /// <summary>
@@ -100,7 +129,7 @@ namespace PviHarness.Replay
         /// <summary>The "no season" choice: only the plain tiled field.</summary>
         public const string PlainFieldId = "plain";
         /// <summary>The format versions this project can read.</summary>
-        public static readonly int[] SupportedVersions = { 1 };
+        public static readonly int[] SupportedVersions = { 1, 2 };
 
         /// <summary>Harness/fields, found from wherever this app runs (see <see cref="ResolveFolder"/>).</summary>
         public static string DefaultFolder => ResolveFolder(Environment.GetCommandLineArgs(), Application.dataPath, Application.isEditor);
@@ -155,6 +184,16 @@ namespace PviHarness.Replay
                 {
                     throw new RecordingFormatException(file + ": element \"" + element.id + "\" has shape \""
                         + element.shape + "\"; expected \"box\" or \"cylinder\".");
+                }
+            }
+            foreach (PieceObstacleData obstacle in field.pieceObstacles)
+            {
+                bool box = obstacle.shape == "box" && obstacle.minXInches < obstacle.maxXInches && obstacle.minYInches < obstacle.maxYInches;
+                bool cylinder = obstacle.shape == "cylinder" && obstacle.radiusInches > 0;
+                if ((!box && !cylinder) || obstacle.bottomInches < 0 || obstacle.topInches <= obstacle.bottomInches)
+                {
+                    throw new RecordingFormatException(file + ": piece obstacle \"" + obstacle.id + "\" needs shape \"box\" "
+                        + "(min below max in x and y) or \"cylinder\" (radius above 0), and a top above its bottom (0 or more).");
                 }
             }
             return field;

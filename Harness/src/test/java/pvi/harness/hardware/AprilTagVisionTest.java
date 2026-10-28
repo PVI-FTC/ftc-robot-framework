@@ -145,7 +145,9 @@ class AprilTagVisionTest {
      */
     @Test
     void withoutTheWebcamVisionIsUnavailableAndDisabled() {
-        OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(), RobotConfigs.teamA());
+        // The config robot has Team A's webcam (devices.webcams), so take it off for this test.
+        OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(),
+                RobotConfigs.teamA().without(WEBCAM));
         runner.init().start();
         runner.loopUntil(0.5);
 
@@ -292,6 +294,31 @@ class AprilTagVisionTest {
         runner.init().start();
         runner.loopUntil(2.0);
         return recorder.recording();
+    }
+
+    /**
+     * WHAT: A vision run with AprilTags in view is saved as {@code build/recordings/apriltag-vision.json},
+     * for the viewer and the Unity replay to show what the camera saw.
+     *
+     * <p>HOW: Tag 20 is in view 0.5-2.0 s after PLAY, tag 24 joins at 1.0 s, both are lost at
+     * 2.5 s; the run lasts 3 s. The test checks the saved file has the tags.</p>
+     */
+    @Test
+    void aVisionRunIsSavedForTheViewerAndUnity() throws java.io.IOException {
+        OpModeRunner runner = visionRunner(new AprilTagScript()
+                .at(0.5).see(SeenAprilTag.at(20, -6.0, 36.0, 4.0))
+                .at(1.0).see(SeenAprilTag.at(24, 8.0, 48.0, 4.0))
+                .at(2.0).lose(20)
+                .at(2.5).loseAll());
+        RunRecorder recorder = RunRecorder.attachTo(runner);
+        runner.init().start();
+        runner.loopUntil(3.0);
+
+        java.nio.file.Path saved = recorder.save("apriltag-vision");
+
+        String json = java.nio.file.Files.readString(saved);
+        assertTrue(json.contains("\"aprilTags\""), "the recording should hold the tags in view");
+        assertTrue(json.contains("\"id\": 24") || json.contains("\"id\":24"), "tag 24 should be in the recording");
     }
 
     /** The recorded loop closest to this many seconds after PLAY. */

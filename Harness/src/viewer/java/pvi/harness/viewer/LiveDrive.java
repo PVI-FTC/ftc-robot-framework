@@ -1,5 +1,6 @@
 package pvi.harness.viewer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -7,13 +8,11 @@ import java.util.function.Supplier;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
-import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp;
-import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamBTeleOp;
-import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamCTeleOp;
-
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.RobotConfigs;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.MatchPeriod;
+import pvi.harness.runtime.OpModeCatalog;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunRecorder;
 import pvi.harness.runtime.RunRecording;
@@ -42,7 +41,7 @@ public final class LiveDrive {
     /**
      * A TeleOp that can be driven live.
      *
-     * @param id     short name for saved files, e.g. "teamA-teleop"
+     * @param id     short name for saved files: the OpMode's class name, e.g. "TeamATeleOp"
      * @param title  what the dropdown shows
      * @param opMode makes a fresh OpMode
      * @param robot  makes its fake robot
@@ -50,12 +49,57 @@ public final class LiveDrive {
     public record Option(String id, String title, Supplier<OpMode> opMode, Supplier<FakeHardwareMap> robot) {
     }
 
-    /** Every TeleOp the dropdown offers for live driving, in order. */
+    /**
+     * Every TeleOp the dropdown offers for live driving: the robot code's {@code @TeleOp} OpModes
+     * ({@link OpModeCatalog}), each on the robot {@link RobotConfigs#forOpMode} picks. The default
+     * ({@link #defaultOption()}) comes first, the rest in Driver Station name order (manager
+     * decision D8).
+     */
     public static List<Option> options() {
-        return List.of(
-                new Option("teamA-teleop", "Team A TeleOp (keyboard)", TeamATeleOp::new, RobotConfigs::teamA),
-                new Option("teamB-teleop", "Team B TeleOp (keyboard)", TeamBTeleOp::new, RobotConfigs::teamB),
-                new Option("teamC-teleop", "Team C TeleOp (keyboard)", TeamCTeleOp::new, RobotConfigs::teamC));
+        return options(HarnessConfig.load());
+    }
+
+    /** The same, for any settings file. */
+    static List<Option> options(HarnessConfig config) {
+        List<OpModeCatalog.Entry> teleOps = OpModeCatalog.fromConfig(config).stream()
+                .filter(e -> e.period() == MatchPeriod.TELEOP).toList();
+        if (teleOps.isEmpty()) {
+            throw new IllegalStateException("Found no @TeleOp OpModes in " + config.opModePackages()
+                    + " to drive. Check teamCode.opModePackages in harness.properties.");
+        }
+        OpModeCatalog.Entry first = defaultTeleOp(teleOps, config.viewerDefaultTeleOp());
+        List<Option> options = new ArrayList<>();
+        options.add(option(first, config));
+        for (OpModeCatalog.Entry e : teleOps) {
+            if (e != first) {
+                options.add(option(e, config));
+            }
+        }
+        return options;
+    }
+
+    /** The TeleOp the viewer drives when it opens ({@code viewer.defaultTeleOp} in harness.properties). */
+    public static Option defaultOption() {
+        return options().get(0);
+    }
+
+    /** The TeleOp named {@code wanted} (Driver Station name or class simple name), or the first if it's empty. */
+    private static OpModeCatalog.Entry defaultTeleOp(List<OpModeCatalog.Entry> teleOps, String wanted) {
+        if (wanted.isEmpty()) {
+            return teleOps.get(0);
+        }
+        for (OpModeCatalog.Entry e : teleOps) {
+            if (e.name().equals(wanted) || e.simpleName().equals(wanted)) {
+                return e;
+            }
+        }
+        List<String> names = teleOps.stream().map(e -> e.simpleName() + " (\"" + e.name() + "\")").toList();
+        throw new IllegalStateException("viewer.defaultTeleOp in harness.properties is \"" + wanted
+                + "\", but there's no TeleOp with that name. TeleOps: " + String.join(", ", names));
+    }
+
+    private static Option option(OpModeCatalog.Entry e, HarnessConfig config) {
+        return new Option(e.simpleName(), e.name() + " (keyboard)", e::newOpMode, () -> RobotConfigs.forOpMode(e, config));
     }
 
     /** How often the window gets a new snapshot, in real seconds (about 25 per second). */

@@ -31,6 +31,8 @@ public class FakeHardwareMap extends HardwareMap {
 
     /** The hub's battery voltage reading, which every real robot has. */
     private final FakeVoltageSensor batteryVoltage = new FakeVoltageSensor();
+    /** What the world shows the scripted sensors; empty (nothing happens) by default. */
+    private SensorScript sensorScript = new SensorScript();
 
     /**
      * A hardware map with no configured devices, only the Control Hub's battery voltage reading
@@ -71,6 +73,97 @@ public class FakeHardwareMap extends HardwareMap {
         return tryGet(FakeServo.class, configName);
     }
 
+    // ---- RP7 sensors (see SensorScript for the world-driven ones) ----------------------------
+
+    /** Adds the hub's IMU (see {@link FakeImu}); its yaw follows the robot's turning. */
+    public FakeImu addImu(String configName) {
+        FakeImu imu = new FakeImu(configName);
+        addDevice(configName, imu);
+        return imu;
+    }
+
+    /** Adds a continuous-rotation servo (see {@link FakeCRServo}). */
+    public FakeCRServo addCRServo(String configName) {
+        FakeCRServo crServo = new FakeCRServo(configName);
+        addDevice(configName, crServo);
+        crservo.put(configName, crServo);   // the SDK's per-type map (hardwareMap.crservo)
+        return crServo;
+    }
+
+    /** Adds a distance sensor (see {@link FakeDistanceSensor}); the sensor script sets its readings. */
+    public FakeDistanceSensor addDistanceSensor(String configName) {
+        FakeDistanceSensor sensor = new FakeDistanceSensor(configName);
+        addDevice(configName, sensor);
+        return sensor;
+    }
+
+    /** Adds a touch sensor / limit switch (see {@link FakeTouchSensor}); the sensor script presses it. */
+    public FakeTouchSensor addTouchSensor(String configName) {
+        FakeTouchSensor sensor = new FakeTouchSensor(configName);
+        addDevice(configName, sensor);
+        touchSensor.put(configName, sensor);       // the SDK's per-type maps
+        digitalChannel.put(configName, sensor);
+        return sensor;
+    }
+
+    /** Adds a color sensor (see {@link FakeColorSensor}); the sensor script sets what it sees. */
+    public FakeColorSensor addColorSensor(String configName) {
+        FakeColorSensor sensor = new FakeColorSensor(configName);
+        addDevice(configName, sensor);
+        colorSensor.put(configName, sensor);       // the SDK's per-type map
+        return sensor;
+    }
+
+    /** Adds an analog input (see {@link FakeAnalogInput}); the sensor script sets its volts. */
+    public FakeAnalogInput addAnalogInput(String configName) {
+        FakeAnalogInput input = new FakeAnalogInput(configName);
+        addDevice(configName, input);
+        analogInput.put(configName, input);        // the SDK's per-type map
+        return input;
+    }
+
+    /** Adds a SparkFun OTOS (see {@link FakeOtos}); it reads the robot's real motion. */
+    public FakeOtos addOtos(String configName) {
+        FakeOtos otos = new FakeOtos(configName);
+        addDevice(configName, otos);
+        return otos;
+    }
+
+    /** Adds a Limelight 3A (see {@link FakeLimelight}); the sensor script sets what it sees. */
+    public FakeLimelight addLimelight(String configName) {
+        FakeLimelight limelight = new FakeLimelight(configName);
+        addDevice(configName, limelight);
+        return limelight;
+    }
+
+    /**
+     * Plugs a dead wheel (odometry pod) into a motor's encoder port (see {@link FakeDeadWheel}).
+     * If no motor of that name exists yet, an empty port is added for it.
+     */
+    public FakeDeadWheel addDeadWheel(FakeDeadWheel pod) {
+        FakeDcMotorEx port = motor(pod.getName());
+        if (port == null) {
+            port = addMotor(pod.getName());
+        }
+        pod.plugInto(port);
+        addDevice(pod.getName(), pod);
+        return pod;
+    }
+
+    /** What the world shows this robot's sensors (distances, presses, colors), from INIT on. */
+    public FakeHardwareMap sensorScript(SensorScript script) {
+        if (script == null) {
+            throw new IllegalArgumentException("Use new SensorScript() for a world where nothing happens.");
+        }
+        this.sensorScript = script;
+        return this;
+    }
+
+    /** This robot's sensor script (empty unless a test set one). */
+    public SensorScript sensorScript() {
+        return sensorScript;
+    }
+
     /**
      * Adds a fake goBILDA Pinpoint odometry computer (see {@link FakePinpoint}). Robot code and
      * Pedro find it with {@code hardwareMap.get(GoBildaPinpointDriver.class, name)}.
@@ -83,9 +176,15 @@ public class FakeHardwareMap extends HardwareMap {
 
     /**
      * Adds a fake USB webcam that sees scripted AprilTags (see {@link FakeWebcam}). Robot code
-     * finds it with {@code hardwareMap.get(WebcamName.class, name)}.
+     * finds it with {@code hardwareMap.get(WebcamName.class, name)}. If the robot already has a
+     * webcam with this name (for example from {@code devices.webcams} in harness.properties), that
+     * one is returned instead, so a test can script it and there's never a second, hidden copy.
      */
     public FakeWebcam addWebcam(String configName) {
+        FakeWebcam existing = webcam(configName);
+        if (existing != null) {
+            return existing;
+        }
         FakeWebcam webcam = new FakeWebcam(configName);
         addDevice(configName, webcam);
         return webcam;

@@ -3,13 +3,8 @@ package pvi.harness.physics;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.pedropathing.ftc.drivetrains.Mecanum;
-import com.pedropathing.ftc.drivetrains.MecanumConstants;
-import com.pedropathing.math.Vector;
-
 import org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAPedroPilotAutoOpMode;
 import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp;
-import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
 import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroPathRoute;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * W3: battery voltage in the physics. A motor's speed is about proportional to its voltage, so
  * a tired battery makes the simulated robot slower, a sagging battery slows it over a match,
- * and Pedro's voltage compensation (when a team turns it on) reads the same battery.
+ * and Pedro's voltage compensation (when a team turns it on) reads the same battery (that check
+ * reads Team A's Pedro configuration, so it is a PVI extra: {@code pvi.harness.pvi.PedroBatteryTest}).
  */
 class BatteryTest {
 
@@ -86,39 +82,6 @@ class BatteryTest {
     }
 
     /**
-     * WHAT: With Pedro's voltage compensation turned on, Pedro reads the fake battery and asks
-     * for more power on a low battery, as on the robot.
-     *
-     * <p>HOW: Calls Pedro's own mecanum drivetrain directly (Team A's configuration has
-     * compensation off, so the routes never use it), once at 12 V and once at 10 V.</p>
-     *
-     * <p>WHY: Teams that turn compensation on can test it in the harness.</p>
-     */
-    @Test
-    void pedroVoltageCompensationReadsTheBattery() {
-        FakeHardwareMap robot = RobotConfigs.teamA();
-        MecanumConstants constants = TeamAPedroHarnessAccess.recordedMecanumConstants()
-                .useVoltageCompensation(true).nominalVoltage(12.0)
-                // Team A caps power low for safety; lift the cap so the compensated power shows.
-                .maxPower(1.0);
-        Mecanum drive = new Mecanum(robot, constants);
-        drive.updateConstants();   // Pedro's follower does this; it reads the compensation settings
-        Vector none = new Vector(0, 0);
-        Vector halfForward = new Vector(0.3, 0);
-
-        robot.batteryVoltage().setVoltage(12.0);
-        double[] atNominal = drive.calculateDrive(none, none, halfForward, 0.0);
-        robot.batteryVoltage().setVoltage(10.0);
-        double[] atLow = drive.calculateDrive(none, none, halfForward, 0.0);
-
-        assertEquals(10.0, drive.getVoltage(), 1e-9, "Pedro reads the fake battery");
-        for (int i = 0; i < 4; i++) {
-            assertTrue(Math.abs(atLow[i]) > Math.abs(atNominal[i]) * 1.1,
-                    "wheel " + i + ": " + atLow[i] + " at 10 V should be well above " + atNominal[i] + " at 12 V");
-        }
-    }
-
-    /**
      * WHAT: On a tired 11 V battery, Team A's DECODE route still finishes within 1 in of its end.
      *
      * <p>WHY: Pedro's feedback should make up for a slower robot. If a future change makes
@@ -140,15 +103,22 @@ class BatteryTest {
         double limit = Pose.FIELD_HALF_WIDTH_INCHES - teamA.lengthInches() / 2.0;
         start = new Pose(Math.max(-limit, Math.min(limit, start.xInches())),
                 Math.max(-limit, Math.min(limit, start.yInches())), start.headingRadians());
-        PoseEstimator.attachTo(runner, teamA, WheelReader.teamA(), start);
+        // DECODE-season path (manager decision D12): on the BIOBUZZ field it drives into the HIVE
+        // frame (PedroRouteTest pins that), so this battery check runs with the field elements off.
+        PoseEstimator.attachTo(runner, teamA, WheelReader.teamA(), start).withoutRobotObstacles();
 
         RunResult result = runner.run(1.0, 30.0);
 
         result.assertNoException();
-        assertEquals("DECODE Route", result.telemetry().lastValue("Path"));
+        assertEquals("DECODE Route", result.telemetry().lastValue("Selected Route"));
         assertEquals("true", result.telemetry().lastValue("Sequence Complete"));
-        Matcher m = Pattern.compile("([-\\d.]+) in").matcher(String.valueOf(result.telemetry().lastValue("End Position Error")));
-        assertTrue(m.find(), "no end error: " + result.telemetry().lastValue("End Position Error"));
-        assertTrue(Double.parseDouble(m.group(1)) < 1.0, "ended " + m.group(1) + " in off on an 11 V battery");
+        // Pedro 3's OpMode shows where the robot ended ("Observed End", in Pedro's inches); the
+        // route says where it should end.
+        String observedEnd = String.valueOf(result.telemetry().lastValue("Observed End"));
+        Matcher m = Pattern.compile("\\(([-\\d.]+), ([-\\d.]+),").matcher(observedEnd);
+        assertTrue(m.find(), "no end pose: " + observedEnd);
+        double endError = Math.hypot(Double.parseDouble(m.group(1)) - route.getEndXInches(),
+                Double.parseDouble(m.group(2)) - route.getEndYInches());
+        assertTrue(endError < 1.0, "ended " + endError + " in off on an 11 V battery (" + observedEnd + ")");
     }
 }

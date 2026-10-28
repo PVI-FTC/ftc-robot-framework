@@ -80,5 +80,76 @@ namespace PviHarness.Replay.Tests
             Assert.AreEqual(HarnessLauncher.LaunchState.Failed, launcher.State);
             StringAssert.Contains("Can't find gradlew.bat in " + empty, launcher.Problem);
         }
+
+        /// <summary>
+        /// WHAT: A usable Java is found the way gradlew.bat finds it (JAVA_HOME, else java.exe on the
+        /// PATH), and one older than 17, a JAVA_HOME without java.exe, or no Java at all is a problem.
+        /// The version comes from the Java folder's "release" file ("1.8.0_392" is Java 8).
+        /// </summary>
+        [Test]
+        public void JavaOlderThan17OrMissingIsAProblem()
+        {
+            string java25 = FakeJava("jdk-25", "25.0.1");
+            string java17 = FakeJava("jdk-17", "17.0.9");
+            string java11 = FakeJava("jdk-11", "11.0.21");
+            string java8 = FakeJava("jdk-8", "1.8.0_392");
+            string notJava = Path.Combine(Harness, "..", "java", "empty");
+            Directory.CreateDirectory(notJava);
+
+            Assert.IsNull(HarnessLauncher.JavaProblem(java25, null));
+            Assert.IsNull(HarnessLauncher.JavaProblem(java17, null), "17 is new enough");
+            StringAssert.Contains("is Java 11", HarnessLauncher.JavaProblem(java11, null));
+            StringAssert.Contains("is Java 8", HarnessLauncher.JavaProblem(java8, null));
+            StringAssert.Contains("has no bin\\java.exe", HarnessLauncher.JavaProblem(notJava, null));
+
+            string path = notJava + ";" + Path.Combine(java17, "bin");
+            Assert.IsNull(HarnessLauncher.JavaProblem(null, path), "java on the PATH, after a folder without one");
+            StringAssert.Contains("java on PATH", HarnessLauncher.JavaProblem("", Path.Combine(java11, "bin")));
+            StringAssert.Contains("no java on PATH", HarnessLauncher.JavaProblem(null, notJava));
+        }
+
+        /// <summary>
+        /// WHAT: With no usable Java, Live mode fails at once with a plain "needs Java 17 or newer"
+        /// message (what to install), and doesn't try to run Gradle.
+        /// WHY: Otherwise it only said "The harness side didn't start." with Gradle's log line.
+        /// </summary>
+        [Test]
+        public void NoUsableJavaSaysWhatToInstall()
+        {
+            string harness = Path.Combine(Path.GetTempPath(), "pvi-test", "harness-no-java");
+            Directory.CreateDirectory(harness);
+            File.WriteAllText(Path.Combine(harness, "gradlew.bat"), "@exit /b 1\r\n");
+            if (Directory.Exists(Path.Combine(harness, "build")))
+            {
+                Directory.Delete(Path.Combine(harness, "build"), true); // a log from an earlier run
+            }
+            string javaHome = System.Environment.GetEnvironmentVariable("JAVA_HOME");
+            try
+            {
+                System.Environment.SetEnvironmentVariable("JAVA_HOME", FakeJava("jdk-11-start", "11.0.21"));
+                var launcher = new HarnessLauncher(harness, 7699); // a port nothing listens on
+
+                launcher.Start(0);
+
+                Assert.AreEqual(HarnessLauncher.LaunchState.Failed, launcher.State);
+                StringAssert.StartsWith(HarnessLauncher.NeedsJavaMessage, launcher.Problem);
+                StringAssert.Contains("is Java 11", launcher.Problem);
+                Assert.IsFalse(File.Exists(Path.Combine(harness, "build", "unity-bridge.log")), "Gradle was never started");
+            }
+            finally
+            {
+                System.Environment.SetEnvironmentVariable("JAVA_HOME", javaHome);
+            }
+        }
+
+        /// <summary>A folder that looks like a Java install: bin\java.exe (empty) and a release file.</summary>
+        private static string FakeJava(string name, string version)
+        {
+            string folder = Path.GetFullPath(Path.Combine(Harness, "..", "java", name));
+            Directory.CreateDirectory(Path.Combine(folder, "bin"));
+            File.WriteAllText(Path.Combine(folder, "bin", "java.exe"), "");
+            File.WriteAllText(Path.Combine(folder, "release"), "IMPLEMENTOR=\"Test\"\nJAVA_VERSION=\"" + version + "\"\n");
+            return folder;
+        }
     }
 }

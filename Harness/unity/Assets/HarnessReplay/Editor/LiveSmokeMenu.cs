@@ -111,7 +111,7 @@ namespace PviHarness.Replay.Editor
                 {
                     live.Hello();
                     text.AppendLine("Connected; OpModes offered: " + live.OpModes.Count);
-                    live.Load("teamA-teleop");
+                    live.Load("TeamATeleOp");
                     live.Init();
                     for (int i = 0; i < 5; i++)
                     {
@@ -135,7 +135,7 @@ namespace PviHarness.Replay.Editor
 
                     // Second run: Unity's physics moves the robot (Stage U3). Each step sends where it
                     // put the robot; the harness's pose must then be Unity's.
-                    live.Load("teamA-teleop", unityPhysics: true);
+                    live.Load("TeamATeleOp", unityPhysics: true);
                     using (var physics = new UnityRobotPhysics(live.RobotPhysics, null))
                     {
                         live.Init();

@@ -1,6 +1,5 @@
 package pvi.harness;
 
-import com.pedropathing.telemetry.SelectableOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAPedroPilotAutoOpMode;
@@ -138,35 +137,73 @@ class RunnerAndMenuTest {
         assertTrue(opMode.calls.contains("stop"));
     }
 
-    /** Test-only Pedro menu with three entries that need no hardware. */
-    static class TestMenuOpMode extends SelectableOpMode {
+    /**
+     * Test-only menu OpMode, like Team A's route chooser: during INIT, D-pad down moves the
+     * cursor and the right bumper picks; at PLAY the picked entry runs. Needs no hardware.
+     * (Pedro 2's SelectableOpMode menu is gone in Pedro 3, so this is a plain OpMode.)
+     */
+    static class TestMenuOpMode extends OpMode {
         /** The OpMode the menu created, so the test can inspect it. */
         static RecordingOpMode chosen;
+        private static final String[] ENTRIES = {"First", "Second", "Third"};
+        private int cursor;
+        private boolean wasDown;
+        private boolean wasBumper;
 
-        /** Builds the menu: three entries, each creating a RecordingOpMode. */
-        TestMenuOpMode() {
-            super("Pick a test", menu -> {
-                menu.add("First", () -> chosen = new RecordingOpMode("First", Double.MAX_VALUE));
-                menu.add("Second", () -> chosen = new RecordingOpMode("Second", Double.MAX_VALUE));
-                menu.add("Third", () -> chosen = new RecordingOpMode("Third", Double.MAX_VALUE));
-            });
+        @Override
+        public void init() {
+            telemetry.addData("Menu", ENTRIES[cursor]);
+        }
+
+        @Override
+        public void init_loop() {
+            // Edge detection on the plain fields, as Team A's chooser does.
+            if (gamepad1.dpad_down && !wasDown) {
+                cursor = (cursor + 1) % ENTRIES.length;
+            }
+            if (gamepad1.right_bumper && !wasBumper && chosen == null) {
+                chosen = new RecordingOpMode(ENTRIES[cursor], Double.MAX_VALUE);
+                chosen.hardwareMap = hardwareMap;
+                chosen.telemetry = telemetry;
+                chosen.init();
+            }
+            wasDown = gamepad1.dpad_down;
+            wasBumper = gamepad1.right_bumper;
+            if (chosen != null) {
+                chosen.init_loop();
+            }
+            telemetry.addData("Menu", ENTRIES[cursor]);
+        }
+
+        @Override
+        public void start() {
+            if (chosen != null) chosen.start();
+        }
+
+        @Override
+        public void loop() {
+            if (chosen != null) chosen.loop();
+        }
+
+        @Override
+        public void stop() {
+            if (chosen != null) chosen.stop();
         }
     }
 
     /**
-     * WHAT: A gamepad script can navigate a Pedro selection menu during INIT.
+     * WHAT: A gamepad script can navigate a selection menu during INIT.
      *
      * <p>HOW: During init, taps d-pad down (cursor moves to "Second") then right bumper
      * (select). Checks that "Second" was the OpMode that actually ran, through its whole
      * lifecycle.</p>
      *
-     * <p>WHY: Pedro menu OpModes (like Team A Pedro Paths) are driven by the SDK's own button
-     * edge detection. This proves the harness delivers gamepad input the same way the
-     * Driver Station does, so those menus can be tested. Uses a test-only menu because
-     * selecting a real Pedro path needs the Pinpoint (Phase 5).</p>
+     * <p>WHY: Menu OpModes (like Team A Pedro Paths) read the gamepad during INIT. This proves
+     * the harness delivers gamepad input before PLAY the same way the Driver Station does, so
+     * those menus can be tested.</p>
      */
     @Test
-    void scriptCanPickFromAPedroMenuBeforePlay() {
+    void scriptCanPickFromAMenuBeforePlay() {
         TestMenuOpMode.chosen = null;
         // SCRIPT: inputs before PLAY, times are seconds after INIT.
         GamepadScript driver = new GamepadScript()
@@ -187,27 +224,37 @@ class RunnerAndMenuTest {
     }
 
     /**
-     * WHAT: Team A's real Pedro path menu shows its title and all four routes.
+     * WHAT: Team A's real route chooser offers all four routes: D-pad down during INIT steps
+     * through them, and the Driver Station shows the selected one.
      *
-     * <p>HOW: Runs INIT plus a few init loops of TeamAPedroPilotAutoOpMode and checks the
-     * Driver Station screen text. Nothing is selected, so no Pedro hardware is needed.</p>
+     * <p>HOW: Runs INIT of TeamAPedroPilotAutoOpMode, taps D-pad down three times, and records
+     * the "Selected Route" line after each tap. Nothing is started, so no route is driven.</p>
      *
      * <p>WHY: Catches a route being removed or renamed by mistake, which would leave the
-     * drive team unable to pick it at a match.</p>
+     * drive team unable to pick it at a match. (Pedro 3: the chooser is Team A's own D-pad
+     * menu; Pedro 2's menu OpMode is gone.)</p>
      */
     @Test
     void teamAPedroPathMenuListsEveryRoute() {
-        // SET UP
-        OpModeRunner runner = new OpModeRunner(new TeamAPedroPilotAutoOpMode(), RobotConfigs.teamA());
+        // SCRIPT: three D-pad down taps during INIT, half a second apart.
+        GamepadScript driver = new GamepadScript().duringInit()
+                .at(0.5).tap(Button.DPAD_DOWN)
+                .at(1.0).tap(Button.DPAD_DOWN)
+                .at(1.5).tap(Button.DPAD_DOWN);
+        OpModeRunner runner = new OpModeRunner(new TeamAPedroPilotAutoOpMode(), RobotConfigs.teamA()).gamepad1(driver);
 
-        // RUN: INIT and let the menu draw.
-        runner.init().initLoop(3);
-
-        // CHECK: the menu title and every route name are on screen.
-        TelemetryFrame menu = runner.telemetry().lastFrame();
-        assertTrue(menu.containsText("Select a Team A Path"), menu.toString());
-        for (String route : new String[] {"LP-11 Pilot (24 in)", "DECODE Route", "Curving Test", "Illegal Path"}) {
-            assertTrue(menu.containsText(route), "menu should list " + route + ":\n" + menu);
+        // RUN: INIT, and look at the screen just before each tap and at the end.
+        List<String> shown = new ArrayList<>();
+        runner.init();
+        for (double t : new double[] {0.4, 0.9, 1.4, 1.9}) {
+            while (runner.clock().sinceInit() < t) {
+                runner.initLoop(1);
+            }
+            shown.add(runner.telemetry().lastValue("Selected Route"));
         }
+
+        // CHECK: every route, in order.
+        assertEquals(List.of("LP-11 Pilot (24 in)", "DECODE Route", "Curving Test", "Illegal Path"), shown);
+        assertTrue(runner.telemetry().lastFrame().containsText("Up/Down to select"), runner.telemetry().lastFrame().toString());
     }
 }

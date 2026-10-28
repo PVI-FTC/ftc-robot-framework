@@ -7,8 +7,10 @@ import java.util.List;
  * How the game pieces move: how fast a rolling ball slows down, how much bounce is left after it
  * hits a wall, another ball or the robot, and how heavy each kind is.
  *
- * <p>None of these have been measured yet, so they are all placeholders. Only the masses' ratio
- * matters (it decides who moves more when two balls collide).</p>
+ * <p>None of these have been measured yet, so they are all placeholders. The official BIOBUZZ
+ * manual (see {@link GamePiece#MANUAL}) gives the balls' size and material but no mass, bounce
+ * or friction, so these stay guesses until someone weighs and rolls real balls. Only the masses'
+ * ratio matters (it decides who moves more when two balls collide).</p>
  *
  * @param rollingDeceleration how fast a rolling ball slows down on the tiles (in/s²)
  * @param wallBounce          share of a ball's speed into a wall that it bounces back with (0 to 1)
@@ -46,16 +48,20 @@ public record PieceModel(ModelValue rollingDeceleration, ModelValue wallBounce, 
         }
     }
 
+    /** Added to each source: the official manual was checked and has no number for this. */
+    private static final String NOT_IN_MANUAL = "not given in the " + GamePiece.MANUAL + "; ";
+
     /** The BIOBUZZ balls, all values placeholders until someone measures them. */
     public static PieceModel bioBuzz() {
         return new PieceModel(
                 ModelValue.placeholder(15.0, Dynamics.INCHES_PER_SECOND_SQUARED,
-                        "not measured; roll a ball across the tiles and time how far it goes"),
-                ModelValue.placeholder(0.4, RATIO, "not measured; a guess for a foam ball against the wall"),
-                ModelValue.placeholder(0.6, RATIO, "not measured; a guess for two balls"),
-                ModelValue.placeholder(0.2, RATIO, "not measured; a guess for the robot's bumper"),
-                ModelValue.placeholder(15.0, GRAMS, "not weighed"),
-                ModelValue.placeholder(30.0, GRAMS, "not weighed"));
+                        NOT_IN_MANUAL + "not measured; roll a ball across the tiles and time how far it goes"),
+                ModelValue.placeholder(0.4, RATIO,
+                        NOT_IN_MANUAL + "not measured; a guess for a polyethylene ball against the wall"),
+                ModelValue.placeholder(0.6, RATIO, NOT_IN_MANUAL + "not measured; a guess for two balls"),
+                ModelValue.placeholder(0.2, RATIO, NOT_IN_MANUAL + "not measured; a guess for the robot's bumper"),
+                ModelValue.placeholder(15.0, GRAMS, NOT_IN_MANUAL + "not weighed"),
+                ModelValue.placeholder(30.0, GRAMS, NOT_IN_MANUAL + "not weighed"));
     }
 
     /** A ball's mass for its kind, in grams. */

@@ -10,7 +10,11 @@ import org.junit.jupiter.api.Test;
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.GamepadScript;
 import pvi.harness.hardware.RobotConfigs;
+import pvi.harness.physics.DriveModels;
 import pvi.harness.physics.GamePiece;
+import pvi.harness.physics.Pose;
+import pvi.harness.physics.PoseEstimator;
+import pvi.harness.physics.WheelReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -115,5 +119,52 @@ class GamePiecesRecordingTest {
 
         assertEquals(List.of(), old.header().pieces());
         assertTrue(old.loops().stream().allMatch(loop -> loop.pieces().isEmpty()));
+    }
+
+    /**
+     * WHAT: Team A, starting at (0, -5) facing -y with its pre-loads behind it, drives backward
+     * briefly and stops short of the blue HIVE frame's foot-bar lip (y 24.16, x -18.87 to 18.87),
+     * launching its pre-loads at it. A pre-load reaches the lip, stops at its face (never past it)
+     * and comes back off it. The run is saved as {@code build/recordings/obstacle-bounce.json}.
+     *
+     * <p>The robot stops short on purpose: the simulated robot isn't blocked by the HIVE frame
+     * (only by the walls), so a ball squeezed between the robot and the lip would be carried
+     * through it. A real robot can't drive through the frame.</p>
+     *
+     * <p>WHY: A real recording of a ball hitting an obstacle (W9.2), for Unity to check that it
+     * draws the bounce where the harness has it.</p>
+     */
+    @Test
+    void aPushedPreloadBouncesOffTheHiveFrameLip() {
+        GamepadScript driver = new GamepadScript()
+                .at(0.0).stick(Axis.LEFT_STICK_Y, 1.0)     // full backward: toward +y
+                .at(0.3).stick(Axis.LEFT_STICK_Y, 0.0);
+        OpModeRunner runner = new OpModeRunner(new TeamATeleOp(), RobotConfigs.teamA()).gamepad1(driver);
+        PoseEstimator.attachTo(runner, DriveModels.teamA(), WheelReader.teamA(), Pose.inches(0, -5, -90));
+        RunRecorder recorder = RunRecorder.attachTo(runner);
+        runner.run(0.2, 3.0);
+        RunRecording recording = recorder.recording();
+        double robotBackEdge = recording.loops().stream().mapToDouble(l -> l.pose().yInches()).max().orElseThrow() + 9;
+        assertTrue(robotBackEdge < 24.16 - 2 * GamePiece.radiusInches(GamePiece.POLLEN),
+                "the robot stays short of the lip: its back edge reached y " + robotBackEdge);
+        recorder.save("obstacle-bounce");
+
+        double face = 24.16 - GamePiece.radiusInches(GamePiece.POLLEN);
+        double highest = Double.NEGATIVE_INFINITY;
+        GamePiece last = null;
+        for (RunRecording.LoopRecord loop : recording.loops()) {
+            for (GamePiece p : loop.pieces()) {
+                if (p.id().startsWith("pollen-preload") && Math.abs(p.xInches()) < 18.87) {
+                    assertTrue(p.yInches() <= face + 1e-9, "never past the lip: " + p);
+                    if (p.yInches() > highest) {
+                        highest = p.yInches();
+                        last = p;
+                    }
+                }
+            }
+        }
+        assertTrue(highest > face - 0.5, "a pre-load reached the lip; the highest was " + last);
+        GamePiece end = piecesAtTheEnd(recording).get(last.id());
+        assertTrue(end.yInches() < highest - 0.05, "and came back off it (slowly: it arrives slow and the wall bounce is 0.4): " + end);
     }
 }

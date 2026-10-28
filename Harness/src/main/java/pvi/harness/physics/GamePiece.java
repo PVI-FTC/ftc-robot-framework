@@ -27,6 +27,23 @@ public record GamePiece(String id, String kind, String state, double xInches, do
     /** A 3.6 in blue ball. */
     public static final String BLUE_NECTAR = "blue-nectar";
 
+    /**
+     * Where the ball facts come from: the official BIOBUZZ Competition Manual, version TU06
+     * (2026-10-22, the latest on ftc-resources.firstinspires.org), section 9.8 SCORING ELEMENTS.
+     * A copy is in {@code fields/sources/}.
+     */
+    public static final String MANUAL = "BIOBUZZ Competition Manual TU06, section 9.8 SCORING ELEMENTS";
+
+    /**
+     * POLLEN's diameter: "approximately 2.8 in. (7.1 cm) Gopher ResisDent polyethylene balls in
+     * yellow (am-5851_yellow)". The manual adds that the balls aren't perfectly round and vary in size.
+     */
+    public static final ModelValue POLLEN_DIAMETER = ModelValue.measured(2.8, ModelValue.INCHES,
+            MANUAL + ": approximately 2.8 in (7.1 cm) Gopher ResisDent polyethylene ball, yellow, am-5851");
+    /** NECTAR's diameter: "approximately 3.6 in. (9.1 cm)", red (am-5852_red) and blue (am-5852_blue). */
+    public static final ModelValue NECTAR_DIAMETER = ModelValue.measured(3.6, ModelValue.INCHES,
+            MANUAL + ": approximately 3.6 in (9.1 cm) Gopher ResisDent polyethylene ball, red or blue, am-5852");
+
     /** Loose on the tiles: the robot can push it. The only state that moves for now. */
     public static final String FIELD = "field";
     /** Stacked in a FLOWER. */
@@ -55,13 +72,13 @@ public record GamePiece(String id, String kind, String state, double xInches, do
         return radiusInches(kind);
     }
 
-    /** The radius of a ball of this kind, in inches (from the BIOBUZZ manual, section 10.3.1). */
+    /** The radius of a ball of this kind, in inches: half of {@link #POLLEN_DIAMETER} or {@link #NECTAR_DIAMETER}. */
     public static double radiusInches(String kind) {
         if (POLLEN.equals(kind)) {
-            return 1.4;
+            return POLLEN_DIAMETER.value() / 2;
         }
         if (RED_NECTAR.equals(kind) || BLUE_NECTAR.equals(kind)) {
-            return 1.8;
+            return NECTAR_DIAMETER.value() / 2;
         }
         throw new IllegalArgumentException("Unknown game piece kind \"" + kind + "\". Expected " + POLLEN + ", "
                 + RED_NECTAR + " or " + BLUE_NECTAR + ".");

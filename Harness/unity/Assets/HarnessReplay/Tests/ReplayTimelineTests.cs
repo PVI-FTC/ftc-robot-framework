@@ -116,6 +116,16 @@ namespace PviHarness.Replay.Tests
             Assert.AreEqual(180, System.Math.Abs(halfway), 1e-9);
         }
 
+        /// <summary>WHAT: "-at 5.3" on the command line is read as 5.3 seconds (any case, dot decimals); missing or bad gives null.</summary>
+        [Test]
+        public void AtOptionGivesTheStartSeconds()
+        {
+            Assert.AreEqual(5.3, ReplayController.SecondsFromCommandLine(new[] { "HarnessReplay.exe", "-AT", "5.3" }, "-at"));
+            Assert.IsNull(ReplayController.SecondsFromCommandLine(new[] { "HarnessReplay.exe", "-at" }, "-at"), "no number after it");
+            Assert.IsNull(ReplayController.SecondsFromCommandLine(new[] { "HarnessReplay.exe", "-at", "soon" }, "-at"));
+            Assert.IsNull(ReplayController.SecondsFromCommandLine(new[] { "HarnessReplay.exe", "-zoom", "3" }, "-at"));
+        }
+
         /// <summary>
         /// WHAT: The "done" check for Stage U1: Team A's autonomous ends about 0.24 m (9.4 in) forward in Unity.
         /// HOW: Uses Harness/build/recordings/viewer-teamA-autonomous.json, which the harness tests

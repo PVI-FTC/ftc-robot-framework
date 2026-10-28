@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 import pvi.harness.hardware.FakeHardwareMap;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.physics.MecanumKinematics.RobotVelocity;
 import pvi.harness.runtime.OpModeRunner;
 
@@ -60,6 +61,17 @@ public final class PoseEstimator {
     public record WallHit(double sinceInitSeconds, double matchTimeSeconds, String wall, Pose pose) {
     }
 
+    /**
+     * One time the robot ran into a field element (W11), like {@link WallHit}.
+     *
+     * @param sinceInitSeconds seconds since INIT
+     * @param matchTimeSeconds seconds since PLAY (0 before PLAY)
+     * @param obstacle         which element: "HIVE frame", "far FLOWER", ... ("/" between two)
+     * @param pose             where the robot was, pressed against it
+     */
+    public record ObstacleHit(double sinceInitSeconds, double matchTimeSeconds, String obstacle, Pose pose) {
+    }
+
     /** The robot's speeds, size and momentum. */
     private final DriveModel model;
     /** Reads which way each wheel pushes, and turns the drive encoders. */
@@ -84,18 +96,36 @@ public final class PoseEstimator {
     private String wallContact = "";
     /** Every time the robot ran into a wall, oldest first. */
     private final List<WallHit> wallHits = new ArrayList<>();
+    /** Which field elements the robot was pressed against after the last move ("" if none). */
+    private String obstacleContact = "";
+    /** Every time the robot ran into a field element, oldest first. */
+    private final List<ObstacleHit> obstacleHits = new ArrayList<>();
     /** The game pieces the robot can push (BIOBUZZ's by default). */
     private GamePieces pieces;
 
     /**
-     * An estimate using the harness's own physics ({@link MomentumPhysics}).
+     * An estimate using the harness's own physics ({@link MomentumPhysics}). With
+     * {@code field.robotObstacles=true} in {@code harness.properties} (the default), the BIOBUZZ
+     * field elements ({@link BioBuzzObstacles}) block the robot as the walls do.
      *
      * @param model  robot speeds, size and momentum, e.g. {@code DriveModels.teamA()}
      * @param wheels how to read the drive motors, e.g. {@code WheelReader.teamA()}
      * @param start  starting pose, e.g. {@code Pose.ORIGIN} (field center facing +x)
      */
     public PoseEstimator(DriveModel model, WheelReader wheels, Pose start) {
-        this(model, wheels, start, model == null || start == null ? null : new MomentumPhysics(model, start));
+        this(model, wheels, start, harnessPhysics(model, start));
+    }
+
+    /** The harness's own physics, with the field elements in it if the settings say so. */
+    private static MomentumPhysics harnessPhysics(DriveModel model, Pose start) {
+        if (model == null || start == null) {
+            return null;
+        }
+        MomentumPhysics physics = new MomentumPhysics(model, start);
+        if (HarnessConfig.load().robotObstacles()) {
+            physics.setObstacles(BioBuzzObstacles.all());
+        }
+        return physics;
     }
 
     /** An estimate whose motion comes from {@code physics} (for example Unity), already at {@code start}. */
@@ -108,7 +138,8 @@ public final class PoseEstimator {
         this.wheels = wheels;
         this.start = start;
         this.physics = physics;
-        this.pieces = new GamePieces(BioBuzzPieces.start(start, model.lengthInches()), PieceModel.bioBuzz());
+        this.pieces = new GamePieces(BioBuzzPieces.start(start, model.lengthInches()), PieceModel.bioBuzz(),
+                BioBuzzObstacles.all());
     }
 
     /**
@@ -138,6 +169,22 @@ public final class PoseEstimator {
         }
         momentum.setWalls(false);
         return this;
+    }
+
+    /**
+     * Lets the robot drive through the HIVE frame and the FLOWERs (only the walls stop it), as
+     * with {@code field.robotObstacles=false}. Returns this estimator.
+     */
+    public PoseEstimator withoutRobotObstacles() {
+        if (physics instanceof MomentumPhysics momentum) {
+            momentum.setObstacles(List.of());
+        }
+        return this;
+    }
+
+    /** True if field elements (the HIVE frame, the FLOWERs) block the robot. */
+    public boolean hasRobotObstacles() {
+        return physics instanceof MomentumPhysics momentum && !momentum.obstacles().isEmpty();
     }
 
     /** True if the field walls stop the robot (the default). */
@@ -206,6 +253,12 @@ public final class PoseEstimator {
         wallContact = now.wallContact();
         if (!wallContact.isEmpty() && !wallContact.equals(contactBefore)) {
             wallHits.add(new WallHit(timeSeconds, matchTimeSeconds, wallContact, now.pose()));
+        }
+        // The same for field elements.
+        String obstacleBefore = obstacleContact;
+        obstacleContact = now.obstacleContact();
+        if (!obstacleContact.isEmpty() && !obstacleContact.equals(obstacleBefore)) {
+            obstacleHits.add(new ObstacleHit(timeSeconds, matchTimeSeconds, obstacleContact, now.pose()));
         }
         // Statistics for the report.
         distanceInches += Math.hypot(now.pose().xInches() - before.xInches(), now.pose().yInches() - before.yInches());
@@ -280,6 +333,9 @@ public final class PoseEstimator {
     /** Every time the robot ran into a field wall, oldest first (empty without walls). */
     public List<WallHit> wallHits() { return Collections.unmodifiableList(wallHits); }
 
+    /** Every time the robot ran into a field element (the HIVE frame, a FLOWER), oldest first. */
+    public List<ObstacleHit> obstacleHits() { return Collections.unmodifiableList(obstacleHits); }
+
     // ---- Step 8: saving the track -------------------------------------------------------
 
     /**
@@ -328,11 +384,21 @@ public final class PoseEstimator {
             return "off (the robot can leave the field)";
         }
         if (wallHits.isEmpty()) {
-            return "none hit";
+            return "none hit" + obstacleSummary();
         }
         WallHit first = wallHits.get(0);
         return String.format(Locale.ROOT, "hit %d time%s (first: %s wall at %.2f s)", wallHits.size(),
-                wallHits.size() == 1 ? "" : "s", first.wall(), first.matchTimeSeconds());
+                wallHits.size() == 1 ? "" : "s", first.wall(), first.matchTimeSeconds()) + obstacleSummary();
+    }
+
+    /** "; field elements hit 1 time (first: HIVE frame at 2.10 s)", or "" if none was hit. */
+    private String obstacleSummary() {
+        if (obstacleHits.isEmpty()) {
+            return "";
+        }
+        ObstacleHit first = obstacleHits.get(0);
+        return String.format(Locale.ROOT, "; field elements hit %d time%s (first: %s at %.2f s)", obstacleHits.size(),
+                obstacleHits.size() == 1 ? "" : "s", first.obstacle(), first.matchTimeSeconds());
     }
 
     /** Prints the report to the test output. */

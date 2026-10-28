@@ -128,7 +128,7 @@ namespace PviHarness.Replay.Tests
         }
 
         /// <summary>
-        /// WHAT: Hello speaks version 4 and reads the OpModes; load asks the harness to read the controllers
+        /// WHAT: Hello speaks the current version and reads the OpModes; load asks the harness to read the controllers
         /// and, unless asked otherwise, to use its own physics.
         /// WHY: The user chose "the harness reads the controllers"; a wrong version would silently misread frames.
         /// </summary>
@@ -138,7 +138,7 @@ namespace PviHarness.Replay.Tests
             session.Hello();
             session.Load("teamA-teleop");
 
-            Assert.AreEqual(4, (int)harness.Received[0]["version"]);
+            Assert.AreEqual(LiveSession.ProtocolVersion, (int)harness.Received[0]["version"]);
             Assert.AreEqual("harness", (string)harness.Received[1]["physics"]);
             Assert.IsFalse(session.UnityPhysics);
             Assert.AreEqual("teamA-teleop", session.OpModes[0].id);

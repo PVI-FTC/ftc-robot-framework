@@ -33,15 +33,23 @@ public interface PhysicsBackend {
      *
      * @param pose        position and heading on the field
      * @param velocity    speeds in the robot's own frame (forward, left, counter-clockwise)
-     * @param wallContact which walls the robot is pressed against: "+x", "-x", "+y", "-y", two
-     *                    of them in a corner ("+x/-y"), or "" for none
+     * @param wallContact     which walls the robot is pressed against: "+x", "-x", "+y", "-y",
+     *                        two of them in a corner ("+x/-y"), or "" for none
+     * @param obstacleContact which field elements the robot box is pressed against, by name:
+     *                        "HIVE frame", "far FLOWER", ... joined by "/", or "" for none
      */
-    record State(Pose pose, MecanumKinematics.RobotVelocity velocity, String wallContact) {
+    record State(Pose pose, MecanumKinematics.RobotVelocity velocity, String wallContact, String obstacleContact) {
         public State {
             if (pose == null || velocity == null) {
                 throw new IllegalArgumentException("A physics state needs a pose and a velocity.");
             }
             wallContact = wallContact == null ? "" : wallContact;
+            obstacleContact = obstacleContact == null ? "" : obstacleContact;
+        }
+
+        /** A state touching no field element (backends that don't model them, such as Unity's). */
+        public State(Pose pose, MecanumKinematics.RobotVelocity velocity, String wallContact) {
+            this(pose, velocity, wallContact, "");
         }
     }
 

@@ -1,28 +1,33 @@
 package pvi.harness.physics;
 
-import com.pedropathing.ftc.drivetrains.MecanumConstants;
-
-import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
+import pvi.harness.runtime.HarnessConfig;
 
 /**
  * Drive models for the real robots, with the source of every number.
  *
- * <p>Values decided in position-estimator Step 0. When the team measures a placeholder, change
- * it from {@code placeholder(...)} to {@code measured(...)} and write down where it came from.</p>
+ * <p>The numbers live in {@code harness.properties}. When the team measures a placeholder, change
+ * it there from {@code placeholder} to {@code measured} and write down where it came from.</p>
  */
 public final class DriveModels {
     /** Only static methods here; nothing to create. */
     private DriveModels() {
     }
 
+    /** The robot in a settings file: speeds, turn rate, size, momentum and battery, each with its source. */
+    public static DriveModel fromConfig(HarnessConfig config) {
+        return new DriveModel(config.robotName(), config.forwardSpeed(), config.strafeSpeed(),
+                config.turnRate(), config.lengthInches(), config.widthInches(), Dynamics.fromConfig(config))
+                .withSpeedVoltage(config.speedVoltage());
+    }
+
     /**
-     * Team A's mecanum robot.
+     * The robot in {@code harness.properties}. For PVI that's Team A's mecanum robot:
      *
      * <ul>
-     *   <li><b>Forward and strafe speed:</b> read live from {@code TeamAPedroConfiguration}
-     *       (Pedro's xVelocity / yVelocity), so re-tuning updates the harness automatically.
-     *       IMPLEMENTATION_STATUS.md records these as the latest completed full-power tuner
-     *       results, superseding earlier values.</li>
+     *   <li><b>Forward and strafe speed:</b> Pedro's xVelocity / yVelocity, copied from
+     *       {@code TeamAPedroConfiguration}. The PVI extras check that they still match, so a
+     *       re-tune that isn't copied over makes a test fail. IMPLEMENTATION_STATUS.md records
+     *       these as the latest completed full-power tuner results.</li>
      *   <li><b>Turn rate:</b> not recorded anywhere. 180 °/s placeholder.</li>
      *   <li><b>Size:</b> physical dimensions are unverified (PEDRO_ROBOT_SETUP_REFERENCE.md).
      *       18 × 18 in is the FTC maximum starting size.</li>
@@ -34,21 +39,6 @@ public final class DriveModels {
      * </ul>
      */
     public static DriveModel teamA() {
-        MecanumConstants pedro = TeamAPedroHarnessAccess.recordedMecanumConstants();
-        return new DriveModel("Team A",
-                ModelValue.measured(pedro.xVelocity, ModelValue.INCHES_PER_SECOND,
-                        "Pedro xVelocity in TeamAPedroConfiguration (latest Forward Velocity Tuner)"),
-                ModelValue.measured(pedro.yVelocity, ModelValue.INCHES_PER_SECOND,
-                        "Pedro yVelocity in TeamAPedroConfiguration (latest Lateral Velocity Tuner)"),
-                ModelValue.placeholder(180.0, ModelValue.DEGREES_PER_SECOND,
-                        "not recorded; spin at full power for 1 s and measure the degrees turned"),
-                ModelValue.placeholder(18.0, ModelValue.INCHES,
-                        "unverified; FTC maximum starting size. Measure bumper to bumper"),
-                ModelValue.placeholder(18.0, ModelValue.INCHES,
-                        "unverified; FTC maximum starting size. Measure bumper to bumper"),
-                Dynamics.teamA())
-                .withSpeedVoltage(ModelValue.placeholder(12.5, ModelValue.VOLTS,
-                        "not recorded; battery voltage when Pedro's velocity tuners ran. Write it down next"
-                                + " time the tuners run"));
+        return fromConfig(HarnessConfig.load());
     }
 }

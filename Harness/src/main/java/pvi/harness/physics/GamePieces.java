@@ -24,6 +24,8 @@ public final class GamePieces {
 
     private final List<GamePiece> initial;
     private final PieceModel model;
+    /** What the balls can bump into besides the walls (the HIVE frame, the FLOWERs). */
+    private final List<PieceObstacle> obstacles;
     // Current state, one entry per piece in the initial order.
     private final String[] ids;
     private final String[] kinds;
@@ -36,13 +38,22 @@ public final class GamePieces {
     private final double[] radius;
     private final double[] mass;
 
-    /** The pieces at their starting spots, standing still. */
+    /** The pieces at their starting spots, standing still, with nothing but the walls to hit. */
     public GamePieces(List<GamePiece> start, PieceModel model) {
-        if (start == null || model == null) {
-            throw new IllegalArgumentException("Game pieces need a starting list and a piece model.");
+        this(start, model, List.of());
+    }
+
+    /**
+     * The pieces at their starting spots, standing still. Loose balls also bounce off
+     * {@code obstacles} (for BIOBUZZ, {@link BioBuzzObstacles#all()}) whenever the walls are on.
+     */
+    public GamePieces(List<GamePiece> start, PieceModel model, List<PieceObstacle> obstacles) {
+        if (start == null || model == null || obstacles == null) {
+            throw new IllegalArgumentException("Game pieces need a starting list, a piece model and an obstacle list.");
         }
         this.initial = List.copyOf(start);
         this.model = model;
+        this.obstacles = List.copyOf(obstacles);
         int n = initial.size();
         ids = new String[n];
         kinds = new String[n];
@@ -168,6 +179,9 @@ public final class GamePieces {
             pushOutOfRobot(i, robotBefore, robot, halfLength, halfWidth, h);
             if (walls) {
                 bounceOffWalls(i);
+                for (PieceObstacle obstacle : obstacles) {
+                    bounceOff(i, obstacle);
+                }
             }
         }
         for (int i = 0; i < ids.length; i++) {
@@ -257,6 +271,68 @@ public final class GamePieces {
             if (Math.signum(vy[i]) == Math.signum(y[i])) {
                 vy[i] = -vy[i] * bounce;
             }
+        }
+    }
+
+    /**
+     * If ball {@code i} overlaps {@code obstacle} (and reaches down to it), moves it out to just
+     * touch the obstacle and bounces it back the way the walls do: the speed into the obstacle
+     * reverses, shrunk by the wall bounce; the speed along it is kept.
+     */
+    private void bounceOff(int i, PieceObstacle obstacle) {
+        double r = radius[i];
+        if (!obstacle.reachedBy(r)) {
+            return; // the ball rolls underneath
+        }
+        double nx;
+        double ny;
+        if (obstacle.cylinder()) {
+            double dx = x[i] - obstacle.minXInches();
+            double dy = y[i] - obstacle.minYInches();
+            double distance = Math.hypot(dx, dy);
+            double touching = obstacle.maxXInches() + r;
+            if (distance >= touching) {
+                return;
+            }
+            nx = distance > 0 ? dx / distance : 1.0;
+            ny = distance > 0 ? dy / distance : 0.0;
+            x[i] = obstacle.minXInches() + nx * touching;
+            y[i] = obstacle.minYInches() + ny * touching;
+        } else {
+            double nearX = clamp(x[i], obstacle.minXInches(), obstacle.maxXInches());
+            double nearY = clamp(y[i], obstacle.minYInches(), obstacle.maxYInches());
+            if (nearX == x[i] && nearY == y[i]) {
+                // The center is inside the box: leave through the nearest side.
+                double[] gaps = {obstacle.maxXInches() - x[i], x[i] - obstacle.minXInches(),
+                        obstacle.maxYInches() - y[i], y[i] - obstacle.minYInches()};
+                int side = 0;
+                for (int s = 1; s < 4; s++) {
+                    if (gaps[s] < gaps[side]) {
+                        side = s;
+                    }
+                }
+                nx = side == 0 ? 1 : side == 1 ? -1 : 0;
+                ny = side == 2 ? 1 : side == 3 ? -1 : 0;
+                nearX = side == 0 ? obstacle.maxXInches() : side == 1 ? obstacle.minXInches() : x[i];
+                nearY = side == 2 ? obstacle.maxYInches() : side == 3 ? obstacle.minYInches() : y[i];
+            } else {
+                double gapX = x[i] - nearX;
+                double gapY = y[i] - nearY;
+                double gap = Math.hypot(gapX, gapY);
+                if (gap >= r) {
+                    return; // not touching
+                }
+                nx = gapX / gap;
+                ny = gapY / gap;
+            }
+            x[i] = nearX + nx * r;
+            y[i] = nearY + ny * r;
+        }
+        double into = vx[i] * nx + vy[i] * ny;
+        if (into < 0) {
+            double change = -(1 + model.wallBounce().value()) * into;
+            vx[i] += change * nx;
+            vy[i] += change * ny;
         }
     }
 

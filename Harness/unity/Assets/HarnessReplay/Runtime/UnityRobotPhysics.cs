@@ -6,9 +6,12 @@ namespace PviHarness.Replay
 {
     /// <summary>
     /// Stage U3: Unity's physics engine (PhysX) moves the robot for a live run loaded with
-    /// <c>"physics": "unity"</c>. The robot is an invisible box with a Rigidbody; the four walls and
-    /// the season field's solid parts (HIVE frame legs, FLOWERS, low CELLS) are invisible colliders,
-    /// so the robot really stops against them and slides along them.
+    /// <c>"physics": "unity"</c>. The robot is an invisible box with a Rigidbody; the four walls and,
+    /// when the harness says so (<see cref="RobotPhysicsData.robotObstacles"/>), the season field's
+    /// solid parts are invisible colliders, so the robot really stops against them and slides along
+    /// them. The field parts are the field file's <c>pieceObstacles</c> (the HIVE frame's feet and
+    /// lips, the FLOWERs' brackets and heads), the same shapes the harness's own physics uses, so both
+    /// stop the robot in the same places and name the contact the same way ("HIVE frame").
     ///
     /// <para>Each loop: <see cref="DriveLaw"/> turns the wheels' command into the speed the motors
     /// and tires allow (the same rules as the harness's MomentumPhysics), PhysX moves the box one loop
@@ -33,6 +36,10 @@ namespace PviHarness.Replay
         private readonly Rigidbody body;
         private RobotSpeed speed;
         private string wallContact = "";
+        private string obstacleContact = "";
+        // Each field-element collider and the name the harness gives it ("HIVE frame", "far FLOWER").
+        private readonly Dictionary<Collider, string> obstacleNames = new Dictionary<Collider, string>();
+        private readonly List<string> obstacleOrder = new List<string>();
 
         /// <summary>
         /// Builds the physics world: walls, the solid parts of <paramref name="field"/> (or none), and
@@ -57,9 +64,23 @@ namespace PviHarness.Replay
             AddSolid("Wall -x", -half - thickness / 2, 0, WallHeightInches / 2, thickness, length, WallHeightInches, 0, slippery);
             AddSolid("Wall +y", 0, half + thickness / 2, WallHeightInches / 2, length, thickness, WallHeightInches, 0, slippery);
             AddSolid("Wall -y", 0, -half - thickness / 2, WallHeightInches / 2, length, thickness, WallHeightInches, 0, slippery);
-            foreach (FieldElementData part in field?.elements ?? new List<FieldElementData>())
+            if (robot.robotObstacles && field != null)
             {
-                AddFieldPart(part, slippery);
+                if (field.pieceObstacles.Count > 0)
+                {
+                    foreach (PieceObstacleData obstacle in field.pieceObstacles)
+                    {
+                        AddObstacle(obstacle, slippery);
+                    }
+                }
+                else
+                {
+                    // A field file without pieceObstacles (format version 1): its drawn parts block instead.
+                    foreach (FieldElementData part in field.elements)
+                    {
+                        AddFieldPart(part, slippery);
+                    }
+                }
             }
 
             var robotObject = new GameObject("Robot body");
@@ -95,6 +116,7 @@ namespace PviHarness.Replay
                     leftInchesPerSecond = speed.left,
                     counterClockwiseRadiansPerSecond = speed.counterClockwise,
                     wallContact = wallContact,
+                    obstacleContact = obstacleContact,
                 };
             }
         }
@@ -135,7 +157,52 @@ namespace PviHarness.Replay
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
             wallContact = WallContact(State, robot);
+            obstacleContact = ObstacleContact();
             return State;
+        }
+
+        /// <summary>
+        /// The harness's name for a field element, from its id in the field file: every HIVE frame part
+        /// is "HIVE frame", a FLOWER's bracket or head is "&lt;which&gt; FLOWER" ("far FLOWER", "blue-wall
+        /// FLOWER"). The same rule as MomentumPhysics.displayName, so events read the same.
+        /// </summary>
+        public static string ObstacleName(string id)
+        {
+            if (id.StartsWith("frame-", StringComparison.Ordinal))
+            {
+                return "HIVE frame";
+            }
+            if (id.StartsWith("flower-", StringComparison.Ordinal))
+            {
+                string rest = id.Substring("flower-".Length);
+                int part = Math.Max(rest.LastIndexOf("-bracket", StringComparison.Ordinal), rest.LastIndexOf("-head", StringComparison.Ordinal));
+                return (part > 0 ? rest.Substring(0, part) : rest) + " FLOWER";
+            }
+            return id;
+        }
+
+        /// <summary>
+        /// Which field elements the robot box touches now (within <see cref="ContactInches"/>), by the
+        /// harness's names in the field file's order, joined by "/"; "" for none.
+        /// </summary>
+        private string ObstacleContact()
+        {
+            if (obstacleNames.Count == 0)
+            {
+                return "";
+            }
+            float margin = FtcToUnity.Meters(ContactInches);
+            Vector3 half = new Vector3(FtcToUnity.Meters(robot.widthInches) / 2 + margin,
+                FtcToUnity.Meters(RobotHeightInches) / 2, FtcToUnity.Meters(robot.lengthInches) / 2 + margin);
+            var touched = new HashSet<string>();
+            foreach (Collider hit in Physics.OverlapBox(body.position, half, body.rotation))
+            {
+                if (obstacleNames.TryGetValue(hit, out string name))
+                {
+                    touched.Add(name);
+                }
+            }
+            return string.Join("/", obstacleOrder.FindAll(touched.Contains));
         }
 
         /// <summary>
@@ -179,6 +246,43 @@ namespace PviHarness.Replay
             double vx = s.forward * cos - s.left * sin;
             double vy = s.forward * sin + s.left * cos;
             return FtcToUnity.Direction(FtcToUnity.Meters(vx), FtcToUnity.Meters(vy), 0);
+        }
+
+        /// <summary>
+        /// A field element (pieceObstacles) as an upright collider from its bottom to its top, named so a
+        /// touch can be reported. A FLOWER head (3.75 in up) still stops the 14 in tall robot box.
+        /// </summary>
+        private void AddObstacle(PieceObstacleData o, PhysicsMaterial material)
+        {
+            double heightInches = o.topInches - o.bottomInches;
+            double centerInches = (o.topInches + o.bottomInches) / 2;
+            Collider collider;
+            if (o.shape == "cylinder")
+            {
+                var solid = new GameObject(o.id);
+                solid.transform.SetParent(root.transform, false);
+                solid.transform.localPosition = FtcToUnity.Position(o.xInches, o.yInches, FtcToUnity.Meters(centerInches));
+                var capsule = solid.AddComponent<CapsuleCollider>();
+                capsule.direction = 1; // upright
+                capsule.radius = FtcToUnity.Meters(o.radiusInches);
+                capsule.height = Mathf.Max(FtcToUnity.Meters(heightInches), 2 * capsule.radius);
+                capsule.contactOffset = 0.001f;
+                capsule.material = material;
+                collider = capsule;
+            }
+            else
+            {
+                GameObject solid = AddSolid(o.id, (o.minXInches + o.maxXInches) / 2, (o.minYInches + o.maxYInches) / 2, centerInches,
+                    o.maxXInches - o.minXInches, o.maxYInches - o.minYInches, heightInches, 0, material);
+                collider = solid.GetComponent<Collider>();
+            }
+            string name = ObstacleName(o.id);
+            obstacleNames[collider] = name;
+            if (!obstacleOrder.Contains(name))
+            {
+                obstacleOrder.Add(name);
+            }
+            Physics.SyncTransforms();
         }
 
         /// <summary>A field part as a collider, if it is solid and low enough for the robot to hit.</summary>

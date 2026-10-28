@@ -61,19 +61,19 @@ class ViewerDropdownTest {
      */
     @Test
     void scenariosDoWhatTheirTitlesSay() {
-        RunRecording autonomous = Scenarios.teamAAutonomous().perform();
+        RunRecording autonomous = PviScenarios.teamAAutonomous().perform();
         assertEquals(MatchPeriod.AUTONOMOUS, autonomous.header().period());
         assertEquals(30.0, last(autonomous).matchTimeSeconds(), 0.03);
         assertEquals(9.4, last(autonomous).pose().xInches(), 0.5);
 
-        Pose turned = last(Scenarios.teleOpTurnInPlace().perform()).pose();
+        Pose turned = last(PviScenarios.teleOpTurnInPlace().perform()).pose();
         assertTrue(turned.headingDegrees() < -45, "clockwise turn: " + turned);
         assertEquals(0.0, turned.distanceInchesTo(Pose.ORIGIN), 1e-6, "in place");
 
-        Pose miswired = last(Scenarios.teleOpMiswiredFrontLeft().perform()).pose();
+        Pose miswired = last(PviScenarios.teleOpMiswiredFrontLeft().perform()).pose();
         assertTrue(miswired.headingDegrees() > 30, "curves left: " + miswired);
 
-        assertEquals(4, Scenarios.rumbleDemoMatch().perform().gamepad1Rumbles().size());
+        assertEquals(4, PviScenarios.rumbleDemoMatch().perform().gamepad1Rumbles().size());
     }
 
     /**

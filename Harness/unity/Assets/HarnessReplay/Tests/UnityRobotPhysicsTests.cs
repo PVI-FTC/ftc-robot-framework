@@ -114,24 +114,75 @@ namespace PviHarness.Replay.Tests
             }
         }
 
+        private static FieldLayoutData BioBuzz()
+        {
+            string path = Path.Combine(FieldLayouts.ResolveFolder(new string[0], Application.dataPath, true), "biobuzz-2026.json");
+            return FieldLayouts.Load(path);
+        }
+
+        private static RobotPhysicsData WithObstacles(RobotPhysicsData robot, bool on)
+        {
+            robot.robotObstacles = on;
+            return robot;
+        }
+
         /// <summary>
-        /// WHAT: On the BIOBUZZ field, a robot driving toward +y beside the HIVE is stopped by the frame's
-        /// base rail and legs on the red side (y = -24.73) instead of driving through them.
-        /// WHY: Field parts that block the robot are the point of Unity's physics.
+        /// WHAT: On the BIOBUZZ field, a robot driving toward +y under the HIVE is stopped by the red
+        /// frame's foot-bar lip (the field file's pieceObstacles, y -24.36), the same place the harness's
+        /// own physics stops it, and reports "HIVE frame" like the harness does.
+        /// WHY: Both physics modes must stop the robot in the same places and give the same events.
         /// </summary>
         [Test]
         public void HiveFrameBlocksTheRobot()
         {
-            string path = Path.Combine(FieldLayouts.ResolveFolder(new string[0], Application.dataPath, true), "biobuzz-2026.json");
-            FieldLayoutData field = FieldLayouts.Load(path);
-
-            using (var physics = new UnityRobotPhysics(Robot(x: 0, y: -50, headingDegrees: 90), field))
+            using (var physics = new UnityRobotPhysics(WithObstacles(Robot(x: 0, y: -50, headingDegrees: 90), true), BioBuzz()))
             {
                 PhysicsStateData end = Drive(physics, FullForward, 2.0);
 
-                Assert.Less(end.yInches, -24.73 - 9 + 0.5, "stopped at the rail, not through it");
-                Assert.Greater(end.yInches, -40.0, "it did drive up to the rail");
+                Assert.AreEqual(-24.36 - 9, end.yInches, 0.3, "front edge against the lip");
+                Assert.AreEqual("HIVE frame", end.obstacleContact);
             }
+        }
+
+        /// <summary>
+        /// WHAT: A robot driving into the far FLOWER stops at its head (radius 3.13, from 3.75 in up, which
+        /// the 14 in tall robot can't pass under) and reports "far FLOWER".
+        /// </summary>
+        [Test]
+        public void FlowerHeadBlocksTheRobot()
+        {
+            using (var physics = new UnityRobotPhysics(WithObstacles(Robot(x: -40, y: -23.39, headingDegrees: 180), true), BioBuzz()))
+            {
+                PhysicsStateData end = Drive(physics, FullForward, 2.0);
+
+                Assert.AreEqual(-68.04 + 3.13 + 9, end.xInches, 0.4, "front edge against the head");
+                Assert.AreEqual("far FLOWER", end.obstacleContact);
+            }
+        }
+
+        /// <summary>
+        /// WHAT: With field.robotObstacles off in the harness, nothing but the walls stops the robot, as
+        /// in the harness's own physics.
+        /// </summary>
+        [Test]
+        public void FieldElementsOnlyBlockWhenTheHarnessSays()
+        {
+            using (var physics = new UnityRobotPhysics(WithObstacles(Robot(x: 0, y: -50, headingDegrees: 90), false), BioBuzz()))
+            {
+                PhysicsStateData end = Drive(physics, FullForward, 1.0);
+
+                Assert.Greater(end.yInches, -24.36 - 9 + 3, "drove on past the lip");
+                Assert.AreEqual("", end.obstacleContact);
+            }
+        }
+
+        /// <summary>WHAT: Field elements are named the harness's way: every frame part is "HIVE frame", a FLOWER part is "&lt;which&gt; FLOWER".</summary>
+        [Test]
+        public void ObstacleNamesMatchTheHarness()
+        {
+            Assert.AreEqual("HIVE frame", UnityRobotPhysics.ObstacleName("frame-red-foot-far"));
+            Assert.AreEqual("far FLOWER", UnityRobotPhysics.ObstacleName("flower-far-head"));
+            Assert.AreEqual("blue-wall FLOWER", UnityRobotPhysics.ObstacleName("flower-blue-wall-bracket-2"));
         }
 
         /// <summary>

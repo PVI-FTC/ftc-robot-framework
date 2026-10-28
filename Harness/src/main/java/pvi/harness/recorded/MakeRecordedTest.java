@@ -43,8 +43,7 @@ public final class MakeRecordedTest {
         String className = args.length > 1 && !args[1].isBlank()
                 ? args[1]
                 : RecordedTestWriter.defaultClassName(recording);
-        String opModeClass = RecordedTestWriter.findOpModeClass(recording.header().opMode(),
-                RecordedTestWriter.TEAMCODE_SOURCES);
+        String opModeClass = RecordedTestWriter.findOpModeClass(recording.header().opMode());
 
         Path written = RecordedTestWriter.save(recording, RecordedTestWriter.DEFAULT_FOLDER,
                 new RecordedTestWriter.Options(className, opModeClass, file.getFileName().toString(),

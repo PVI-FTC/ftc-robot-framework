@@ -65,8 +65,8 @@ class BridgeControllersTest {
 
     /** hello, load with controllers, init and play. */
     private void startWithControllers() {
-        send("{\"type\": \"hello\", \"version\": 4}");
-        Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"input\": \"controllers\"}");
+        send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}");
+        Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\", \"input\": \"controllers\"}");
         assertEquals("controllers", loaded.get("input"));
         send("{\"type\": \"init\"}");
         send("{\"type\": \"play\"}");
@@ -81,11 +81,11 @@ class BridgeControllersTest {
     private static double frontLeftPower(Map<String, Object> frame) {
         for (Object item : (List<Object>) loop(frame).get("motors")) {
             Map<String, Object> motor = (Map<String, Object>) item;
-            if ("frontLeft".equals(motor.get("name"))) {
+            if (BridgeTestOpModes.frontLeft().equals(motor.get("name"))) {
                 return (Double) motor.get("power");
             }
         }
-        throw new AssertionError("no frontLeft");
+        throw new AssertionError("no " + BridgeTestOpModes.frontLeft());
     }
 
     /**
@@ -174,7 +174,7 @@ class BridgeControllersTest {
         Map<String, Object> frame = send("{\"type\": \"step\"}");
         assertEquals("Controllers are off: SDL failed to start", frame.get("controllerProblem"));
 
-        Map<String, Object> bad = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"input\": \"mind\"}");
+        Map<String, Object> bad = send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\", \"input\": \"mind\"}");
         assertEquals("error", bad.get("type"));
         assertTrue(bad.get("message").toString().contains("\"input\" must be"), bad.toString());
     }
@@ -189,7 +189,7 @@ class BridgeControllersTest {
         FakeControllers first = fake;
         fake = new FakeControllers();
 
-        send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\", \"input\": \"controllers\"}");
+        send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\", \"input\": \"controllers\"}");
         assertTrue(first.closed, "the first run's controllers are released when a new run loads");
 
         send("{\"type\": \"bye\"}");
@@ -201,8 +201,8 @@ class BridgeControllersTest {
      */
     @Test
     void messagesInputHasNoControllers() {
-        send("{\"type\": \"hello\", \"version\": 4}");
-        Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"teamA-teleop\"}");
+        send("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}");
+        Map<String, Object> loaded = send("{\"type\": \"load\", \"opMode\": \"" + BridgeTestOpModes.teleOp().id() + "\"}");
         assertEquals("messages", loaded.get("input"));
 
         Map<String, Object> frame = send("{\"type\": \"init\"}");

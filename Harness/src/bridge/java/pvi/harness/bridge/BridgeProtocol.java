@@ -27,13 +27,17 @@ package pvi.harness.bridge;
  *   <li>Version 4 added the game pieces (POLLEN, NECTAR): {@code pieces} in the "loaded" header
  *       (every piece at INIT) and in each frame's loop (the pieces that changed in that loop), in
  *       the run recording's version 4 layout. The harness moves them, in either physics mode.</li>
+ *   <li>Version 5 lets Unity's physics stop the robot at the field elements (HIVE frame, FLOWERs) as
+ *       the harness's own physics does: "loaded" robotPhysics says {@code robotObstacles}, and each
+ *       physicsState may carry {@code obstacleContact} ("HIVE frame", "far FLOWER"), which becomes a
+ *       "Robot hit the ..." event, the same as with the harness's physics.</li>
  * </ul>
  *
  * <pre>
  *   Unity                          harness
- *   hello {version: 4}       -->
+ *   hello {version: 5}       -->
  *                            <--   welcome {opModes: [...]}
- *   load {opMode: "teamA-teleop", input: "controllers"} -->
+ *   load {opMode: "TeamATeleOp", input: "controllers"} -->
  *                            <--   loaded {header: {...}}
  *   init                     -->
  *                            <--   frame {loop: {...}}          (INIT)
@@ -53,7 +57,7 @@ package pvi.harness.bridge;
  */
 public final class BridgeProtocol {
     /** Message format version. Raise it (and update the README) whenever any message changes. */
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
     /** The port the harness listens on unless told otherwise. */
     public static final int DEFAULT_PORT = 7465;
 

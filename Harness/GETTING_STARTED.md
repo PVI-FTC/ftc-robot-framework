@@ -10,6 +10,9 @@ libraries).
 Using another computer? You need Java 17 or newer (Android Studio's built-in Java is fine) and
 internet the first time. See the README, [Running on another PC](README.md#running-on-another-pc).
 
+Using the harness on **your own team's robot code**, in another repository? Do these five steps
+here first, then follow [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md).
+
 ---
 
 ## Step 1: Run the tests
@@ -43,7 +46,8 @@ More ways to run tests: [README §2](README.md#2-run-the-tests).
 
 1. Double-click **`Harness\view.bat`** (or, in Android Studio, pick **View recording** in the
    run menu at the top and click ▶).
-2. A window opens with the field and **Team A TeleOp** waiting in INIT.
+2. A window opens with the field and Team A's TeleOp (**Team A Mecanum Drive**, the one
+   `viewer.defaultTeleOp` in `harness.properties` names) waiting in INIT.
 3. Click the window, then press **Enter** for PLAY.
 4. Drive with **W A S D** (move) and the **Left / Right arrows** (turn). **Esc** stops.
 
@@ -106,6 +110,11 @@ lists the common ones.
 | Look up how to press a button, read a motor, check telemetry | [README §4 Quick reference](README.md#4-quick-reference) |
 | Test an autonomous or a Pedro path | `TeamAAutoOpModeTest.java`, `physics/PedroRouteTest.java` |
 | Test vision with pretend AprilTags | [README, "Vision: scripted AprilTags"](README.md#vision-scripted-apriltags) |
+| Test sensors: IMU, distance, touch, color, OTOS, Limelight… | [README, "More sensors (RP7) and the sensor script"](README.md#more-sensors-rp7-and-the-sensor-script) |
+| Test a `LinearOpMode` | [README, "LinearOpModes"](README.md#linearopmodes-runopmode) (nothing special: it just runs) |
+| Check every OpMode at once | `EveryOpModeSmokeTest.java` (one quick run of each, plus "does the left stick drive?") |
+| Use the harness on your own team's robot | [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md) |
+| Turn a real-robot drive into a test | [robot-recorder](robot-recorder/README.md) |
 | Know what can't be tested yet | [README §6](README.md#6-what-can-be-tested-yet) |
 | Make the simulated robot match the real one | [CALIBRATION.md](CALIBRATION.md) |
 

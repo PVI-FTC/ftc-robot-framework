@@ -1,30 +1,34 @@
 package pvi.harness.viewer;
 
-import org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAAutoOpMode;
-import org.firstinspires.ftc.teamcode.opmodes.teleop.RumbleDemoTeleOp;
-import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp;
-
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-import pvi.harness.ds.Axis;
-import pvi.harness.ds.Button;
-import pvi.harness.ds.GamepadScript;
-import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.RobotConfigs;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.MatchPeriod;
+import pvi.harness.runtime.OpModeCatalog;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunRecorder;
 import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunnerRegistry;
 
 /**
- * Ready-made runs the viewer's dropdown can perform: each runs the real, unchanged TeamCode in
+ * Ready-made runs the viewer's dropdown can perform: each runs the real, unchanged robot code in
  * the harness (fake hardware, scripted gamepads, simulated time) and returns its recording.
  *
- * <p>To add one, write a method like {@link #teleOpDemoDrive()} and add it to {@link #all()}.</p>
+ * <p>With {@code pvi.extras=true}, these are PVI's hand-made ones ({@code PviScenarios}, in
+ * {@code src/pviViewer/java}). In any other repo they come from the robot code's own OpModes
+ * ({@link OpModeCatalog}): each autonomous runs for a whole autonomous period, and each TeleOp
+ * stands still for a few seconds after PLAY (manager decision D11). This class never names a team's
+ * OpModes, so the viewer builds in any repo.</p>
  */
 public final class Scenarios {
+
+    /** The PVI extra's class, built only with {@code pvi.extras=true}. */
+    private static final String PVI_SCENARIOS = "pvi.harness.viewer.PviScenarios";
+    /** How long a generic TeleOp scenario runs after PLAY, in seconds. */
+    static final double TELEOP_IDLE_SECONDS = 3.0;
 
     /**
      * One ready-made run.
@@ -52,73 +56,53 @@ public final class Scenarios {
     private Scenarios() {
     }
 
-    /** Every scenario, in the order the dropdown lists them. */
+    /** Every scenario, in the order the dropdown lists them: PVI's if built, otherwise the generic ones. */
     public static List<Scenario> all() {
-        return List.of(teamAAutonomous(), teleOpDemoDrive(), teleOpTurnInPlace(), teleOpMiswiredFrontLeft(),
-                rumbleDemoMatch());
+        List<Scenario> pvi = pviScenarios();
+        return pvi != null ? pvi : fromCatalog(HarnessConfig.load());
     }
 
-    /** Team A's autonomous: drive forward, run the intake, wait. */
-    public static Scenario teamAAutonomous() {
-        return new Scenario("teamA-autonomous", "Team A autonomous (30 s)",
-                "TeamAAutoOpMode for a whole autonomous period: drives about 9 in forward, then runs the intake.",
-                () -> record(new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA()), MatchPeriod.AUTONOMOUS.seconds()));
+    /**
+     * One scenario per OpMode the robot code has ({@code teamCode.opModePackages}), leaving out
+     * {@code smokeTest.skipOpModes} (OpModes for a different robot): an autonomous runs for 30 s,
+     * a TeleOp stands still for {@value #TELEOP_IDLE_SECONDS} s. Each runs on the robot
+     * {@link RobotConfigs#forOpMode} picks.
+     */
+    static List<Scenario> fromCatalog(HarnessConfig config) {
+        List<Scenario> scenarios = new ArrayList<>();
+        for (OpModeCatalog.Entry e : OpModeCatalog.fromConfig(config)) {
+            if (config.smokeTestSkipOpModes().contains(e.name())) {
+                continue;
+            }
+            boolean autonomous = e.period() == MatchPeriod.AUTONOMOUS;
+            double seconds = autonomous ? MatchPeriod.AUTONOMOUS.seconds() : TELEOP_IDLE_SECONDS;
+            String title = e.name() + (autonomous ? " (30 s)" : " (standing still, 3 s)");
+            String description = autonomous
+                    ? e.name() + " for a whole autonomous period, on the robot in harness.properties."
+                    : e.name() + ": INIT, PLAY and no gamepad input for a few seconds.";
+            scenarios.add(new Scenario(e.simpleName() + (autonomous ? "-autonomous" : "-idle"), title, description,
+                    () -> record(new OpModeRunner(e.newOpMode(), RobotConfigs.forOpMode(e, config)), seconds)));
+        }
+        return scenarios;
     }
 
-    /** A short TeleOp drive with both gamepads in use. */
-    public static Scenario teleOpDemoDrive() {
-        return new Scenario("teamA-teleop-demo-drive", "Team A TeleOp: demo drive (7 s)",
-                "Forward, strafe right, turn, then a curve; the operator starts the intake with A and stops it with B.",
-                () -> {
-                    GamepadScript driver = new GamepadScript()
-                            .at(0.0).stick(Axis.LEFT_STICK_Y, -0.6)
-                            .at(1.5).stick(Axis.LEFT_STICK_Y, 0.0).stick(Axis.LEFT_STICK_X, 0.6)
-                            .at(3.0).stick(Axis.LEFT_STICK_X, 0.0).stick(Axis.RIGHT_STICK_X, -0.5)
-                            .at(4.0).stick(Axis.RIGHT_STICK_X, -0.2).stick(Axis.LEFT_STICK_Y, -0.5)
-                            .at(6.0).releaseAll();
-                    GamepadScript operator = new GamepadScript()
-                            .at(2.0).hold(Button.A, 0.4)
-                            .at(4.5).hold(Button.B, 0.4);
-                    OpModeRunner runner = new OpModeRunner(new TeamATeleOp(), RobotConfigs.teamA())
-                            .gamepad1(driver).gamepad2(operator);
-                    return record(runner, 7.0);
-                });
-    }
-
-    /** Full right stick for half a second: a clockwise turn on the spot. */
-    public static Scenario teleOpTurnInPlace() {
-        return new Scenario("teamA-teleop-turn", "Team A TeleOp: turn in place (2 s)",
-                "Full right stick for 0.5 s: the robot turns clockwise without moving its center.",
-                () -> {
-                    GamepadScript driver = new GamepadScript()
-                            .at(0.0).stick(Axis.RIGHT_STICK_X, 1.0)
-                            .at(0.5).releaseAll();
-                    return record(new OpModeRunner(new TeamATeleOp(), RobotConfigs.teamA()).gamepad1(driver), 2.0);
-                });
-    }
-
-    /** Full forward with the front-left motor's wires swapped: the robot curves left. */
-    public static Scenario teleOpMiswiredFrontLeft() {
-        return new Scenario("teamA-teleop-miswired", "Team A TeleOp: miswired front-left motor (2 s)",
-                "Full forward for 1 s, but the front-left wires are swapped, so the robot curves off to the left.",
-                () -> {
-                    GamepadScript driver = new GamepadScript()
-                            .at(0.0).stick(Axis.LEFT_STICK_Y, -1.0)
-                            .at(1.0).releaseAll();
-                    FakeHardwareMap robot = RobotConfigs.teamA().miswire("frontLeft");
-                    return record(new OpModeRunner(new TeamATeleOp(), robot).gamepad1(driver), 2.0);
-                });
-    }
-
-    /** The rumble demo for a whole TeleOp match: watch the rumble counts in the side panel. */
-    public static Scenario rumbleDemoMatch() {
-        return new Scenario("rumble-demo-match", "Rumble demo TeleOp (2:00 match)",
-                "RumbleDemoTeleOp for a whole match: the driver's gamepad buzzes at PLAY, 90 s, 105 s and 115 s.",
-                () -> record(new OpModeRunner(new RumbleDemoTeleOp(), RobotConfigs.teamA()), MatchPeriod.TELEOP.seconds()));
+    /**
+     * PVI's hand-made scenarios, or null when the PVI extras aren't built. Looked up by name
+     * because this always-built class can't refer to a class that may not exist.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<Scenario> pviScenarios() {
+        try {
+            return (List<Scenario>) Class.forName(PVI_SCENARIOS).getMethod("all").invoke(null);
+        } catch (ClassNotFoundException e) {
+            return null;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not read PVI's scenarios from " + PVI_SCENARIOS, e);
+        }
     }
 
     /** Runs with 1 s of INIT and {@code matchSeconds} of match, and returns the recording. */
-    private static RunRecording record(OpModeRunner runner, double matchSeconds) {
+    static RunRecording record(OpModeRunner runner, double matchSeconds) {
         RunRecorder recorder = RunRecorder.attachTo(runner);
         runner.run(1.0, matchSeconds).assertNoException();
         return recorder.recording();

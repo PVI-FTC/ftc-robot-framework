@@ -40,6 +40,42 @@ class TagsInViewCardTest {
         return recorder.recording();
     }
 
+    /**
+     * WHAT: A vision run for the Unity replay is saved as {@code build/recordings/vision-tag-22.json}:
+     * tag 22 in view 0.5-1.5 s after PLAY, tag 20 joining at 1.0 s, with the robot turning slowly
+     * meanwhile, so the sight lines Unity draws from the robot visibly move.
+     *
+     * <p>HOW: The vision OpMode doesn't drive, so the test powers the drive motors itself after
+     * each loop (left back, right forward). The tags are placed relative to the camera, not on the
+     * field (where AprilTags stand on the field isn't modelled yet).</p>
+     */
+    @Test
+    void aTurningVisionRunIsSavedForUnity() throws java.io.IOException {
+        FakeHardwareMap hw = RobotConfigs.teamA();
+        hw.addWebcam(WEBCAM).script(new AprilTagScript()
+                .at(0.5).see(SeenAprilTag.at(22, 2.0, 30.0, 5.0))
+                .at(1.0).see(SeenAprilTag.at(20, -10.0, 40.0, 5.0))
+                .at(1.5).lose(22)
+                .at(2.0).loseAll());
+        OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(), hw);
+        pvi.harness.hardware.ConfigDrive drive = new pvi.harness.hardware.ConfigDrive(hw);
+        runner.everyLoop(r -> {
+            boolean turning = r.clock().hasStarted() && r.clock().sinceStart() >= 0.5 && r.clock().sinceStart() < 2.0;
+            drive.power(turning ? -0.2 : 0.0, turning ? 0.2 : 0.0);
+        });
+        RunRecorder recorder = RunRecorder.attachTo(runner);
+        runner.init().start();
+        runner.loopUntil(2.5);
+
+        java.nio.file.Path saved = recorder.save("vision-tag-22");
+
+        RunRecording recording = recorder.recording();
+        double startHeading = recording.loops().get(0).pose().headingRadians();
+        double endHeading = recording.loops().get(recording.loops().size() - 1).pose().headingRadians();
+        assertTrue(Math.abs(endHeading - startHeading) > Math.toRadians(10), "the robot should have turned");
+        assertTrue(java.nio.file.Files.readString(saved).contains("\"id\": 22"), "tag 22 should be in the recording");
+    }
+
     /** The first loop at or after this many seconds after PLAY. */
     private static int indexAt(RecordingView view, double matchSeconds) {
         for (int i = 0; i < view.size(); i++) {

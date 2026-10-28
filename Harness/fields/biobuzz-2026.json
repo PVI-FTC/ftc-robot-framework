@@ -1,6 +1,6 @@
 {
   "format": "pvi-harness-field",
-  "version": 1,
+  "version": 2,
   "id": "biobuzz-2026",
   "name": "BIOBUZZ",
   "season": "2026-2027",
@@ -44,6 +44,27 @@
     {"id": "flower-blue-wall", "name": "FLOWER on the blue wall", "shape": "cylinder", "xInches": -23.39, "yInches": 68.04, "zInches": 11.325, "diameterInches": 5, "heightInches": 22.65, "color": "#D9A84A", "accuracy": "cad"},
     {"id": "flower-red-wall", "name": "FLOWER on the red wall", "shape": "cylinder", "xInches": 23.39, "yInches": -68.04, "zInches": 11.325, "diameterInches": 5, "heightInches": 22.65, "color": "#D9A84A", "accuracy": "cad"},
     {"id": "flower-audience", "name": "FLOWER on the audience wall", "shape": "cylinder", "xInches": 68.04, "yInches": 23.39, "zInches": 11.325, "diameterInches": 5, "heightInches": 22.65, "color": "#D9A84A", "accuracy": "cad"}
+  ],
+  "pieceObstaclesNote": "What a POLLEN or NECTAR ball rolling on the tiles can hit (besides the perimeter walls), measured from FIRST's official field CAD. Each shape has straight upright sides from bottomInches to topInches. The sides are where the CAD is at ball-center height (1.4 to 1.8 in), where a rolling ball's widest point touches. A ball of radius r can hit a shape only if the shape's bottomInches is below the ball's top (2 r). topInches 4.0 means taller than any ball (the frame legs go on up, leaning inward). The FLOWER heads start 3.75 in up, so balls on the tiles roll under them and only meet the two wall brackets. Left out: the HIVE baskets and CELLs (all above 30 in) and parts under 0.6 in tall (the flat foot-bar plate, the FLOWER base plate, washers), which balls roll over.",
+  "pieceObstacles": [
+    {"id": "frame-red-lip", "name": "HIVE frame foot bar, upright lip (red side)", "shape": "box", "minXInches": -18.87, "maxXInches": 18.87, "minYInches": -24.36, "maxYInches": -24.16, "bottomInches": 0, "topInches": 2.15, "accuracy": "cad"},
+    {"id": "frame-red-foot-far", "name": "HIVE frame foot and leg (red side, far)", "shape": "box", "minXInches": -18.86, "maxXInches": -17.33, "minYInches": -24.05, "maxYInches": -22.77, "bottomInches": 0, "topInches": 4.0, "accuracy": "cad"},
+    {"id": "frame-red-foot-audience", "name": "HIVE frame foot and leg (red side, audience)", "shape": "box", "minXInches": 17.33, "maxXInches": 18.86, "minYInches": -24.05, "maxYInches": -22.77, "bottomInches": 0, "topInches": 4.0, "accuracy": "cad"},
+    {"id": "frame-blue-lip", "name": "HIVE frame foot bar, upright lip (blue side)", "shape": "box", "minXInches": -18.87, "maxXInches": 18.87, "minYInches": 24.16, "maxYInches": 24.36, "bottomInches": 0, "topInches": 2.15, "accuracy": "cad"},
+    {"id": "frame-blue-foot-far", "name": "HIVE frame foot and leg (blue side, far)", "shape": "box", "minXInches": -18.86, "maxXInches": -17.33, "minYInches": 22.79, "maxYInches": 24.05, "bottomInches": 0, "topInches": 4.0, "accuracy": "cad"},
+    {"id": "frame-blue-foot-audience", "name": "HIVE frame foot and leg (blue side, audience)", "shape": "box", "minXInches": 17.33, "maxXInches": 18.86, "minYInches": 22.79, "maxYInches": 24.05, "bottomInches": 0, "topInches": 4.0, "accuracy": "cad"},
+    {"id": "flower-far-bracket-1", "name": "FLOWER wall bracket 1 (far wall)", "shape": "box", "minXInches": -70.5, "maxXInches": -69.22, "minYInches": -25.29, "maxYInches": -24.01, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-far-bracket-2", "name": "FLOWER wall bracket 2 (far wall)", "shape": "box", "minXInches": -70.5, "maxXInches": -69.22, "minYInches": -22.78, "maxYInches": -21.5, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-far-head", "name": "FLOWER on the far wall, above the balls", "shape": "cylinder", "xInches": -68.04, "yInches": -23.39, "radiusInches": 3.13, "bottomInches": 3.75, "topInches": 22.65, "accuracy": "cad"},
+    {"id": "flower-blue-wall-bracket-1", "name": "FLOWER wall bracket 1 (blue wall)", "shape": "box", "minXInches": -25.29, "maxXInches": -24.01, "minYInches": 69.22, "maxYInches": 70.5, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-blue-wall-bracket-2", "name": "FLOWER wall bracket 2 (blue wall)", "shape": "box", "minXInches": -22.78, "maxXInches": -21.5, "minYInches": 69.22, "maxYInches": 70.5, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-blue-wall-head", "name": "FLOWER on the blue wall, above the balls", "shape": "cylinder", "xInches": -23.39, "yInches": 68.04, "radiusInches": 3.13, "bottomInches": 3.75, "topInches": 22.65, "accuracy": "cad"},
+    {"id": "flower-red-wall-bracket-1", "name": "FLOWER wall bracket 1 (red wall)", "shape": "box", "minXInches": 24.01, "maxXInches": 25.29, "minYInches": -70.5, "maxYInches": -69.22, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-red-wall-bracket-2", "name": "FLOWER wall bracket 2 (red wall)", "shape": "box", "minXInches": 21.5, "maxXInches": 22.78, "minYInches": -70.5, "maxYInches": -69.22, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-red-wall-head", "name": "FLOWER on the red wall, above the balls", "shape": "cylinder", "xInches": 23.39, "yInches": -68.04, "radiusInches": 3.13, "bottomInches": 3.75, "topInches": 22.65, "accuracy": "cad"},
+    {"id": "flower-audience-bracket-1", "name": "FLOWER wall bracket 1 (audience wall)", "shape": "box", "minXInches": 69.22, "maxXInches": 70.5, "minYInches": 21.5, "maxYInches": 22.78, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-audience-bracket-2", "name": "FLOWER wall bracket 2 (audience wall)", "shape": "box", "minXInches": 69.22, "maxXInches": 70.5, "minYInches": 24.01, "maxYInches": 25.29, "bottomInches": 0.5, "topInches": 3.75, "accuracy": "cad"},
+    {"id": "flower-audience-head", "name": "FLOWER on the audience wall, above the balls", "shape": "cylinder", "xInches": 68.04, "yInches": 23.39, "radiusInches": 3.13, "bottomInches": 3.75, "topInches": 22.65, "accuracy": "cad"}
   ],
   "aprilTags": [
     {"id": 30, "name": "RED SCORING", "cluster": "RED SCORING", "sizeInches": 3.25, "clusterOffsetInches": {"x": -6.5, "y": 7.1874, "z": -5.622}, "xInches": -10.23, "yInches": -6.24, "zInches": 36.3, "facing": {"x": 0.5, "y": 0, "z": -0.866}, "moves": true, "accuracy": "cad"},

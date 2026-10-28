@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.pedropathing.follower.FollowerConstants;
-
-import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
+import pvi.harness.runtime.HarnessConfig;
 
 /**
  * How a robot speeds up and slows down: the momentum part of the simulation.
@@ -42,26 +40,22 @@ public record Dynamics(ModelValue responseTime, ModelValue maxAcceleration,
     }
 
     /**
-     * Team A's robot. The coasting decelerations are read live from Team A's Pedro configuration
-     * (Pedro's zero-power acceleration tuners measured them on the real robot), so re-tuning
-     * updates the harness. The response time and traction limit are not measured yet: see the
-     * calibration checklist in the README (Step 10).
+     * The momentum values from a settings file: response time, traction limit and the two
+     * coasting decelerations, each with its source and measured/placeholder mark.
+     */
+    public static Dynamics fromConfig(HarnessConfig config) {
+        return new Dynamics(config.responseTime(), config.maxAcceleration(),
+                config.forwardCoast(), config.lateralCoast());
+    }
+
+    /**
+     * The robot in {@code harness.properties}. For PVI that's Team A: the coasting decelerations
+     * come from Pedro's zero-power acceleration tuners (copied from TeamAPedroConfiguration; the
+     * PVI extras check they still match), and the response time and traction limit are not
+     * measured yet (see CALIBRATION.md).
      */
     public static Dynamics teamA() {
-        FollowerConstants pedro = TeamAPedroHarnessAccess.recordedFollowerConstants();
-        return new Dynamics(
-                ModelValue.placeholder(0.10, SECONDS,
-                        "not measured; typical for goBILDA 312 rpm drive motors. Measure: time from full"
-                                + " power to 63% of full speed"),
-                ModelValue.placeholder(200.0, INCHES_PER_SECOND_SQUARED,
-                        "not measured; about half of gravity, a usual traction limit for mecanum wheels on"
-                                + " foam tiles. Measure: fastest speed-up from rest at full power"),
-                ModelValue.measured(Math.abs(pedro.forwardZeroPowerAcceleration), INCHES_PER_SECOND_SQUARED,
-                        "Pedro forwardZeroPowerAcceleration in TeamAPedroConfiguration (Forward Zero Power"
-                                + " Acceleration Tuner)"),
-                ModelValue.measured(Math.abs(pedro.lateralZeroPowerAcceleration), INCHES_PER_SECOND_SQUARED,
-                        "Pedro lateralZeroPowerAcceleration in TeamAPedroConfiguration (Lateral Zero Power"
-                                + " Acceleration Tuner)"));
+        return fromConfig(HarnessConfig.load());
     }
 
     /** Names of values that are still placeholders. */

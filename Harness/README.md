@@ -9,6 +9,9 @@ not part of the robot build. Nothing here gets deployed to the robot.
 **New here?** Start with [GETTING_STARTED.md](GETTING_STARTED.md): run the tests, drive on
 screen, turn a drive into a test and read a failing test, in five short steps.
 
+**Your own robot, in another repository?** See [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md):
+copy this folder, describe your robot in `harness.properties`, and run the smoke test.
+
 ---
 
 ## 1. What you need
@@ -368,11 +371,14 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
 - **Drive: ...** Team A, B or C TeleOp, driven live from the keyboard (see "Driving live from
   the keyboard" below).
 
-- **Run: ...** ready-made scenarios (`Scenarios.java`): Team A autonomous, a TeleOp demo drive
-  with both gamepads, a turn in place, a miswired front-left motor, and the rumble demo match.
-  Picking one runs the real, unchanged OpMode in the harness right there (simulated time, so even
+- **Run: ...** ready-made scenarios (`Scenarios.java`). With `pvi.extras=true` they are PVI's
+  hand-made ones (`src/pviViewer/java/.../PviScenarios.java`): Team A autonomous, a TeleOp demo
+  drive with both gamepads, a turn in place, a miswired front-left motor, and the rumble demo
+  match. In any other repo there is one per OpMode the harness finds (`OpModeCatalog`): each
+  autonomous runs for 30 s, each TeleOp stands still for 3 s (`smokeTest.skipOpModes` are left
+  out). Picking one runs the real, unchanged OpMode in the harness right there (simulated time, so even
   a whole match takes about a second), saves it as `build\recordings\viewer-<name>.json`, and
-  replays it. To add your own, copy a method in `Scenarios.java` and add it to `all()`.
+  replays it. To add your own, copy a method in `PviScenarios.java` and add it to its `all()`.
 
 **Replays** are kept apart from the dropdown. Click **REPLAYS...** (or press **Ctrl+O**) for the
 Replays window: every recording in `build\recordings`, newest first, with its type (**Drive**
@@ -510,8 +516,12 @@ and fonts all live in `Theme.java`):
 
 The viewer replays the finished recording at real speed. It never runs or changes the test, so
 test results are the same whether you watch or not, and `gradlew test` never opens a window.
-`viewRecording` is the only way to open one for now; more opt-in switches (Step 15) will be
-decided later.
+Two ways to open one: `.\gradlew.bat viewRecording` (or `view.bat`), or set `viewer.open=true`
+in `harness.properties` (Step 15, option A). Then, when `gradlew test` finishes (pass or fail),
+the viewer opens on that run's newest recording, or, if a test failed, on the failed test's own
+newest recording (tests save them as `<TestClass>-<name>.json`). Every recording is in the
+dropdown. Close the window to let Gradle finish. On a computer with no screen it prints one line
+and stays closed. The tests themselves still never open a window.
 
 To save a still picture instead, use `FieldImage.savePng(recording, FieldImage.LAST_LOOP,
 "myAutonomous")` (a loop index instead of `LAST_LOOP` picks an earlier moment). It goes to
@@ -537,12 +547,13 @@ Each FTC season's field is a JSON file in `Harness\fields\`: `biobuzz-2026.json`
 2026–27). DECODE (2025–26) is switched off: its file is in `fields\disabled\`, which Unity doesn't read
 (move it back up to offer it again). Unity draws the chosen one on top of the plain
 tiled field (Unity's **Visuals** screen, or G). The files are plain data with no Unity in them, so harness
-Java (for example scripted AprilTags) can read the same numbers. **Format version 1:**
+Java (for example scripted AprilTags) can read the same numbers. **Format version 2** (version 1, the same
+without `pieceObstacles`, still loads):
 
 | Field | Type | Meaning |
 |---|---|---|
 | `format` | string | Always `"pvi-harness-field"` |
-| `version` | int | `1`; goes up whenever the layout changes |
+| `version` | int | `2`; goes up whenever the layout changes (2 added `pieceObstacles`, 2026-10-27) |
 | `id` | string | The file name without `.json`, e.g. `"biobuzz-2026"` |
 | `name`, `season` | string | `"BIOBUZZ"`, `"2026-2027"` |
 | `sources` | list of strings | Where every number came from (manual version and figures, SDK method) |
@@ -550,6 +561,7 @@ Java (for example scripted AprilTags) can read the same numbers. **Format versio
 | `accuracyNote`, `startingNote` | string | How exact the numbers are; what moving parts start like |
 | `elements` | list | The fixed parts (below) |
 | `aprilTags` | list | The AprilTags (below) |
+| `pieceObstaclesNote`, `pieceObstacles` | string, list | What a ball rolling on the tiles can hit, for the harness's ball physics (below). Optional |
 
 Each **element**: `id`, `name`; `shape` (`"box"` or `"cylinder"`); `xInches`, `yInches`, `zInches`
 (the part's **center**, z = height above the tiles); `lengthInches` (along +x), `widthInches` (along
@@ -565,6 +577,24 @@ position inside that cluster, copied exactly); `xInches`, `yInches`, `zInches` (
 when the field position isn't known**; `moves` (true for BIOBUZZ's HIVE tags, which tip with the HIVE:
 their pose is the starting one); `accuracy`. DECODE's tags also keep the SDK's
 `sdkQuaternionWXYZ`.
+
+Each **piece obstacle** (version 2) is something a POLLEN or NECTAR ball rolling on the tiles can
+hit, besides the perimeter walls. It has straight upright sides from `bottomInches` to `topInches`
+above the tiles: `id`, `name`; `shape` `"box"` (lying along the axes: `minXInches`, `maxXInches`,
+`minYInches`, `maxYInches`) or `"cylinder"` (upright: `xInches`, `yInches`, `radiusInches`);
+`bottomInches`, `topInches`; `accuracy`. The sides are where the CAD is at **ball-center height**
+(1.4 to 1.8 in), where a rolling ball's widest point touches, so a 2D circle-against-box or
+circle-against-circle test is enough. A ball of radius r can hit a shape only if `bottomInches` is
+below its top (2 r). `topInches` 4.0 means "taller than any ball". BIOBUZZ has 18 (measured from the
+official CAD on 2026-10-27; Unity's `PieceObstacleTests` checks every reachable side against the CAD
+meshes):
+
+- **HIVE frame**, each side: the foot bar's upright lip (along the side, |y| 24.16 to 24.36, 2.15 in
+  tall) and a foot at each end where the leg stands (|x| 17.33 to 18.86). The rest of the foot bar is
+  under 0.6 in and the HIVE baskets are above 30 in, so they are left out.
+- **FLOWERs**: two small wall brackets each (0.5 to 3.75 in), and the FLOWER head as a cylinder
+  (radius 3.13) that starts **3.75 in up**, so balls on the tiles roll under it. The 0.5 in base plate
+  is left out (balls roll over it).
 
 Where the numbers come from:
 
@@ -601,7 +631,7 @@ when Unity closes (`HarnessLauncher.cs`).
 
 It only accepts connections from this computer, serves one client at a time, and keeps running
 for the next client until you press Ctrl+C. Then, in Unity (`unity/README.md`), open the Replay
-chooser and pick **Live: Team A TeleOp** (or another): Enter = PLAY, Esc = STOP, then **Save** keeps
+chooser and pick **Live: Team A Mecanum Drive** (Team A's TeleOp, or another): Enter = PLAY, Esc = STOP, then **Save** keeps
 the run in `build\recordings`. Plug the controller in before choosing; with one controller its
 D-pad also works the operator's face buttons, as in the viewer. A controller that disconnects
 releases every input at once and the moment is marked in the run's events.
@@ -617,7 +647,7 @@ choosing a live OpMode. Unity's physics engine then moves the robot instead of t
   (`RemotePhysics` in `src/bridge`): the encoders, the Pinpoint, the recording and the wall-hit events.
 - The harness's own physics stays the default, and every test uses it.
 
-**Bridge message format, version 4.** (Version 2 added `input` in `load` and `controllers` /
+**Bridge message format, version 5.** (Version 5 added `robotObstacles` in `loaded`'s `robotPhysics` and the optional `obstacleContact` in `physicsState`, so Unity's physics stops the robot at the HIVE frame and FLOWERs like the harness's own and gives the same "Robot hit the HIVE frame" events. Version 2 added `input` in `load` and `controllers` /
 `controllerProblem` in `frame`. Version 3 added `physics` in `load`, `physics` / `robotPhysics` in
 `loaded`, `driveCommand` in `frame`, and `physicsState` in `step` / `play`. Version 4 added the game
 pieces: `pieces` in the `loaded` header and in each frame's `loop`, as in run recording version 4.
@@ -632,10 +662,10 @@ Unity sends:
 
 | `type` | Other fields | Allowed when | Reply |
 |---|---|---|---|
-| `hello` | `version` (whole number, must be `3`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
+| `hello` | `version` (whole number, must be `5`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
 | `load` | `opMode` (string, an `id` from `welcome`); `input` (string, optional: `"controllers"` = the harness reads the game controllers, as Unity does; `"messages"` = each `step`/`play` carries the gamepads; default `"messages"`); `physics` (string, optional: `"harness"` = the harness's own physics moves the robot, the default; `"unity"` = Unity's physics does, see `physicsState`) | after `hello`; again any time to start over | `loaded` |
 | `init` | — | after `load` | `frame` (stage `INIT`) |
-| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`); `physicsState` (object, **required with `"physics": "unity"`, refused otherwise**: where Unity's physics put the robot after running the last frame's `driveCommand` for one loop period: `xInches`, `yInches` (numbers, field frame), `headingRadians` (number, counter-clockwise from +x), `forwardInchesPerSecond`, `leftInchesPerSecond`, `counterClockwiseRadiansPerSecond` (numbers, the robot's own frame), `wallContact` (string: `"+x"`, `"-x"`, `"+y"`, `"-y"`, two joined like `"+x/-y"`, or `""`)) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
+| `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`); `physicsState` (object, **required with `"physics": "unity"`, refused otherwise**: where Unity's physics put the robot after running the last frame's `driveCommand` for one loop period: `xInches`, `yInches` (numbers, field frame), `headingRadians` (number, counter-clockwise from +x), `forwardInchesPerSecond`, `leftInchesPerSecond`, `counterClockwiseRadiansPerSecond` (numbers, the robot's own frame), `wallContact` (string: `"+x"`, `"-x"`, `"+y"`, `"-y"`, two joined like `"+x/-y"`, or `""`), `obstacleContact` (string, optional: the field elements the robot is pressed against, named as the harness names them, `"HIVE frame"` or `"<which> FLOWER"` such as `"far FLOWER"`, joined by `/`, or `""`; it becomes a "Robot hit the ..." event)) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
 | `play` | `gamepad1`, `gamepad2` (optional); `physicsState` (as for `step`) | after `init` | `frame` (stage `START`) |
 | `stop` | — | after `init` or `play` | `frame` (stage `STOP`, `finished: true`) |
 | `save` | `name` (string: letters, digits, `-`, `_`, `.`) | after `load` | `saved` |
@@ -645,8 +675,8 @@ The harness sends:
 
 | `type` | Fields |
 |---|---|
-| `welcome` | `version` (whole number, `3`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
-| `loaded` | `opMode` (string, the id); `input` (string, `"controllers"` or `"messages"`); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `physics` (string, `"harness"` or `"unity"`); `robotPhysics` (object, or `null` when the robot isn't tracked: `forwardInchesPerSecond`, `strafeInchesPerSecond`, `turnRadiansPerSecond`, `lengthInches`, `widthInches`, and the momentum numbers `responseTimeSeconds`, `maxAccelerationInchesPerSecondSquared`, `forwardCoastInchesPerSecondSquared`, `lateralCoastInchesPerSecondSquared` (each `null` for a robot without momentum), and `start` `{xInches, yInches, headingRadians}`); `header` (the run recording's header object) |
+| `welcome` | `version` (whole number, `5`); `loopPeriodSeconds` (number, seconds per OpMode call, `0.02`); `opModes` (array of `{id, title, period}`: strings; `period` is `"AUTONOMOUS"` or `"TELEOP"`) |
+| `loaded` | `opMode` (string, the id); `input` (string, `"controllers"` or `"messages"`); `matchSeconds` (number: `30` or `120`, when the harness stops the run by itself); `physics` (string, `"harness"` or `"unity"`); `robotPhysics` (object, or `null` when the robot isn't tracked: `forwardInchesPerSecond`, `strafeInchesPerSecond`, `turnRadiansPerSecond`, `lengthInches`, `widthInches`, and the momentum numbers `responseTimeSeconds`, `maxAccelerationInchesPerSecondSquared`, `forwardCoastInchesPerSecondSquared`, `lateralCoastInchesPerSecondSquared` (each `null` for a robot without momentum), `robotObstacles` (boolean: `harness.properties` `field.robotObstacles`; when true, Unity blocks the robot with the field file's `pieceObstacles`, as the harness's own physics does), and `start` `{xInches, yInches, headingRadians}`); `header` (the run recording's header object) |
 | `frame` | `loop` (one run recording loop entry: time, stage, pose, motors, servos, autoStep, telemetry, gamepads); `gamepad1Rumbles`, `gamepad2Rumbles` (arrays of rumble: only the ones **new since the last frame**); `events` (array of event, new since the last frame, e.g. wall hits); `finished` (boolean: `true` once the run has stopped, by `stop`, at the end of the match, or because the OpMode stopped itself); `controllers` (array of 2 strings saying what drives gamepad 1 and 2, e.g. `["PS5 Controller", "none"]`, or `null` with `"input": "messages"`); `controllerProblem` (string, why controllers don't work, e.g. the library couldn't start; else `null`); `driveCommand` (object, what the drive wheels are told after this call, for Unity's physics: `frontLeft`, `frontRight`, `rearLeft`, `rearRight` (numbers -1 to 1, after motor direction) and `braking` (boolean: the drive motors brake at zero power); `null` without drive motors) |
 | `saved` | `path` (string, the recording file under `build\recordings`) |
 | `goodbye` | — |
@@ -659,8 +689,16 @@ With `"physics": "unity"`, before each `step` and `play` Unity runs its physics 
 The harness's position estimate takes that state at the same point in the loop where its own
 physics would step, so sensors, the OpMode and the recording see it in the usual order.
 Unity drives the clock, so a run only moves when Unity asks; with real controllers the drive is as
-repeatable as the driver, and its saved recording replays exactly. The OpModes
-Unity can pick are listed in `src/bridge/java/pvi/harness/bridge/BridgeOpModes.java`.
+repeatable as the driver, and its saved recording replays exactly.
+
+**Which OpModes Unity can pick** (`BridgeOpModes`, manager decision D7): every enabled `@TeleOp` and
+`@Autonomous` OpMode the harness finds in `teamCode.opModePackages` (`OpModeCatalog`), with no list
+to edit, in Driver Station name order. Each `id` is the class's simple name (`"TeamATeleOp"`; the
+full class name if two OpModes share one) and each `title` is the Driver Station name (`"Team A
+Mecanum Drive"`). Each runs on the robot `RobotConfigs.forOpMode` picks: the one in `harness.properties`;
+with `pvi.extras=true`, OpModes in the Driver Station group "Team B" / "Team C" keep PVI's Team B /
+Team C fake robots. An OpMode that needs devices the configured robot doesn't have fails at INIT with the
+missing name, the same as on a real robot.
 
 ### The config file (`harness.properties`)
 
@@ -670,9 +708,11 @@ the robot profile (`HarnessConfig.load()`). It's a plain Java `.properties` file
 lines, `#` starts a comment, and a line ending in `\` carries on the next line. Paths are relative
 to the `Harness` folder.
 
-**Format version:** `config.version=1`. This number goes up whenever keys are added, renamed or
-removed. Both the build and `HarnessConfig` refuse a file with a different version and say which
-one they expect.
+**Format version:** `config.version=3` (version 2, 2026-10-27, added the robot name, drive
+directions, speeds, coasting, other motors, OpMode packages and `pvi.extras`; version 3 added
+`viewer.defaultTeleOp` and the `devices.*` lists).
+This number goes up whenever keys are added, renamed or removed. Both the build and
+`HarnessConfig` refuse a file with a different version and say which one they expect.
 
 Reading fails early with one message listing every problem. That includes a missing key, a key
 the harness doesn't know (usually a typo), a value that isn't a number, or a fact without
@@ -680,20 +720,36 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 
 | Key | Type | Meaning | PVI's value |
 |---|---|---|---|
-| `config.version` | integer | Layout of this file (see above) | `1` |
+| `config.version` | integer | Layout of this file (see above) | `3` |
 | `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../TeamCode/src/main/java` |
+| `teamCode.opModePackages` | package list, comma-separated (at least one) | Java packages searched for `@TeleOp` / `@Autonomous` OpModes (RP8) | `org.firstinspires.ftc.teamcode` |
 | `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../build.dependencies.gradle` |
 | `host.skipLibraries` | `group:name` list, comma-separated (may be empty) | Libraries in that list that only work on Android, so the harness leaves them out | `org.firstinspires.ftc:Inspection`, `:Blocks`, `:RobotServer`, `:OnBotJava`, `androidx.appcompat:appcompat` |
 | `drive.frontLeft`, `drive.frontRight`, `drive.rearLeft`, `drive.rearRight` | text | The mecanum drive motors' names in the robot configuration | `frontLeft`, `frontRight`, `rearLeft`, `rearRight` |
 | `pinpoint` | text | The Pinpoint's name in the robot configuration | `pinpoint` |
+| `robot.name` | text | The robot's name in reports, recordings and the viewer | `Team A` |
+| `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams` | name lists, comma-separated (each may be empty) | More devices on the fake robot (RP7, TestBot's fakes: `FakeImu`, `FakeCRServo`, `FakeDistanceSensor`, `FakeTouchSensor`, `FakeColorSensor`), named as in the robot configuration | all empty (Team A's TeamCode uses none yet) |
+| `devices.deadWheels` | `name:parallel:inches` or `name:perpendicular:inches`, comma-separated (may be empty) | Dead-wheel odometry pods (TestBot's `FakeDeadWheel`): the motor port its encoder is plugged into, which way it rolls, and how far left (parallel) or forward (perpendicular) of the center it is | empty |
+| `hardware.servos` | name list, comma-separated (may be empty) | The fake robot's servos (`FakeServo`), named as in the robot configuration | empty |
+| `hardware.otherMotors` | name list, comma-separated (may be empty) | The fake robot's other motors (not the drive) | `intake` |
+| `drive.frontLeft.direction` (and `.frontRight`, `.rearLeft`, `.rearRight`) | `FORWARD` / `REVERSE` | The direction setting that makes that wheel drive the robot forward on positive power, as tested on the real robot | left `REVERSE`, right `FORWARD` |
+| `drive.forwardSpeedInchesPerSecond` | fact, in/s | Full-power forward speed (Pedro's xVelocity) | `62.61374213751846`, measured |
+| `drive.strafeSpeedInchesPerSecond` | fact, in/s | Full-power sideways speed (Pedro's yVelocity) | `49.757958599901585`, measured |
+| `drive.forwardCoastInchesPerSecondSquared` | fact, in/s² | How fast the robot slows when coasting forward on FLOAT (Pedro's forward zero-power acceleration, as a positive number) | `42.4832745291992`, measured |
+| `drive.lateralCoastInchesPerSecondSquared` | fact, in/s² | The same, sideways | `50.60694780564594`, measured |
 | `robot.lengthInches` | fact, inches | Robot length, bumper to bumper | `18`, placeholder |
 | `robot.widthInches` | fact, inches | Robot width, bumper to bumper | `18`, placeholder |
 | `drive.turnRateDegreesPerSecond` | fact, deg/s | Fastest spin at full power | `180`, placeholder |
 | `drive.responseTimeSeconds` | fact, seconds | Drive motors' response time (63% of a speed change) | `0.10`, placeholder |
 | `drive.maxAccelerationInchesPerSecondSquared` | fact, in/s² | Traction limit: fastest speed-up before the wheels slip | `200`, placeholder |
 | `drive.speedVoltage` | fact, volts | Battery voltage the drive speeds were measured at | `12.5`, placeholder |
+| `viewer.defaultTeleOp` | text (may be empty) | The TeleOp the viewer drives when it opens (`view.bat`, `gradlew viewRecording`): a Driver Station name or a class's simple name. Empty means the first TeleOp by Driver Station name; an unknown name stops with a message listing the TeleOps. The live-drive dropdown lists every `@TeleOp` (`OpModeCatalog`), this one first | `TeamATeleOp` |
+| `smokeTest.skipOpModes` | Driver Station name list, comma-separated (may be empty) | OpModes TestBot's run-every-OpMode smoke test leaves out (for example one written for a different robot) | `KimCode TeleopV1` |
+| `smokeTest.notDrivingTeleOps` | Driver Station name list, comma-separated (may be empty) | TeleOps that aren't meant to drive (camera or tuning tools): the smoke test's left-stick drive check skips them; they still get the crash check | `Team A AprilTag Vision Test, Team A Camera Calibration Capture, Team A Pedro Diagnostic` |
+| `pvi.extras` | `true` / `false` | Also build PVI's extras, `src/pvi/java` and `src/pviTest/java` (below). Set `false` in any other repo | `true` |
+| `field.robotObstacles` | `true` / `false` | The HIVE frame and FLOWERs stop the simulated robot like the walls do (see "How motion is simulated", step 6) | `true` |
 | `field` | text | The season field: a file in `fields/` without `.json` | `biobuzz-2026` |
-| `viewer.open` | `true` / `false` | Step 15 (not built yet): open the viewer after a run. Normal test runs never open a window, whatever this says | `false` |
+| `viewer.open` | `true` / `false` | Step 15, option A: open the viewer after `gradlew test` finishes, on the run's newest (or failed) recording; skipped with no screen. The tests themselves never open a window | `false` |
 
 A **fact** is written `number | measured or placeholder | where it came from`, for example
 `robot.lengthInches=17.5 | measured | tape measure at the robot, 2026-10-30`. The number must be
@@ -703,16 +759,90 @@ above zero. Write `measured` only after measuring on the real robot ([CALIBRATIO
 The test task passes the libraries it really uses to the tests as the system property
 `harness.robotLibraries` (`group:name:version`, comma-separated, in the host file's order).
 
-**Not connected yet:** the runner, physics and sensors still use Team A's values from TeamCode
-(RP2 connects them to this file).
+**Who reads it (RP2):** the runner, physics and fake robot get every robot fact from this file:
+`WheelReader`, `DriveModels`, `Dynamics` and `RobotConfigs` (each has a `fromConfig(HarnessConfig)`,
+and their `teamA()` methods read `harness.properties`). None of them uses Pedro or TeamCode's
+robot classes, so the core builds in any repo.
+
+**PVI extras (`pvi.extras=true`):** `src/pvi/java` holds `TeamAPedroHarnessAccess`, which reads
+Team A's Pedro configuration, and `src/pviTest/java` holds tests that use it:
+`TeamAConfigMatchesPedroTest` checks that the speeds, coasting values, motor names and
+directions, Pinpoint name and other motor names here still equal Team A's Pedro configuration
+and TeamCode's hardware wrappers. After a re-tune it fails and names the line to update.
+`PedroMecanumTest` checks that Pedro 3's own mecanum drivetrain, built from Team A's
+configuration, makes every simulated wheel push forward. (Pedro 3: the access file reads Team A's
+`ForesightConfig`, `MecanumConfig` and `PinpointConfig`.) In another repo, set `pvi.extras=false`
+and type your own robot's numbers in.
+
+### Finding the robot's OpModes (`OpModeCatalog`)
+
+The harness can list TeamCode's OpModes by itself, like the Driver Station menu: every class
+marked `@TeleOp` or `@Autonomous` in the packages named by `teamCode.opModePackages`, leaving out
+`@Disabled`, abstract and non-OpMode classes. Add an OpMode to TeamCode and it is listed, with no
+list to edit.
+
+```java
+List<OpModeCatalog.Entry> opModes = OpModeCatalog.fromConfig(HarnessConfig.load());
+// or OpModeCatalog.find(List.of("org.firstinspires.ftc.teamcode"))
+for (OpModeCatalog.Entry e : opModes) {
+    System.out.println(e.name() + " (" + e.group() + ", " + e.period() + ")");
+}
+OpModeRunner runner = new OpModeRunner(opModes.get(0).newOpMode(), RobotConfigs.teamA());
+```
+
+Each `Entry` is plain data: `className`, `name` (the class's simple name if the annotation has
+none, as the SDK does), `group`, `period` (`TELEOP` or `AUTONOMOUS`) and `preselectTeleOp`
+(empty for a TeleOp). The list is sorted by name, so it's the same every run. Classes are loaded
+without running their `static` code. A package with no compiled classes (usually a typo) fails
+with a message naming it. `LinearOpMode`s are listed too, and the runner runs them (next section).
+
+### LinearOpModes (`runOpMode()`)
+
+`OpModeRunner` runs a `LinearOpMode` the same way as an iterative one: the same `init()`,
+`initLoop(n)`, `start()`, `loop(n)`, `stop()` and `run(...)`, and the same results. Nothing
+changes in the test:
+
+```java
+RunResult result = new OpModeRunner(new MyLinearAuto(), RobotConfigs.teamA()).run(MatchPeriod.AUTONOMOUS);
+```
+
+How it works: `runOpMode()` runs on one extra thread, but only one thread runs at a time.
+Each runner step lets the OpMode run until it reaches one of the SDK's waiting calls (a *sync
+point*), then simulated time moves on one loop (20 ms by default):
+
+| In `runOpMode()` | Simulated time |
+|---|---|
+| `waitForStart()` | one loop each time it checks for PLAY, so it waits through every init loop |
+| `opModeIsActive()` (while running), `idle()` | one loop per call, so `while (opModeIsActive())` makes one pass per loop |
+| `sleep(ms)`, `Thread.sleep(ms)` | exactly `ms` of simulated time: `sleep(1000)` is 50 loops |
+| `isStarted()`, `isStopRequested()`, `opModeInInit()` | one loop per 2 checks, so `while (opModeInInit())` makes one pass per init loop |
+
+- **PLAY** makes `waitForStart()` return and `isStarted()` true.
+- **STOP** makes `isStopRequested()` true and ends a `sleep` early, as on the robot (the thread is
+  interrupted). The OpMode then gets up to 50 more sync points to finish its loops, without time
+  moving; if it's still running, the step fails with a message.
+- When `runOpMode()` returns by itself, the OpMode stops, as on the robot, and a `run(...)` ends
+  early (`RunResult.stopRequestedByOpMode()`).
+- A **crash** in `runOpMode()` goes into the `RunResult` (or to the test, in step-by-step use), with
+  the stage it happened in.
+- **Watchdog:** a loop that never calls the SDK, like `while (!gamepad1.a) { }`, would stop
+  simulated time forever. After 3 s of real time the step fails with a message saying so. That
+  thread can't be stopped from outside, so it keeps running until the tests end.
+- Every run gives exactly the same result, because the two threads never run at the same time.
+
+This needs the harness's Java agent (always loaded by `gradlew test`), which sends those SDK
+calls to `SimTime` and on to `runtime/LinearOpModeDriver`. On every other thread, and in
+iterative OpModes, `Thread.sleep` and `Thread.yield` still do exactly what they did before. The
+tests are in `runtime/LinearOpModeTest`.
 
 ### Robot configurations (`RobotConfigs`)
 
 | Method | Devices |
 |---|---|
-| `RobotConfigs.teamA()` | `frontLeft`, `frontRight`, `rearLeft`, `rearRight`, `intake`, and the goBILDA Pinpoint `pinpoint` (name read from Team A's Pedro configuration) |
+| `RobotConfigs.teamA()` | the robot in `harness.properties`: the four drive motors, the other motors and the goBILDA Pinpoint (PVI: `frontLeft`, `frontRight`, `rearLeft`, `rearRight`, `intake`, `pinpoint`) |
+| `RobotConfigs.robot(config)` | the same, for any `HarnessConfig` |
 | `RobotConfigs.teamB()` / `teamC()` | same as Team A for now |
-| `RobotConfigs.driveOnly()` | the four drive motors |
+| `RobotConfigs.driveOnly()` | the four drive motors (names from `harness.properties`) |
 | `.without("intake")` | remove a device to test what happens when it is missing |
 
 Need something else? Build your own:
@@ -747,11 +877,54 @@ Before every OpMode call the harness moves the sensors on to match the simulated
   follow the offsets and pod type the code set. Values only change when the code calls
   `update()`, as on the robot. It doesn't model pod slip or IMU drift.
 
-So **Pedro runs**: pick a route in Team A's "Team A Pedro Paths" menu and Pedro follows it,
-reading the fake Pinpoint every loop. **Start the robot where the route starts** on the field
+So **Pedro runs**: pick a route in Team A's "Team A Pedro Paths" OpMode (D-pad up/down during
+INIT; it starts on LP-11, and the screen shows "Selected Route") and Pedro 3 follows it, reading
+the fake Pinpoint every loop. The OpMode shows "Observed Start" and "Observed End"; a test works
+out the end error from those and the route's own end point (`TeamAPedroPathRoute.getEndXInches()`
+and the others). **Start the robot where the route starts** on the field
 (`PoseEstimator.attachTo(runner, model, wheels, Pose.fromPedro(56, 8, 90))`; `Pose.fromPedro`
 converts Pedro's corner-based coordinates), or the field walls won't be where Pedro thinks they
 are. Placed that way, Team A's routes finish within about a quarter inch (`PedroRouteTest.java`).
+
+### More sensors (RP7) and the sensor script
+
+Each fake implements the SDK's own type, so robot code reads it with the usual
+`hardwareMap.get(...)` and SDK calls. Add them in a test, or list them in `harness.properties`
+(`devices.…` lines) so the config robot has them:
+
+| Add with | SDK type robot code asks for | Where its readings come from |
+|---|---|---|
+| `addImu("imu")` | `IMU` | The robot's real turning: yaw (CCW positive, 0 where it started or after `resetYaw()`), yaw rate; pitch and roll 0. Optional `setDriftDegreesPerSecond`, `setYawOffsetDegrees`. |
+| `addCRServo("roller")` | `CRServo` | Records the power and direction the code sets (`getAppliedPower()` after direction). |
+| `addDistanceSensor("front")` | `DistanceSensor` | The script; `DistanceUnit.infinity` until it says otherwise. |
+| `addTouchSensor("limit")` | `TouchSensor` or `DigitalChannel` | The script. As a digital input, `getState()` is **true when not pressed** (REV wiring). |
+| `addColorSensor("intakeColor")` | `NormalizedColorSensor`, `ColorSensor`, `DistanceSensor` | The script: a color (0..1 per part, times the gain) and a distance. |
+| `addAnalogInput("pot")` | `AnalogInput` | The script, 0 to 3.3 V. |
+| `addOtos("otos")` | `SparkFunOTOS` | The robot's real motion, in the OTOS's own frame (reset / `setPosition`), its units and scalars. Readings only. |
+| `addDeadWheel(FakeDeadWheel.parallel("leftOdo", 7.0))` or `.perpendicular("strafeOdo", 3.0)` | `DcMotorEx` encoder on that port | The robot's real motion (forward or sideways roll, plus turning at its offset), in goBILDA pod counts. Readings only. |
+| `addLimelight("limelight")` | `Limelight3A` (`LLResult`) | The script (`LimelightView`): a target's tx/ty/ta and AprilTags, read through the SDK's own result parser; only after `start()`. |
+
+The IMU, OTOS and dead wheels follow the simulated robot's motion; position tracking itself
+still comes only from the mecanum drive and Pinpoint. The others follow one **`SensorScript`**,
+a timeline like `GamepadScript`, attached to the fake robot:
+
+```java
+FakeHardwareMap robot = RobotConfigs.teamA();
+robot.addDistanceSensor("front");
+robot.addTouchSensor("armLimit");
+robot.sensorScript(new SensorScript()
+        .duringInit().at(0).distanceInches("front", 30)     // seconds since INIT
+        .afterStart().at(2.0).distanceInches("front", 8)    // seconds since PLAY
+        .at(3.0).press("armLimit")
+        .at(4.0).color("intakeColor", 0.8, 0.1, 0.1)
+        .at(5.0).set("limelight", LimelightView.target(-4.5, 12.0, 1.8)));
+```
+
+Each value holds until the script changes it, and a device can have several kinds at once (a
+color sensor's color and distance). Fakes the runner steps implement `SimulatedSensor`; the
+runner calls `SimulatedSensors.stepAll` once per loop, before the OpMode. Tests:
+`hardware/SensorFakesTest` and `hardware/MoreSensorFakesTest`, each with small TeamCode-style
+sample OpModes.
 
 ### How motion is simulated, start to finish
 
@@ -794,11 +967,21 @@ robot's new speed and position:
 4. **Battery.** A motor's speed is about proportional to its voltage, so the wheels push in
    proportion to the battery: at 11 V the robot is 88% as fast as at the 12.5 V its speeds were
    measured at. Set a tired battery with `hardwareMap.batteryVoltage().setVoltage(11.0)`, or one
-   that drops during the match with `.setSag(0.5)` (volts per minute of simulated time). Pedro's
-   voltage compensation, if a team turns it on, reads the same battery.
+   that drops during the match with `.setSag(0.5)` (volts per minute of simulated time). Pedro 3
+   doesn't read the battery (Pedro 2's voltage compensation is gone); robot code that reads the
+   voltage sensor itself gets the same battery.
 5. **Moving.** The robot moves by its average speed over the step, turned to the field using the
    heading halfway through the step.
-6. **Walls.** If any part of the robot box would be past a wall (±72 in), the robot is moved back
+6. **Field elements** (`field.robotObstacles=true`, the default). The same 18 shapes the balls
+   bounce off (`BioBuzzObstacles`: the HIVE frame's feet and foot-bar lips, each FLOWER's wall
+   brackets and head) stop the robot box: it is pushed back out the shortest way, loses its speed
+   into the element and slides along it. The robot counts as a box from the tiles up, so the
+   raised FLOWER heads (3.75 in up) stop it too. The motion is checked every 0.1 in, so even a very
+   fast robot can't jump through the 0.2 in lip. Each new hit is recorded ("Robot hit the HIVE
+   frame", "Robot hit the far FLOWER"), counted in `estimator.obstacleHits()` and in the report's
+   walls line. `estimator.withoutRobotObstacles()` turns it off for one run. Unity's physics
+   (Stage U3) doesn't use this.
+7. **Walls.** If any part of the robot box would be past a wall (±72 in), the robot is moved back
    so it just touches, and its speed into the wall is cancelled. Driving into a wall at an angle,
    it slides along it. Each new hit is recorded ("Robot hit the +x wall").
 
@@ -828,8 +1011,16 @@ report, until the team measures them on the real robot ([CALIBRATION.md](CALIBRA
 against a wall). Loose balls on the tiles (`state` `"field"`) are pushed by the robot box: they
 leave at least as fast as the bit of robot that hit them, roll and slow down, and bounce off the
 walls and each other (`GamePieces`, in small sub-steps so nothing passes through anything). The
-robot is never slowed by a ball. Balls in a FLOWER, a CELL or an ALLIANCE AREA stay put. Rolling
-deceleration (15 in/s²), the bounces and the masses are placeholders (`PieceModel.bioBuzz()`).
+robot is never slowed by a ball. Loose balls also bounce off the HIVE frame's feet and foot-bar
+lips and each FLOWER's wall brackets (`BioBuzzObstacles`, 18 upright boxes and cylinders copied
+from `fields/biobuzz-2026.json` "pieceObstacles", with the wall bounce); a ball only hits an
+obstacle that reaches below its top, so balls roll under the raised FLOWER heads. Balls in a
+FLOWER, a CELL or an ALLIANCE AREA stay put. Rolling
+deceleration (15 in/s²), the bounces and the masses are placeholders (`PieceModel.bioBuzz()`):
+the official BIOBUZZ Competition Manual (TU06, section 9.8) gives only the balls' size and
+material, approximately 2.8 in (POLLEN) and 3.6 in (NECTAR) Gopher ResisDent polyethylene balls
+(`GamePiece.POLLEN_DIAMETER`, `NECTAR_DIAMETER`), and no mass, bounce or friction. It also says
+the balls aren't perfectly round and vary in size; the harness uses the nominal sizes.
 `estimator.pieces().snapshot()` gives every ball now; `estimator.withPieces(GamePieces.none())`
 runs on an empty field.
 
@@ -913,7 +1104,11 @@ phone's built-in cameras.
 | Vision state machine with scripted AprilTags (see "Vision: scripted AprilTags") | ✅ Now |
 | Field position (estimated from motor powers), motor encoders | ✅ Now |
 | Pedro paths: they run and Pedro sees the robot's position | ✅ Now |
-| How well Pedro follows a path: each Team A route ends within 1 in / 2° (`PedroRouteTest.java`) | ✅ Now (robot speeds and size still placeholders until calibrated) |
+| How well Pedro follows a path: each Team A route ends within 1 in / 2° (`PedroRouteTest.java`) | ✅ Now (robot size and some response values still placeholders until calibrated; Team A's DECODE-season routes run with the BIOBUZZ HIVE switched off, decision D12) |
+| `LinearOpMode`s (`waitForStart`, `sleep`, `opModeIsActive`) | ✅ Now (see "LinearOpModes") |
+| IMU, CR servos, distance, touch, color and analog sensors, OTOS, dead wheels, Limelight 3A | ✅ Now (see "More sensors (RP7) and the sensor script") |
+| BIOBUZZ game pieces pushed by the robot; the robot blocked by walls, the HIVE frame and FLOWERs | ✅ Now (picking pieces up, an intake, isn't simulated yet) |
+| Another team's robot, from `harness.properties` | ✅ Now for mecanum + Pinpoint robots (see BRING_YOUR_OWN_ROBOT.md); other drivetrains aren't tracked yet |
 
 ### About time
 
@@ -996,7 +1191,7 @@ src/bridge/java/pvi/harness/bridge/
 
 - **The Java agent.** `build.gradle` packages `src/agent` with Byte Buddy into
   `build/agent/harness-agent.jar` and starts the test JVM with `-javaagent:` pointing at it. As
-  classes under `org.firstinspires.ftc.`, `com.qualcomm.`, `com.pedropathing.` and `com.bylazar.` load,
+  classes under `org.firstinspires.ftc.`, `com.qualcomm.` and `com.pedropathing.` load,
   their calls to `System.nanoTime()`, `System.currentTimeMillis()` and Android `SystemClock` are
   replaced with calls to `SimTime`. Files on disk are never changed. `OpModeRunner` installs its
   `SimClock` into `SimTime`. Outside a run, `SimTime` falls back to the real clock.

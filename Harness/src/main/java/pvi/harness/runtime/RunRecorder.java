@@ -214,15 +214,19 @@ public final class RunRecorder {
                 estimator == null ? List.of() : estimator.pieces().initial());
     }
 
-    /** The noted events plus every time the robot ran into a field wall, in time order. */
+    /** The noted events plus every time the robot ran into a field wall or element, in time order. */
     private List<RunRecording.Event> eventsWithWallHits(PoseEstimator estimator) {
-        if (estimator == null || estimator.wallHits().isEmpty()) {
+        if (estimator == null || (estimator.wallHits().isEmpty() && estimator.obstacleHits().isEmpty())) {
             return events;
         }
         List<RunRecording.Event> all = new ArrayList<>(events);
         for (PoseEstimator.WallHit hit : estimator.wallHits()) {
             all.add(new RunRecording.Event(hit.sinceInitSeconds(), hit.matchTimeSeconds(),
                     "Robot hit the " + hit.wall() + " wall"));
+        }
+        for (PoseEstimator.ObstacleHit hit : estimator.obstacleHits()) {
+            all.add(new RunRecording.Event(hit.sinceInitSeconds(), hit.matchTimeSeconds(),
+                    "Robot hit the " + hit.obstacle()));
         }
         all.sort(java.util.Comparator.comparingDouble(RunRecording.Event::sinceInitSeconds));
         return all;

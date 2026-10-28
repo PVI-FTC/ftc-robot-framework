@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.RobotConfigs;
 import pvi.harness.physics.MecanumKinematics.ChassisPower;
+import pvi.harness.runtime.HarnessConfig;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,20 +33,28 @@ class PoseEstimatorTest {
     /** Simulated time in seconds, advanced by run(). */
     private double time;
 
+    /** The drive motors' names and forward directions in harness.properties (any team's robot). */
+    private static final HarnessConfig CONFIG = HarnessConfig.load();
+
     private static FakeHardwareMap driveWithVerifiedDirections() {
         FakeHardwareMap hw = RobotConfigs.driveOnly();
-        hw.motor("frontLeft").setDirection(Direction.REVERSE);
-        hw.motor("rearLeft").setDirection(Direction.REVERSE);
+        HarnessConfig.DriveMotorNames names = CONFIG.driveMotors();
+        HarnessConfig.DriveMotorDirections forward = CONFIG.driveDirections();
+        hw.motor(names.frontLeft()).setDirection(forward.frontLeft());
+        hw.motor(names.frontRight()).setDirection(forward.frontRight());
+        hw.motor(names.rearLeft()).setDirection(forward.rearLeft());
+        hw.motor(names.rearRight()).setDirection(forward.rearRight());
         return hw;
     }
 
     /** Sets the four motors to make the given motion (fractions of full power). */
     private void drive(double forward, double strafeRight, double turnClockwise) {
         WheelPushes p = MecanumKinematics.toWheelPushes(new ChassisPower(forward, strafeRight, turnClockwise));
-        hw.motor("frontLeft").setPower(p.frontLeft());
-        hw.motor("frontRight").setPower(p.frontRight());
-        hw.motor("rearLeft").setPower(p.rearLeft());
-        hw.motor("rearRight").setPower(p.rearRight());
+        HarnessConfig.DriveMotorNames names = CONFIG.driveMotors();
+        hw.motor(names.frontLeft()).setPower(p.frontLeft());
+        hw.motor(names.frontRight()).setPower(p.frontRight());
+        hw.motor(names.rearLeft()).setPower(p.rearLeft());
+        hw.motor(names.rearRight()).setPower(p.rearRight());
     }
 
     /** Updates the estimator every 20 ms for {@code seconds} (plus one update at the start). */
@@ -58,9 +67,13 @@ class PoseEstimatorTest {
         }
     }
 
-    /** A new estimator starting at {@code start}. */
+    /**
+     * A new estimator starting at {@code start}, on a field with walls but no HIVE frame or
+     * FLOWERs: these tests check the motion math from the field center, where the HIVE stands
+     * ({@code RobotObstaclesTest} checks the field elements).
+     */
     private PoseEstimator estimatorAt(Pose start) {
-        return new PoseEstimator(model, WheelReader.teamA(), start);
+        return new PoseEstimator(model, WheelReader.teamA(), start).withoutRobotObstacles();
     }
 
     /**

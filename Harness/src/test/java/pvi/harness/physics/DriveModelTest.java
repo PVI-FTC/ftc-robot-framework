@@ -1,5 +1,6 @@
 package pvi.harness.physics;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -28,6 +29,7 @@ class DriveModelTest {
      */
     @Test
     void teamAModelUsesPedroTunedSpeeds() {
+        Assumptions.assumeTrue(pvi.harness.runtime.HarnessConfig.load().pviExtras(), "PVI's own robot values");
         DriveModel teamA = DriveModels.teamA();
 
         assertEquals(62.61374213751846, teamA.forwardInchesPerSecond(), TOLERANCE);
@@ -50,6 +52,7 @@ class DriveModelTest {
      */
     @Test
     void teamAModelFlagsWhatStillNeedsMeasuring() {
+        Assumptions.assumeTrue(pvi.harness.runtime.HarnessConfig.load().pviExtras(), "PVI's own robot values");
         DriveModel teamA = DriveModels.teamA();
 
         assertEquals(List.of("turn rate", "robot length", "robot width", "response time", "maximum acceleration",
@@ -73,10 +76,12 @@ class DriveModelTest {
     @Test
     void convertsToFeetAndRadians() {
         DriveModel teamA = DriveModels.teamA();
+        // The robot in harness.properties (PVI: 62.61 / 49.76 in/s and 180 °/s).
+        pvi.harness.runtime.HarnessConfig config = pvi.harness.runtime.HarnessConfig.load();
 
-        assertEquals(62.61374213751846 / 12.0, teamA.forwardFeetPerSecond(), TOLERANCE);
-        assertEquals(49.757958599901585 / 12.0, teamA.strafeFeetPerSecond(), TOLERANCE);
-        assertEquals(Math.PI, teamA.turnRadiansPerSecond(), TOLERANCE);  // 180 °/s
+        assertEquals(config.forwardSpeed().value() / 12.0, teamA.forwardFeetPerSecond(), TOLERANCE);
+        assertEquals(config.strafeSpeed().value() / 12.0, teamA.strafeFeetPerSecond(), TOLERANCE);
+        assertEquals(Math.toRadians(config.turnRate().value()), teamA.turnRadiansPerSecond(), TOLERANCE);
     }
 
     /**

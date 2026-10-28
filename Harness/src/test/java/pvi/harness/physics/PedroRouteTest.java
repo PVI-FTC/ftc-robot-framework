@@ -1,6 +1,7 @@
 package pvi.harness.physics;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,20 +25,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Phase 5 (Step 17): Pedro follows Team A's real routes on the simulated robot, with momentum,
  * field walls, and the fake Pinpoint reading the robot's motion.
  *
- * <p>Each test picks a route in Team A's Pedro path menu ({@code TeamAPedroPilotAutoOpMode}),
- * places the robot at the route's start on the field, runs a 30 s autonomous, and checks what
- * the OpMode itself reports: "Sequence Complete" and the observed end pose against the route's
- * expected end. Start and end poses come from TeamCode's own {@code TeamAPedroPathRoute}, so
- * the test follows the team's changes to a route.</p>
+ * <p>Each test picks a route with the D-pad during INIT in {@code TeamAPedroPilotAutoOpMode}
+ * (Pedro 3), places the robot at the route's start on the field, runs a 30 s autonomous, and
+ * checks what the OpMode itself reports: "Selected Route", "Sequence Complete" and the observed
+ * end pose. Start and end poses come from TeamCode's own {@code TeamAPedroPathRoute}, so the
+ * test follows the team's changes to a route.</p>
+ *
+ * <p><b>Field elements (manager decision D12, 2026-10-27).</b> Since the simulated robot is
+ * blocked by the BIOBUZZ HIVE frame and FLOWERs ({@code field.robotObstacles=true}), the DECODE,
+ * Curving Test and Illegal Path routes can't finish: they are DECODE-season paths that cross the
+ * middle of the field, where the BIOBUZZ HIVE now stands. Their tests drive with the robot
+ * obstacles off (walls still on), so they keep checking Pedro's following;
+ * {@link #decodeSeasonRoutesHitTheBiobuzzHive} pins that they do hit the HIVE. LP-11 runs with
+ * everything on.</p>
  *
  * <p>Each route test also prints how long the route took, from PLAY until the OpMode first
  * shows "Sequence Complete", for comparing with the real robot (CALIBRATION.md). The time is not
  * checked: it will change when the robot's speeds are measured.</p>
  *
- * <p><b>Tolerance: 1 in and 2Â°.</b> The simulation gives the same result every run, and today
- * every route ends within 0.25 in and 1.5Â° (LP-11 0.24 in, DECODE 0.10 in, Curving Test 0.24 in
- * and 1.5Â°). The margin is for small, intended physics changes, such as replacing placeholder
- * values after calibration (Step 10), not for randomness. Real problems are much bigger: wrong
+ * <p><b>Tolerance: 1 in and 2 deg.</b> The simulation gives the same result every run, and on
+ * Pedro 3 every route ends within 0.2 in and 0.05 deg (LP-11 0.155 in, DECODE 0.192 in, Curving
+ * Test 0.157 in; on Pedro 2 they were 0.24, 0.10 and 0.24 in). The margin is for small, intended
+ * physics changes, such as replacing placeholder values after calibration (Step 10), not for
+ * randomness. Real problems are much bigger: wrong
  * timing, a wrong start or a frame mistake left routes 10-17 in off or unfinished. 1 in is also
  * about what a well-tuned real robot achieves, so a pass means Pedro's tuning behaves sensibly
  * on this robot model.</p>
@@ -47,12 +57,11 @@ class PedroRouteTest {
     private static final double HEADING_TOLERANCE_DEGREES = 2.0;
 
     /**
-     * The routes in the order TeamAPedroPilotAutoOpMode's menu lists them (DPAD_DOWN moves down
-     * one). If the team reorders the menu, the "Path" check in {@link #checkRoute} fails and says so.
+     * The routes in the order TeamAPedroPilotAutoOpMode offers them: it starts on the first and
+     * DPAD_DOWN moves down one. Pedro 3's OpMode uses the enum's own order, so this does too. If
+     * that ever changes, the "Selected Route" check in {@link #checkRoute} fails and says so.
      */
-    private static final TeamAPedroPathRoute[] MENU = {
-            TeamAPedroPathRoute.LP11_PILOT, TeamAPedroPathRoute.DECODE_ROUTE, TeamAPedroPathRoute.CURVING_TEST,
-    };
+    private static final TeamAPedroPathRoute[] MENU = TeamAPedroPathRoute.values();
 
     /**
      * WHAT: LP-11 Pilot, a straight 24 in drive, finishes on its end point.
@@ -62,7 +71,7 @@ class PedroRouteTest {
      */
     @Test
     void lp11PilotEndsOnTarget() {
-        checkRoute(TeamAPedroPathRoute.LP11_PILOT);
+        checkRoute(TeamAPedroPathRoute.LP11_PILOT, true);
     }
 
     /**
@@ -74,7 +83,7 @@ class PedroRouteTest {
      */
     @Test
     void decodeRouteEndsOnTarget() {
-        checkRoute(TeamAPedroPathRoute.DECODE_ROUTE);
+        checkRoute(TeamAPedroPathRoute.DECODE_ROUTE, false);   // DECODE-season path: crosses the BIOBUZZ HIVE (D12)
     }
 
     /**
@@ -85,7 +94,43 @@ class PedroRouteTest {
      */
     @Test
     void curvingTestEndsOnTarget() {
-        checkRoute(TeamAPedroPathRoute.CURVING_TEST);
+        checkRoute(TeamAPedroPathRoute.CURVING_TEST, false);   // DECODE-season path: crosses the BIOBUZZ HIVE (D12)
+    }
+
+    /**
+     * WHAT: The "Illegal Path", the fourth route in the chooser, is driven like the others and
+     * finishes on its end point.
+     *
+     * <p>WHY: Its name sounds like a route the robot code should refuse, but TeamCode builds and
+     * follows it as a normal Pedro path (three segments, two wide curves). This checks it keeps
+     * doing exactly that, and that its curves stay inside the field walls. ("Illegal" presumably
+     * means it breaks a game rule, which the harness doesn't model.)</p>
+     */
+    @Test
+    void illegalPathIsFollowedLikeAnyOtherRoute() {
+        checkRoute(TeamAPedroPathRoute.ILLEGAL_PATH, false);   // DECODE-season path: crosses the BIOBUZZ HIVE (D12)
+    }
+
+    /**
+     * WHAT: With the BIOBUZZ field's HIVE frame and FLOWERs blocking the robot, the three
+     * DECODE-season routes run into the HIVE.
+     *
+     * <p>WHY: Pins the reason their tests above drive without robot obstacles (D12). If the team
+     * redraws these routes for BIOBUZZ, this fails: then turn the obstacles back on above and
+     * delete this test.</p>
+     */
+    @Test
+    void decodeSeasonRoutesHitTheBiobuzzHive() {
+        for (TeamAPedroPathRoute route : new TeamAPedroPathRoute[] {
+                TeamAPedroPathRoute.DECODE_ROUTE, TeamAPedroPathRoute.CURVING_TEST, TeamAPedroPathRoute.ILLEGAL_PATH}) {
+            OpModeRunner runner = routeRunner(route, DriveModels.teamA(), RobotConfigs.teamA(), true);
+            runner.run(1.0, 30.0);
+            List<PoseEstimator.ObstacleHit> hits = runner.positionEstimator().obstacleHits();
+            assertTrue(!hits.isEmpty() && hits.get(0).obstacle().equals("HIVE frame"),
+                    route.getDisplayName() + " no longer runs into the HIVE frame (hits: " + hits + "). If the"
+                            + " route was redrawn for BIOBUZZ, switch the robot obstacles back on in its test above"
+                            + " and take it out of this list.");
+        }
     }
 
     /**
@@ -110,18 +155,23 @@ class PedroRouteTest {
 
     // ---- Helpers ----------------------------------------------------------------------------
 
-    /** Runs a route with Team A's model and checks it finished within tolerance. */
-    private static void checkRoute(TeamAPedroPathRoute route) {
+    /**
+     * Runs a route with Team A's model and checks it finished within tolerance.
+     *
+     * @param robotObstacles false to let the robot through the HIVE frame and FLOWERs (walls stay)
+     */
+    private static void checkRoute(TeamAPedroPathRoute route, boolean robotObstacles) {
         String name = route.getDisplayName();
-        RunResult result = runRoute(route, DriveModels.teamA());
+        RunResult result = routeRunner(route, DriveModels.teamA(), RobotConfigs.teamA(), robotObstacles).run(1.0, 30.0);
         result.assertNoException();
-        assertEquals(name, result.telemetry().lastValue("Path"));
+        assertEquals(name, result.telemetry().lastValue("Selected Route"));
         assertEquals("true", result.telemetry().lastValue("Sequence Complete"), name + " should finish within 30 s");
-        double[] expected = poseOrNull(result.telemetry().lastValue("Expected End"));
+        // Pedro 3's OpMode no longer shows the expected end, so take it from the route itself.
+        double[] expected = {route.getEndXInches(), route.getEndYInches(), Math.toDegrees(route.getEndHeadingRadians())};
         double[] end = poseOrNull(result.telemetry().lastValue("Observed End"));
         assertNotNull(end, name + ": no observed end pose");
         double positionError = Math.hypot(end[0] - expected[0], end[1] - expected[1]);
-        // TeamCode's own "End Heading Error" doesn't wrap (it can say -358.5 for 1.5), so wrap here.
+        // Wrap the heading difference, so 359.5 deg against 0 deg counts as 0.5 deg off.
         double headingError = Math.IEEEremainder(end[2] - expected[2], 360.0);
         // Timing is printed, not checked: it will change once the robot's speeds are measured
         // (CALIBRATION.md). Compare it with the real robot's time for the same route.
@@ -133,13 +183,22 @@ class PedroRouteTest {
         assertTrue(Math.abs(headingError) <= HEADING_TOLERANCE_DEGREES, name + " ended " + headingError + " deg off");
     }
 
-    /** Picks the route in the menu during INIT, places the robot at its start, and runs a 30 s autonomous. */
+    /** Picks the route with the D-pad during INIT, places the robot at its start, and runs a 30 s autonomous. */
     static RunResult runRoute(TeamAPedroPathRoute route, DriveModel model) {
         return runRoute(route, model, RobotConfigs.teamA());
     }
 
     /** Like {@link #runRoute(TeamAPedroPathRoute, DriveModel)}, on a chosen fake robot (for example a miswired one). */
     static RunResult runRoute(TeamAPedroPathRoute route, DriveModel model, pvi.harness.hardware.FakeHardwareMap robot) {
+        return routeRunner(route, model, robot, true).run(1.0, 30.0);
+    }
+
+    /**
+     * A runner ready to drive a route (picked during INIT, robot at the route's start), with the
+     * robot blocked by the field's elements or not.
+     */
+    static OpModeRunner routeRunner(TeamAPedroPathRoute route, DriveModel model,
+                                    pvi.harness.hardware.FakeHardwareMap robot, boolean robotObstacles) {
         int menuIndex = Arrays.asList(MENU).indexOf(route);
         if (menuIndex < 0) {
             throw new IllegalArgumentException(route + " is not in MENU; add it in the menu's order.");
@@ -148,10 +207,12 @@ class PedroRouteTest {
         if (menuIndex > 0) {
             driver.tap(Button.DPAD_DOWN, menuIndex);
         }
-        driver.tap(Button.RIGHT_BUMPER);
         OpModeRunner runner = new OpModeRunner(new TeamAPedroPilotAutoOpMode(), robot).gamepad1(driver);
-        PoseEstimator.attachTo(runner, model, WheelReader.teamA(), startOf(route, model));
-        return runner.run(1.0, 30.0);
+        PoseEstimator estimator = PoseEstimator.attachTo(runner, model, WheelReader.teamA(), startOf(route, model));
+        if (!robotObstacles) {
+            estimator.withoutRobotObstacles();
+        }
+        return runner;
     }
 
     /**

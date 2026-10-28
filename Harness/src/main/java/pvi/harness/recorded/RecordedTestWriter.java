@@ -8,9 +8,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
@@ -19,6 +16,8 @@ import pvi.harness.hardware.RobotConfigs;
 import pvi.harness.physics.Pose;
 import pvi.harness.recorded.RecordedInputs.Kind;
 import pvi.harness.recorded.RecordedInputs.Period;
+import pvi.harness.runtime.HarnessConfig;
+import pvi.harness.runtime.OpModeCatalog;
 import pvi.harness.runtime.OpModeRunner;
 import pvi.harness.runtime.RunRecorder;
 import pvi.harness.recorded.RecordedInputs.Step;
@@ -128,29 +127,29 @@ public final class RecordedTestWriter {
     }
 
     /**
-     * Finds the OpMode's full class name by looking for {@code <SimpleName>.java} under TeamCode's
-     * sources and reading its {@code package} line.
+     * Finds the OpMode's full class name among the robot code's {@code @TeleOp} / {@code @Autonomous}
+     * OpModes ({@link OpModeCatalog}, in the packages {@code harness.properties} names).
      *
-     * @throws IllegalStateException if there is no such file, or more than one
+     * @throws IllegalStateException if no OpMode has that simple name, or more than one does
      */
-    public static String findOpModeClass(String simpleName, Path teamCodeSources) {
-        List<Path> matches;
-        try (Stream<Path> files = Files.walk(teamCodeSources)) {
-            matches = files.filter(f -> f.getFileName().toString().equals(simpleName + ".java")).toList();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not search TeamCode in " + teamCodeSources.toAbsolutePath(), e);
-        }
+    public static String findOpModeClass(String simpleName) {
+        List<String> matches = OpModeCatalog.fromConfig(HarnessConfig.load()).stream()
+                .filter(e -> e.simpleName().equals(simpleName)).map(OpModeCatalog.Entry::className).toList();
         if (matches.size() != 1) {
             throw new IllegalStateException(matches.isEmpty()
-                    ? "Could not find " + simpleName + ".java in " + teamCodeSources.toAbsolutePath()
-                    : "Found more than one " + simpleName + ".java in TeamCode: " + matches);
+                    ? "Could not find an OpMode named " + simpleName + " (a @TeleOp or @Autonomous class in "
+                            + HarnessConfig.load().opModePackages() + ")"
+                    : "Found more than one OpMode named " + simpleName + ": " + matches);
         }
-        try {
-            Matcher m = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;").matcher(Files.readString(matches.get(0)));
-            return m.find() ? m.group(1) + "." + simpleName : simpleName;
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not read " + matches.get(0), e);
-        }
+        return matches.get(0);
+    }
+
+    /**
+     * The same as {@link #findOpModeClass(String)}. {@code teamCodeSources} is no longer needed
+     * (the OpModes are found by their annotations); this form stays so older callers still work.
+     */
+    public static String findOpModeClass(String simpleName, Path teamCodeSources) {
+        return findOpModeClass(simpleName);
     }
 
     // ---- The Java source -------------------------------------------------------------------

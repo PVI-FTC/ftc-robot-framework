@@ -1,5 +1,6 @@
 package pvi.harness.runtime;
 
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
@@ -12,6 +13,8 @@ import pvi.harness.ds.GamepadSource;
 import pvi.harness.agent.SimTime;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.FakeWebcam;
+import pvi.harness.hardware.SimulatedSensor;
+import pvi.harness.hardware.SimulatedSensors;
 import pvi.harness.physics.DriveModel;
 import pvi.harness.physics.DriveModels;
 import pvi.harness.physics.Pose;
@@ -21,6 +24,8 @@ import pvi.harness.physics.WheelReader;
 /**
  * Runs an iterative {@link OpMode} the way the Robot Controller app does:
  * INIT, init_loop until PLAY, start, loop until STOP, stop.
+ * A {@link LinearOpMode}'s {@code runOpMode()} runs in step with the same calls (see
+ * {@link LinearOpModeDriver}).
  *
  * <p>Each call to the OpMode is one loop. Before every call the scripted gamepads are
  * delivered; after it, any unsent telemetry is sent and simulated time moves forward by
@@ -47,6 +52,8 @@ public class OpModeRunner {
 
     /** The OpMode under test (your real TeamCode class). */
     private final OpMode opMode;
+    /** Runs a LinearOpMode's runOpMode() in step with the loops; null for an iterative OpMode. */
+    private final LinearOpModeDriver linearDriver;
     /** Stand-in for the Robot Controller's OpMode manager; hears requestOpModeStop(). */
     private final HarnessOpModeServices services = new HarnessOpModeServices();
     /** The fake hardware the OpMode looks devices up in. */
@@ -88,6 +95,7 @@ public class OpModeRunner {
      */
     public OpModeRunner(OpMode opMode, FakeHardwareMap hardwareMap) {
         this.opMode = opMode;
+        this.linearDriver = opMode instanceof LinearOpMode linear ? new LinearOpModeDriver(linear) : null;
         this.hardwareMap = hardwareMap;
         Gamepad opModeGamepad1 = new Gamepad();
         Gamepad opModeGamepad2 = new Gamepad();
@@ -185,7 +193,11 @@ public class OpModeRunner {
         cycle(() -> {
             // The OpMode was built before this run's clock existed; restart getRuntime() at INIT.
             opMode.resetRuntime();
-            opMode.init();
+            if (linearDriver == null) {
+                opMode.init();
+            } else {
+                linearDriver.init();
+            }
         });
         return this;
     }
@@ -195,7 +207,7 @@ public class OpModeRunner {
         requireStage(RunResult.Stage.INIT, "initLoop()");
         stage = RunResult.Stage.INIT_LOOP;
         for (int i = 0; i < times; i++) {
-            cycle(opMode::init_loop);
+            cycle(linearDriver == null ? opMode::init_loop : linearDriver::initLoop);
         }
         return this;
     }
@@ -205,7 +217,7 @@ public class OpModeRunner {
         requireStage(RunResult.Stage.INIT, "start()");
         stage = RunResult.Stage.START;
         clock.markStart();
-        cycle(opMode::start);
+        cycle(linearDriver == null ? opMode::start : linearDriver::start);
         return this;
     }
 
@@ -214,7 +226,7 @@ public class OpModeRunner {
         requireStage(RunResult.Stage.START, "loop()");
         stage = RunResult.Stage.LOOP;
         for (int i = 0; i < times; i++) {
-            cycle(opMode::loop);
+            cycle(linearDriver == null ? opMode::loop : linearDriver::loop);
             loopCount++;
         }
         return this;
@@ -226,7 +238,7 @@ public class OpModeRunner {
         stage = RunResult.Stage.LOOP;
         // The 1e-9 allowance stops decimal rounding from adding one extra loop.
         while (clock.sinceStart() < matchSeconds - 1e-9 && !isStopRequested()) {
-            cycle(opMode::loop);
+            cycle(linearDriver == null ? opMode::loop : linearDriver::loop);
             loopCount++;
         }
         return this;
@@ -243,7 +255,7 @@ public class OpModeRunner {
             return this;
         }
         stage = RunResult.Stage.STOP;
-        cycle(opMode::stop);
+        cycle(linearDriver == null ? opMode::stop : linearDriver::stop);
         return this;
     }
 
@@ -262,7 +274,7 @@ public class OpModeRunner {
             init();
             stage = RunResult.Stage.INIT_LOOP;
             while (clock.sinceInit() < initSeconds - 1e-9) {
-                cycle(opMode::init_loop);
+                cycle(linearDriver == null ? opMode::init_loop : linearDriver::initLoop);
             }
             start();
             loopUntil(matchSeconds);
@@ -379,6 +391,10 @@ public class OpModeRunner {
         driver2.deliver(clock.sinceInit(), sinceStart);
         // Scripted AprilTag cameras follow simulated time.
         FakeWebcam.stepAll(hardwareMap, clock.sinceInit(), sinceStart);
+        // So do the other simulated sensors (IMU, distance, touch, color...; see SensorScript).
+        SimulatedSensors.stepAll(hardwareMap, new SimulatedSensor.Step(
+                positionEstimator == null ? null : positionEstimator.pose(), clock.sinceInit(), sinceStart,
+                clock.sinceInit() <= 0 ? 0.0 : loopPeriod, hardwareMap.sensorScript()));
         // The SDK keeps OpMode.time = seconds since INIT; some OpModes read it.
         opMode.time = clock.sinceInit();
 

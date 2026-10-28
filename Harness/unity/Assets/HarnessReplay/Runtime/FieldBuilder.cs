@@ -107,6 +107,41 @@ namespace PviHarness.Replay
             AddRobot(parent, built, lengthInches, widthInches);
         }
 
+        /// <summary>The bright color the ball obstacles are drawn in, so they stand out from the CAD.</summary>
+        public static readonly Color ObstacleColor = Hex(0xFF2BD6);
+
+        /// <summary>
+        /// Draws a field's <see cref="FieldLayoutData.pieceObstacles"/> (what the harness's balls bounce
+        /// off) as plain colored boxes and cylinders, for checking them against the CAD (the O key).
+        /// Drawing only: no colliders.
+        /// </summary>
+        public static Transform BuildObstacles(Transform parent, FieldLayoutData field)
+        {
+            var root = new GameObject("Ball obstacles " + field.id).transform;
+            root.SetParent(parent, false);
+            foreach (PieceObstacleData o in field.pieceObstacles)
+            {
+                float height = FtcToUnity.Meters(o.topInches - o.bottomInches);
+                float centerHeight = FtcToUnity.Meters((o.topInches + o.bottomInches) / 2);
+                if (o.shape == "cylinder")
+                {
+                    float across = FtcToUnity.Meters(2 * o.radiusInches);
+                    // Unity's cylinder is 1 across and 2 tall at scale 1.
+                    Primitive(root, PrimitiveType.Cylinder, o.id, FtcToUnity.Position(o.xInches, o.yInches, centerHeight),
+                        new Vector3(across, height / 2f, across), ObstacleColor, unlit: true);
+                }
+                else
+                {
+                    // FTC x is Unity x and FTC y is Unity z, so an axis-aligned box needs no turning.
+                    Primitive(root, PrimitiveType.Cube, o.id,
+                        FtcToUnity.Position((o.minXInches + o.maxXInches) / 2, (o.minYInches + o.maxYInches) / 2, centerHeight),
+                        new Vector3(FtcToUnity.Meters(o.maxXInches - o.minXInches), height,
+                            FtcToUnity.Meters(o.maxYInches - o.minYInches)), ObstacleColor, unlit: true);
+                }
+            }
+            return root;
+        }
+
         /// <summary>
         /// Draws a season's field under a new object and returns it, so it can be removed when another
         /// field is picked. With the official CAD in Resources/Field/&lt;id&gt; (<see cref="CadModels"/>), the

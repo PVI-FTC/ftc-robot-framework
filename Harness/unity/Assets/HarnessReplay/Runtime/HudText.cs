@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -153,6 +154,34 @@ namespace PviHarness.Replay
                 }
             }
             return count;
+        }
+
+        /// <summary>
+        /// One line per AprilTag in view at this moment, exactly as the Swing viewer's "Tags in view" card
+        /// writes it: id, range along the floor, bearing (left is positive, as the SDK's ftcPose gives it)
+        /// and the camera. "none" if no tag.
+        /// </summary>
+        public static List<string> AprilTagLines(LoopData loop)
+        {
+            if (loop == null || loop.aprilTags.Count == 0)
+            {
+                return new List<string> { "none" };
+            }
+            var lines = new List<string>();
+            foreach (AprilTagSeenData tag in loop.aprilTags)
+            {
+                double range = Math.Sqrt(tag.rightInches * tag.rightInches + tag.forwardInches * tag.forwardInches);
+                double bearing = Math.Atan2(-tag.rightInches, tag.forwardInches) * 180.0 / Math.PI;
+                lines.Add(string.Format(CultureInfo.InvariantCulture, "Tag {0,-3} {1,6:0.0} in {2,6} deg  {3}",
+                    tag.id, range, bearing.ToString("+0.0;-0.0;+0.0", CultureInfo.InvariantCulture), tag.camera));
+            }
+            return lines;
+        }
+
+        /// <summary>True if any loop of the recording saw an AprilTag, so the "Tags in view" card is worth showing.</summary>
+        public static bool AnyAprilTags(RunRecordingData recording)
+        {
+            return recording != null && recording.loops.Exists(l => l.aprilTags.Count > 0);
         }
     }
 }

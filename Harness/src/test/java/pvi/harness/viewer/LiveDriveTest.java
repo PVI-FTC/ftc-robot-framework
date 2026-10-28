@@ -1,22 +1,27 @@
 package pvi.harness.viewer;
 
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.Button;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -115,7 +120,7 @@ class LiveDriveTest {
     void holdingWDrivesTheRealTeleOpForward() throws InterruptedException {
         HeldKeys keys = new HeldKeys();
         keys.press(KeyEvent.VK_W);
-        LiveDrive drive = new LiveDrive(LiveDrive.options().get(0), keys, 1.0, false);
+        LiveDrive drive = new LiveDrive(LiveDrive.defaultOption(), keys, 1.0, false);
         drive.requestPlay();
         drive.start();
 
@@ -125,7 +130,7 @@ class LiveDriveTest {
         List<RunRecording.LoopRecord> loops = recording.loops();
         RunRecording.LoopRecord last = loops.get(loops.size() - 1);
 
-        assertEquals("TeamATeleOp", recording.header().opMode());
+        assertEquals(LiveDrive.defaultOption().id(), recording.header().opMode());
         assertEquals(RunResult.Stage.STOP, last.stage());
         assertEquals(1.0, last.matchTimeSeconds(), 0.03);
         assertTrue(last.pose().xInches() > 10, "1 s of full forward should move well over 10 in, was "
@@ -141,7 +146,7 @@ class LiveDriveTest {
      */
     @Test
     void stopDuringInitNeverPlays() throws InterruptedException {
-        LiveDrive drive = new LiveDrive(LiveDrive.options().get(0), new HeldKeys(), 120.0, false);
+        LiveDrive drive = new LiveDrive(LiveDrive.defaultOption(), new HeldKeys(), 120.0, false);
         drive.requestStop();
         drive.start();
 
@@ -159,7 +164,7 @@ class LiveDriveTest {
      */
     @Test
     void recordIsDecidedAtPlayAndLocked() throws InterruptedException {
-        LiveDrive practice = new LiveDrive(LiveDrive.options().get(0), new HeldKeys(), 0.2, false);
+        LiveDrive practice = new LiveDrive(LiveDrive.defaultOption(), new HeldKeys(), 0.2, false);
         practice.requestPlay(false);
         practice.requestPlay(true);   // ignored: PLAY was already pressed
         practice.start();
@@ -167,7 +172,7 @@ class LiveDriveTest {
         assertFalse(practice.keepRecording(), "Record was off at PLAY");
         assertTrue(practice.latest().loops().size() > 5, "a practice drive still shows in the window");
 
-        LiveDrive recorded = new LiveDrive(LiveDrive.options().get(0), new HeldKeys(), 0.2, false);
+        LiveDrive recorded = new LiveDrive(LiveDrive.defaultOption(), new HeldKeys(), 0.2, false);
         recorded.requestPlay(true);
         recorded.start();
         assertTrue(recorded.awaitFinished(30));
@@ -181,7 +186,7 @@ class LiveDriveTest {
      */
     @Test
     void stoppedBeforePlayIsNeverKept() throws InterruptedException {
-        LiveDrive drive = new LiveDrive(LiveDrive.options().get(0), new HeldKeys(), 120.0, false);
+        LiveDrive drive = new LiveDrive(LiveDrive.defaultOption(), new HeldKeys(), 120.0, false);
         drive.requestStop();
         drive.requestPlay(true);   // too late: STOP came first
         drive.start();
@@ -200,7 +205,46 @@ class LiveDriveTest {
 
         assertEquals(LiveDrive.options().size() + Scenarios.all().size(), choices.size());
         assertTrue(choices.get(0).isDrive());
-        assertEquals("Drive: Team A TeleOp (keyboard)", choices.get(0).label());
+        assertEquals("Drive: " + LiveDrive.defaultOption().title(), choices.get(0).label());
         assertTrue(choices.get(LiveDrive.options().size()).isScenario());
+    }
+
+    /** The real settings file with {@code viewer.defaultTeleOp} set to {@code value}. */
+    private static HarnessConfig withDefaultTeleOp(String value) throws IOException {
+        String text = Files.readString(Path.of(HarnessConfig.FILE_NAME));
+        return HarnessConfig.fromText(text.replaceAll("(?m)^viewer\\.defaultTeleOp=.*$","viewer.defaultTeleOp=" + value),
+                "test settings");
+    }
+
+    /**
+     * WHAT: The live-drive TeleOps come from the robot code's @TeleOp OpModes, with the one
+     * {@code viewer.defaultTeleOp} names first (PVI: Team A's TeleOp, so the viewer opens as before),
+     * by class name or Driver Station name.
+     */
+    @Test
+    void theConfiguredTeleOpComesFirst() throws IOException {
+        Assumptions.assumeTrue(HarnessConfig.load().pviExtras(), "PVI only: uses Team A, B and C's TeleOps");
+        assertEquals("TeamATeleOp", LiveDrive.defaultOption().id(), "PVI's harness.properties");
+        assertEquals("TeamBTeleOp", LiveDrive.options(withDefaultTeleOp("TeamBTeleOp")).get(0).id(), "by class name");
+        assertEquals("TeamCTeleOp", LiveDrive.options(withDefaultTeleOp("Team C TeleOp")).get(0).id(),
+                "by Driver Station name");
+        assertTrue(LiveDrive.options().stream().anyMatch(o -> o.id().equals("TeamBTeleOp")), "every TeleOp is listed");
+        assertTrue(LiveDrive.options().stream().noneMatch(o -> o.id().equals("TeamAAutoOpMode")), "no autonomous");
+    }
+
+    /**
+     * WHAT: An empty {@code viewer.defaultTeleOp} means the first TeleOp by Driver Station name;
+     * an unknown name fails with a message listing the TeleOps.
+     */
+    @Test
+    void anEmptyDefaultMeansTheFirstAndAnUnknownOneFails() throws IOException {
+        Assumptions.assumeTrue(HarnessConfig.load().pviExtras(), "PVI only: knows PVI's first TeleOp by name");
+        List<LiveDrive.Option> byName = LiveDrive.options(withDefaultTeleOp(""));
+        assertEquals("KimCode TeleopV1 (keyboard)", byName.get(0).title(), "first by Driver Station name");
+
+        IllegalStateException unknown = assertThrows(IllegalStateException.class,
+                () -> LiveDrive.options(withDefaultTeleOp("NoSuchTeleOp")));
+        assertTrue(unknown.getMessage().contains("viewer.defaultTeleOp") && unknown.getMessage().contains("TeamATeleOp"),
+                unknown.getMessage());
     }
 }

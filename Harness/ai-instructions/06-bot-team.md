@@ -5,7 +5,7 @@ bots**, all in the same checkout (`C:\Dev\ftc-robot-framework`, branch `Team2-Te
 file explains the setup so a new session can **take over as manager** if the current one is
 gone. Everything in [01–05](README.md) still applies to every bot.
 
-**Last updated:** 2026-10-25 (new manager and three new workers, all idle; see §2 "Where each bot left off")
+**Last updated:** 2026-10-27 (the team finished the task list alone; all bots idle; see §2 "Where each bot left off")
 
 ---
 
@@ -44,23 +44,28 @@ per bot:
 PROGRESS.md is the record of what is planned, done and waiting. The manager's job is to keep the
 bots' lists and PROGRESS.md in step.
 
-### Where each bot left off (handover snapshot, 2026-10-25)
+### Where each bot left off (handover snapshot, 2026-10-27)
 
-**Repository:** last commit `18be29a` on `Team2-Testing` (local only), working tree clean. It
-holds the finished **game pieces** work (GP1–GP4): BIOBUZZ's 44 POLLEN and NECTAR balls,
-simulated, pushed by the robot, saved in recordings, and drawn in Swing and Unity. The last full
-runs were Java **252/252** and Unity **77/77**. **Format versions now:** run recording **v4**,
-bridge protocol **v4**.
+**Repository:** branch **`Team2-Testing-Pedro3`** (local only, never pushed; decision D1 in
+[`Harness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md)). `Team2-Testing` is untouched at
+`960534a`. Pedro 3 (`origin/Pedro-3-Implementation`) is merged in (`0f9c602`). The 2026-10-27
+"work alone" round is committed at the end of that branch. **Format versions now:** run recording
+**v4**, bridge protocol **v5**, field files **v2**, `harness.properties` **v3**.
 
-**2026-10-25, later:** the old manager and all three workers were gone. A new manager took over
-and started three new workers (ids in §1), all idle with empty lists. The table below is what the
-old bots left; the "uncommitted files" column is now all committed in `18be29a`.
+**All three bots are idle with empty lists.** The 2026-10-27 round, which the user asked the team to
+finish without them (the manager decided where needed: D1–D14):
 
-| Bot | State | Its uncommitted files | Next (in order) | Waiting on the user |
-|---|---|---|---|---|
-| **WorkerBot** | Idle. GP1–GP3 done: game-piece physics, recording v4, Swing drawing, README format docs, PROGRESS "Game pieces" section, 14 new tests. | new `physics/GamePiece`, `PieceModel`, `GamePieces`, `BioBuzzPieces`; tests `GamePiecesTest`, `GamePiecesRecordingTest`, `GamePiecesDrawingTest`; changed `PoseEstimator`, `RunRecording`, `RunRecordingJson`, `RunRecorder`, `FieldPainter`, `FieldPanel`, `RecordingView`, `RunRecordingTest`, README, PROGRESS | Commit when asked; then RP1–RP5 (robot profiles, PROGRESS "Robot profiles and modularity") once the user answers the RP questions | **FW1:** move the walls to the CAD's ±70.585 in, which needs Team A's measured length. Calibration measurements (`CALIBRATION.md`, incl. tuning battery voltage). RP questions 1–4: profile as a Java class? which drivetrains/localizers? where other teams' code lives? one library set at a time? |
-| **TestBot** | Idle. Only a one-line fix since `ba7a627` (a version test now uses `RunRecording.VERSION`). | `AprilTagVisionTest` (that line) | RP9 and RP6 (independent), then RP8 (after RP1), RP7 (after RP1/RP2), RP10 (after RP8) | OK for RP6's extra OpMode thread (LinearOpMode support); RP8 finding OpModes by reflection on annotations, or by reading `.java` text |
-| **UnityBot** | Idle. GP4 done: Unity reads recording v4 and bridge v4, and draws POLLEN and NECTAR as rolling CAD balls; checked in the rebuilt app. Earlier: official BIOBUZZ CAD field, Visuals settings (V), Mixamo people, camera presets 1–7, see-through panels. | `bridge/BridgeProtocol.java`, the 4 bridge tests; unity `Runtime/LiveSession`, `RecordingData`, `RecordingLoader`, `ReplayController`; new `Runtime/GamePieces.cs`, `Tests/GamePieceTests.cs` (+ `.meta`); `Tests/LiveSessionTests`, `RecordingLoaderTests`; `unity/README.md`; its README/PROGRESS lines | Commit when asked | Frame-rate check of the full hall crowd (about 56k triangles per person); real ball friction and mass; intake (piece state "held" is reserved). Not simulated yet: balls hitting the HIVE frame or FLOWERs. |
+| Bot | Lists done (2026-10-27) |
+|---|---|
+| **WorkerBot** | W6 RP2 (core reads the config; Pedro only in the PVI extras), W7 ball facts (manual sizes; D6), W8 Pedro 3 (no TeamCode change), W9 RP5 + ball-vs-HIVE/FLOWER collisions + Step 15 option A, W10 viewer TeleOps from the catalog (D8) + RP7 keys, W11 robot blocked by HIVE/FLOWERs (D9, D12), W12 smoke-test keys + `Scenarios` generic (D10, D11), W13 drop-in rehearsal (passes with the guide only), W14 stale docs |
+| **TestBot** | T6 RP8 `OpModeCatalog`, T7 RP6 LinearOpMode, T8 RP7 nine hardware fakes + Illegal Path test + RP10 (`BRING_YOUR_OWN_ROBOT.md`, `EveryOpModeSmokeTest`, `MyFirstRobotTest`), T9 guide fixes + drive check (D14), T10 docs consistency pass |
+| **UnityBot** | C12 Live mode "needs Java 17+", C13 crowd 60 fps (D5 not needed), C14 HIVE/FLOWER collision shapes (field v2), C15 bridge OpModes from the catalog (D7) + bounce check, C16 Unity physics uses the same obstacles (bridge v5) + bounce recordings as a test, D13 generic bridge tests, C17 AprilTags in Unity, C18 HUD name fix |
+| **Manager** | `Harness/robot-recorder/` (record a real-robot TeleOp drive as a harness recording; user request) |
+
+**Waiting on the user** (see "Waiting on the user" below and `MANAGER_DECISIONS.md`): read D12
+(Team A's DECODE-season routes hit the BIOBUZZ HIVE; the team must redraw them), Team A's size
+(FW1), calibration at the robot, ball weights (D6), and whether to move `Team2-Testing` forward to
+this branch.
 
 **Finished lists** (all committed): A (momentum + PhysicsBackend, calibration checklist, Team B/C
 check); B (scripted AprilTags, Pedro route tests, Save as test); C7–C10 (live Unity view,
@@ -225,6 +230,12 @@ manager to write **only that folder on that USB**. It's the one exception to "on
 - **"Commit all" while bots are busy** catches everyone's half-done work. Check first that they
   are all idle.
 - **Parallel Gradle runs** cause failures that look real but aren't (rule 2).
+  Three overlaps happened on 2026-10-27, each because a "Gradle is free / I'm starting" message
+  arrived late. Announce, then **wait for the other bots' reply** before starting; checking the
+  process list isn't enough.
+- **A peer's message can be delayed for many minutes,** and replies cross. When a bot says "our
+  messages crossed", check what was already done before redoing anything. Bots kept long reports
+  in the manager's shared notes folder when messages stalled.
 - **A change in one area can break another bot's tests.** Field walls broke the recorded-drive
   tests, and momentum broke a bridge test. The bot that sees the failure reports it to the owner
   instead of editing the owner's test.

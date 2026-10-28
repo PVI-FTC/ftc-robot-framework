@@ -171,7 +171,7 @@ class ControllerTest {
         }
         polls.add(List.of(ControllerReading.DISCONNECTED));
         FakeControllers controllers = new FakeControllers(polls);
-        LiveDrive drive = new LiveDrive(LiveDrive.options().get(0), new HeldKeys(), controllers, 1.0, false);
+        LiveDrive drive = new LiveDrive(LiveDrive.defaultOption(), new HeldKeys(), controllers, 1.0, false);
         drive.requestPlay();
         drive.start();
         assertTrue(drive.awaitFinished(30));

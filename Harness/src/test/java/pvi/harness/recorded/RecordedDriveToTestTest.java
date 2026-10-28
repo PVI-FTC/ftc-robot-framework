@@ -266,16 +266,20 @@ class RecordedDriveToTestTest {
     }
 
     /**
-     * WHAT: The OpMode's package is found from TeamCode's sources.
+     * WHAT: The OpMode's package is found among the robot code's annotated OpModes
+     * ({@code OpModeCatalog}); an unknown name fails and says where it looked.
      *
      * <p>WHY: A recording only stores the OpMode's short name, but the test needs an import.</p>
      */
     @Test
     void findsTheOpModePackageInTeamCode() {
+        assertEquals(TeamATeleOp.class.getName(), RecordedTestWriter.findOpModeClass("TeamATeleOp"));
         assertEquals(TeamATeleOp.class.getName(),
-                RecordedTestWriter.findOpModeClass("TeamATeleOp", RecordedTestWriter.TEAMCODE_SOURCES));
-        assertThrows(IllegalStateException.class,
-                () -> RecordedTestWriter.findOpModeClass("NoSuchOpMode", RecordedTestWriter.TEAMCODE_SOURCES));
+                RecordedTestWriter.findOpModeClass("TeamATeleOp", RecordedTestWriter.TEAMCODE_SOURCES),
+                "the older form gives the same answer");
+        IllegalStateException unknown = assertThrows(IllegalStateException.class,
+                () -> RecordedTestWriter.findOpModeClass("NoSuchOpMode"));
+        assertTrue(unknown.getMessage().contains("org.firstinspires.ftc.teamcode"), unknown.getMessage());
     }
 
     // ---- Helpers ----------------------------------------------------------------------------

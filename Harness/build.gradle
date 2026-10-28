@@ -21,8 +21,8 @@ plugins {
 // ---------------------------------------------------------------------------
 def harnessSettings = new Properties()
 file('harness.properties').withReader('UTF-8') { harnessSettings.load(it) }
-if (harnessSettings.getProperty('config.version')?.trim() != '1') {
-    throw new GradleException("harness.properties: this harness reads config.version 1, the file says "
+if (harnessSettings.getProperty('config.version')?.trim() != '3') {
+    throw new GradleException("harness.properties: this harness reads config.version 3, the file says "
             + "${harnessSettings.getProperty('config.version')}. See README.md, \"The config file\".")
 }
 // One setting by name, with a clear error if it is missing.
@@ -42,6 +42,12 @@ def teamCodeSrc = file(setting('teamCode.sourceDir'))
 if (!teamCodeSrc.isDirectory()) {
     throw new GradleException("harness.properties: teamCode.sourceDir points to ${teamCodeSrc}, which is not a folder.")
 }
+// true or false: build PVI's own extras (see the source sets below).
+def pviExtrasSetting = setting('pvi.extras')
+if (!(pviExtrasSetting in ['true', 'false'])) {
+    throw new GradleException("harness.properties: pvi.extras must be true or false, got \"${pviExtrasSetting}\".")
+}
+def pviExtras = pviExtrasSetting == 'true'
 
 sourceSets {
     // The Java agent (src/agent/java) is built separately: it is packaged as its own jar
@@ -51,12 +57,27 @@ sourceSets {
     main {
         java {
             srcDir teamCodeSrc
+            // PVI's own extras (pvi.extras=true): src/pvi/java reads Team A's Pedro configuration.
+            // The core never uses them, so another repo sets pvi.extras=false and builds without.
+            if (pviExtras) srcDir 'src/pvi/java'
+        }
+    }
+    test {
+        java {
+            // The PVI extras' tests, e.g. that harness.properties still matches Team A's Pedro values.
+            if (pviExtras) srcDir 'src/pviTest/java'
         }
     }
     // "viewer" (src/viewer/java) = the desktop field viewer (Swing). It is kept apart from
     // "main" so the simulation core can never use window code: viewer may use main, but
     // main cannot even see viewer. See ai-instructions/05-desktop-viewer.md.
-    viewer
+    viewer {
+        java {
+            // PVI's hand-made viewer scenarios (pvi.extras=true): src/pviViewer/java names Team A's
+            // OpModes, so another repo builds the viewer without it (manager decision D11).
+            if (pviExtras) srcDir 'src/pviViewer/java'
+        }
+    }
     // "bridge" (src/bridge/java) = the connection to Unity (a local socket). Kept apart from
     // "main" for the same reason as the viewer: the simulation core never contains network
     // code. See ai-instructions/02-unity-readiness.md.
@@ -99,10 +120,17 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 // Where libraries are downloaded from (the same places the robot build uses).
+// The robot build's own extra Maven repositories (for example Pedro's), read from the same
+// dependency file as the libraries below, so a team that switches library source needs no change here.
+def hostRepositoryUrls = []
+(file(setting('host.dependenciesFile')).getText('UTF-8') =~ /(?m)^\s*maven\s*\{\s*url\s*=?\s*\(?\s*['"]([^'"]+)['"]/).each { match ->
+    hostRepositoryUrls << match[1]
+}
+
 repositories {
     mavenCentral()                                    // FTC SDK, JUnit, Byte Buddy, Robolectric
     google()                                          // Android support libraries
-    maven { url = 'https://mymaven.bylazar.com/releases' }  // Panels (by Lazar)
+    hostRepositoryUrls.each { hostUrl -> maven { url = hostUrl } }   // e.g. Pedro's repo.dairy.foundation
 }
 
 // ---------------------------------------------------------------------------
@@ -253,9 +281,15 @@ def agentJar = tasks.register('agentJar', Jar) {
     }
 }
 
+// When the test run started, so viewAfterTests (below) can tell this run's recordings from older ones.
+def testRunStartMillis = 0L
+
 tasks.named('test') {
     // Run JUnit 5 tests.
     useJUnitPlatform()
+    doFirst { testRunStartMillis = System.currentTimeMillis() }
+    // Step 15, option A: with viewer.open=true, open the viewer when the tests are done (pass or fail).
+    finalizedBy 'viewAfterTests'
     // Always run the tests, even when nothing changed since the last run. Otherwise Gradle
     // prints "UP-TO-DATE" and skips them, and output such as position reports never appears.
     outputs.upToDateWhen { false }
@@ -276,6 +310,28 @@ tasks.named('test') {
         exceptionFormat = 'full'               // full error message and stack trace on failure
         showStandardStreams = true             // show anything tests print
     }
+}
+
+// ---------------------------------------------------------------------------
+// viewAfterTests: runs right after "test". Only with viewer.open=true in harness.properties
+// (default false): opens the viewer on this run's newest recording, or the failed test's
+// (pvi.harness.viewer.AfterTestsViewer). With no screen it prints one line and stays closed.
+// The tests themselves never open a window; close the viewer to let Gradle finish.
+// ---------------------------------------------------------------------------
+tasks.register('viewAfterTests', JavaExec) {
+    group = 'harness'
+    description = 'After the tests: opens the viewer on the run\'s newest (or failed) recording, if viewer.open=true.'
+    onlyIf { setting('viewer.open') == 'true' }
+    classpath = sourceSets.viewer.runtimeClasspath
+    mainClass = 'pvi.harness.viewer.AfterTestsViewer'
+    workingDir = projectDir
+    // The viewer's dropdown can run scenarios (real TeamCode), so load the Java agent as tests do.
+    dependsOn agentJar
+    def afterTestsAgentFile = agentJar.flatMap { it.archiveFile }
+    jvmArgumentProviders.add({ ["-javaagent:${afterTestsAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
+    jvmArgs runJvmArgs   // only the options this Java knows (see the top of this file)
+    def resultsFolder = layout.buildDirectory.dir('test-results/test')
+    argumentProviders.add({ [testRunStartMillis.toString(), resultsFolder.get().asFile.absolutePath] } as CommandLineArgumentProvider)
 }
 
 // ---------------------------------------------------------------------------

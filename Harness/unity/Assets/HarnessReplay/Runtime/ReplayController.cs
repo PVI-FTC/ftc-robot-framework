@@ -45,6 +45,10 @@ namespace PviHarness.Replay
         private ReplayTimeline timeline;
         private GamePieceTrack pieceTrack;
         private GamePieceView pieceView;
+        private AprilTagSightView tagSights;
+        // The A key / Visuals switch: draw the AprilTag sight lines and the "Tags in view" card (remembered, on by default).
+        private bool showAprilTags = true;
+        private const string AprilTagsPreferenceKey = "HarnessReplay.aprilTags";
         private string shownFile;
         private List<string> recordingsNewestFirst = new List<string>();
 
@@ -53,6 +57,9 @@ namespace PviHarness.Replay
         private List<FieldLayoutData> fields = new List<FieldLayoutData>();
         private string fieldId = FieldLayouts.PlainFieldId;
         private Transform seasonRoot;
+        // The O key: the ball obstacles drawn over the field (null when hidden).
+        private Transform obstacleRoot;
+        private bool showObstacles;
 
         // The setting around the arena (SettingBuilder) and the one drawn now.
         private const string SettingPreferenceKey = "HarnessReplay.setting";
@@ -108,6 +115,19 @@ namespace PviHarness.Replay
         public bool LiveModeStartedOutside => launcher != null && launcher.StartedOutside;
         /// <summary>True if the next live run should be moved by Unity's physics (the Physics button, or U).</summary>
         public bool UnityPhysicsChosen => unityPhysicsChosen;
+        /// <summary>Whether the AprilTag sight lines and the "Tags in view" card are shown (A key, Visuals).</summary>
+        public bool ShowAprilTags => showAprilTags;
+
+        /// <summary>Shows or hides what the webcams saw (A key, Visuals screen), and remembers it.</summary>
+        public void SetShowAprilTags(bool show)
+        {
+            showAprilTags = show;
+            PlayerPrefs.SetInt(AprilTagsPreferenceKey, show ? 1 : 0);
+            if (timeline != null)
+            {
+                ShowPlayhead();
+            }
+        }
         /// <summary>The season field files that can be picked (Harness/fields), by id.</summary>
         public List<FieldLayoutData> Fields => fields;
         /// <summary>The arena drawn now: a field file's id, or <see cref="FieldLayouts.PlainFieldId"/>.</summary>
@@ -141,6 +161,9 @@ namespace PviHarness.Replay
             var fieldProblems = new List<string>();
             fields = FieldLayouts.LoadAll(FieldLayouts.DefaultFolder, fieldProblems);
             fieldProblems.ForEach(p => Debug.LogWarning("[HarnessReplay] " + p));
+            // "-obstacles" on the command line starts with the ball obstacles drawn (the O key).
+            showObstacles = Array.Exists(Environment.GetCommandLineArgs(),
+                arg => string.Equals(arg, "-obstacles", StringComparison.OrdinalIgnoreCase));
             // "-field <id>" on the command line, else the field picked last time.
             string startField = FieldLayouts.FieldFromCommandLine(Environment.GetCommandLineArgs())
                 ?? PlayerPrefs.GetString(FieldPreferenceKey, "");
@@ -150,6 +173,8 @@ namespace PviHarness.Replay
                 ?? PlayerPrefs.GetString(SettingPreferenceKey, SettingBuilder.MissionControlId));
 
             unityPhysicsChosen = PlayerPrefs.GetInt(PhysicsPreferenceKey, 0) == 1;
+            showAprilTags = PlayerPrefs.GetInt(AprilTagsPreferenceKey, 1) == 1;
+            tagSights = new AprilTagSightView(transform);
             launcher = new HarnessLauncher(
                 HarnessLauncher.ResolveHarnessFolder(Environment.GetCommandLineArgs(), Application.dataPath, Application.isEditor), bridgePort);
 
@@ -168,7 +193,29 @@ namespace PviHarness.Replay
             else
             {
                 Open(first);
+                // "-at <seconds>": open the replay at that moment (for pictures and demos).
+                double? at = SecondsFromCommandLine(Environment.GetCommandLineArgs(), "-at");
+                if (at.HasValue && timeline != null)
+                {
+                    timeline.SeekSeconds(at.Value);
+                }
             }
+            // "-fpslog <file>": measure the frame rate, write it there and close (for checking heavy views).
+            FrameRateLog.AttachIfAsked(gameObject, Environment.GetCommandLineArgs());
+        }
+
+        /// <summary>The number after <paramref name="option"/> on the command line (e.g. "-at 5.3"), or null.</summary>
+        public static double? SecondsFromCommandLine(string[] args, string option)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], option, StringComparison.OrdinalIgnoreCase)
+                    && double.TryParse(args[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds))
+                {
+                    return seconds;
+                }
+            }
+            return null;
         }
 
         private void OnDestroy()
@@ -309,6 +356,26 @@ namespace PviHarness.Replay
             }
             // A CAD field brings its own tiles and walls, so the plain ones step aside.
             FieldBuilder.ShowPlainField(scene, field == null || FieldBuilder.CadModels(field.id).Length == 0);
+            ShowObstacles(showObstacles);
+        }
+
+        /// <summary>Whether the ball obstacles (O key) are drawn over the field.</summary>
+        public bool ObstaclesShown => obstacleRoot != null;
+
+        /// <summary>Shows or hides the shown field's ball obstacles (what the harness's balls bounce off).</summary>
+        public void ShowObstacles(bool show)
+        {
+            showObstacles = show;
+            if (obstacleRoot != null)
+            {
+                Destroy(obstacleRoot.gameObject);
+                obstacleRoot = null;
+            }
+            FieldLayoutData field = fields.Find(f => f.id == fieldId);
+            if (show && field != null && field.pieceObstacles.Count > 0)
+            {
+                obstacleRoot = FieldBuilder.BuildObstacles(transform, field);
+            }
         }
 
         // ---- Live ---------------------------------------------------------------------------------
@@ -576,6 +643,7 @@ namespace PviHarness.Replay
             }
             FieldBuilder.ShowPowers(scene, timeline.Current);
             pieceView?.Show(pieceTrack.At(timeline.Index));
+            tagSights?.Show(timeline.Current, pose, showAprilTags);
             if (timeline.Index != trailShownIndex || timeline.Index >= trailCountUpTo.Count - 1)
             {
                 int count = trailCountUpTo[Math.Min(timeline.Index, trailCountUpTo.Count - 1)];
@@ -686,6 +754,12 @@ namespace PviHarness.Replay
                     break;
                 case KeyCode.L:
                     ToggleLiveMode();
+                    break;
+                case KeyCode.O:
+                    ShowObstacles(!showObstacles);
+                    break;
+                case KeyCode.A:
+                    SetShowAprilTags(!showAprilTags);
                     break;
                 default:
                     // While a live run is going, the timeline always follows the newest moment.

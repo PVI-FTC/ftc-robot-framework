@@ -76,5 +76,23 @@ namespace PviHarness.Replay.Tests
             Assert.AreEqual(0.25f, timeline.Speed);
             Assert.Throws<System.ArgumentOutOfRangeException>(() => timeline.SetSpeedIndex(ReplayTimeline.Speeds.Length));
         }
+
+        /// <summary>
+        /// WHAT: A long OpMode name (TeamAAprilTagVisionTestOpMode) is cut with "..." to fit the Vehicle
+        /// card's OpMode column, so it no longer runs into PERIOD; a short one (TeamATeleOp) is unchanged.
+        /// </summary>
+        [Test]
+        public void LongOpModeNamesFitTheVehicleCard()
+        {
+            const float cardWidth = 300; // about the side panel's width
+            float column = cardWidth * 2 / 5 - 12;
+
+            string longName = ReplayHud.VehicleText("TeamAAprilTagVisionTestOpMode", cardWidth, 0);
+
+            StringAssert.EndsWith("...", longName);
+            StringAssert.StartsWith("TeamA", longName);
+            Assert.LessOrEqual(ReplayHud.ReadoutWidth(longName), column, "fits before PERIOD: " + longName);
+            Assert.AreEqual("TeamATeleOp", ReplayHud.VehicleText("TeamATeleOp", cardWidth, 0));
+        }
     }
 }

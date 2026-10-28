@@ -38,7 +38,7 @@ class TelemetryPanelTest {
      */
     @Test
     void drawsARunWithLiveCards() {
-        RunRecording recording = Scenarios.teleOpDemoDrive().perform();
+        RunRecording recording = PviScenarios.teleOpDemoDrive().perform();
         RecordingView view = new RecordingView(recording);
         int driving = 0;
         for (int i = 0; i < view.size(); i++) {

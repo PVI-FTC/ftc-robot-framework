@@ -16,6 +16,11 @@ namespace PviHarness.Replay
         public double? forwardCoastInchesPerSecondSquared;
         public double? lateralCoastInchesPerSecondSquared;
         public PoseData start;
+        /// <summary>
+        /// True if the field elements (the HIVE frame, the FLOWERs: the field file's pieceObstacles)
+        /// stop the robot, as harness.properties field.robotObstacles says (bridge version 5).
+        /// </summary>
+        public bool robotObstacles;
 
         /// <summary>True if the robot has momentum numbers (response time, traction, coasting).</summary>
         public bool HasDynamics => responseTimeSeconds.HasValue && maxAccelerationInchesPerSecondSquared.HasValue
@@ -47,6 +52,11 @@ namespace PviHarness.Replay
         public double counterClockwiseRadiansPerSecond;
         /// <summary>"+x", "-x", "+y", "-y", two of them in a corner ("+x/-y"), or "" for none.</summary>
         public string wallContact = "";
+        /// <summary>
+        /// The field elements the robot is pressed against, named as the harness names them ("HIVE frame",
+        /// "far FLOWER"), joined by "/", or "" for none (bridge version 5).
+        /// </summary>
+        public string obstacleContact = "";
     }
 
     /// <summary>A robot's speed in its own frame: forward, left (positive) and counter-clockwise (positive).</summary>

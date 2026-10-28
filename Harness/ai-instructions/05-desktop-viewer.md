@@ -16,7 +16,7 @@ The viewer **has not been built yet.** It is position-estimator Steps 11–15 in
 | 13 | Swing window with a side panel |
 | 14 | Playback controls |
 | 15 | Opt-in switches |
-| 16 (optional) | HTML replay, Pedro path overlay, Panels check |
+| 16 (optional) | HTML replay, Pedro path overlay (Panels is gone with Pedro 3) |
 
 Build them in that order, one step per task. These rules apply to all viewer work.
 
@@ -67,9 +67,10 @@ Document its fields, units and a `version` number in `Harness/README.md`
 
 - A normal `.\gradlew.bat test` must **never** open a window, and must pass on a computer with no
   display (`java.awt.headless=true`).
-- The window opens only when the user asks for it, through the Step 15 opt-in switches:
-  `-Pview`, `simView` and `viewRecording`. Their exact behavior is decided in Step 15. Check with
-  the user, then document them in `Harness/README.md`. With none of them set, no window may open.
+- The window opens only when the user asks for it: `gradlew viewRecording` (or `view.bat`), or
+  `viewer.open=true` in `harness.properties`, which opens it after `gradlew test` finishes (Step
+  15, option A, decided by the user 2026-10-27; see `Harness/README.md`). With `viewer.open=false`
+  (the default) and no `viewRecording`, no window may open.
 - A test's pass/fail result must be exactly the same with or without the window.
 
 ## 4. The window never controls simulated time

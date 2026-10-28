@@ -294,7 +294,7 @@ class ViewerReplayTest {
      */
     @Test
     void teleOpDriveSavesARecordingToWatch() {
-        RunRecording recording = Scenarios.teleOpDemoDrive().perform();
+        RunRecording recording = PviScenarios.teleOpDemoDrive().perform();
 
         Path saved = RunRecordingJson.save(recording, RunRecordingJson.fileInDefaultFolder("ViewerReplayTest-teleOpDrive"));
         System.out.println("Recording to watch: " + saved);

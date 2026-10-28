@@ -43,6 +43,32 @@ class GamePiecesTest {
     }
 
     /**
+     * WHAT: The balls' sizes are the official manual's (TU06 section 9.8: POLLEN 2.8 in, NECTAR
+     * 3.6 in, polyethylene), and the mass, bounce and rolling values stay placeholders because the
+     * manual gives none.
+     *
+     * <p>WHY: The user asked for official facts where they exist and marked guesses everywhere
+     * else, never invented numbers.</p>
+     */
+    @Test
+    void ballSizesAreTheOfficialManualsAndTheRestStayPlaceholders() {
+        assertEquals(2.8, GamePiece.POLLEN_DIAMETER.value(), 1e-9, "POLLEN, manual 9.8");
+        assertEquals(3.6, GamePiece.NECTAR_DIAMETER.value(), 1e-9, "NECTAR, manual 9.8");
+        assertEquals(1.4, GamePiece.radiusInches(GamePiece.POLLEN), 1e-9);
+        assertEquals(1.8, GamePiece.radiusInches(GamePiece.BLUE_NECTAR), 1e-9);
+        assertTrue(GamePiece.POLLEN_DIAMETER.measured() && GamePiece.NECTAR_DIAMETER.measured(),
+                "official sizes count as known values");
+        assertTrue(GamePiece.POLLEN_DIAMETER.source().contains("TU06, section 9.8"), GamePiece.POLLEN_DIAMETER.source());
+        assertTrue(GamePiece.NECTAR_DIAMETER.source().contains("polyethylene"), GamePiece.NECTAR_DIAMETER.source());
+
+        // The manual gives no mass, bounce or friction, so every piece-model value stays a guess.
+        PieceModel model = PieceModel.bioBuzz();
+        assertEquals(6, model.unmeasured().size(), "nothing in the manual to replace: " + model.unmeasured());
+        assertTrue(model.pollenMass().source().startsWith("not given in the BIOBUZZ Competition Manual TU06"),
+                model.pollenMass().source());
+    }
+
+    /**
      * WHAT: BIOBUZZ starts with 44 pieces, each with its own id: 16 POLLEN in the FLOWERs, 8 in
      * the GARDENs, 4 pre-loads behind the robot, 3 NECTAR in each upward CELL and 5 in each
      * ALLIANCE AREA.

@@ -1,13 +1,11 @@
 package pvi.harness.physics;
 
-import com.pedropathing.ftc.drivetrains.MecanumConstants;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple.Direction;
 
-import org.firstinspires.ftc.teamcode.robots.teamA.TeamAPedroHarnessAccess;
-
 import pvi.harness.hardware.FakeDcMotorEx;
 import pvi.harness.hardware.FakeHardwareMap;
+import pvi.harness.runtime.HarnessConfig;
 
 /**
  * Reads the four drive motors and works out which way each wheel would really push the robot.
@@ -56,18 +54,24 @@ public final class WheelReader {
         this.rearRightForward = rearRightForward;
     }
 
+    /** The drive motors' names and forward directions from a settings file. */
+    public static WheelReader fromConfig(HarnessConfig config) {
+        HarnessConfig.DriveMotorNames names = config.driveMotors();
+        HarnessConfig.DriveMotorDirections forward = config.driveDirections();
+        return new WheelReader(
+                names.frontLeft(), forward.frontLeft(),
+                names.frontRight(), forward.frontRight(),
+                names.rearLeft(), forward.rearLeft(),
+                names.rearRight(), forward.rearRight());
+    }
+
     /**
-     * Team A, using the motor names and directions in TeamAPedroConfiguration.
-     * IMPLEMENTATION_STATUS.md records those directions (left REVERSE, right FORWARD) as
-     * physically verified in the LP-09 raised-wheel checks.
+     * The robot in {@code harness.properties} (PVI: Team A, with the motor names and directions
+     * from TeamAPedroConfiguration; IMPLEMENTATION_STATUS.md records those directions, left
+     * REVERSE and right FORWARD, as physically verified in the LP-09 raised-wheel checks).
      */
     public static WheelReader teamA() {
-        MecanumConstants pedro = TeamAPedroHarnessAccess.recordedMecanumConstants();
-        return new WheelReader(
-                pedro.leftFrontMotorName, pedro.leftFrontMotorDirection,
-                pedro.rightFrontMotorName, pedro.rightFrontMotorDirection,
-                pedro.leftRearMotorName, pedro.leftRearMotorDirection,
-                pedro.rightRearMotorName, pedro.rightRearMotorDirection);
+        return fromConfig(HarnessConfig.load());
     }
 
     /**

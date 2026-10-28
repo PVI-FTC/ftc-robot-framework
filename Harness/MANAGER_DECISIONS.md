@@ -312,3 +312,12 @@ All three bots are idle with empty lists. The details of each decision follow.
   setting up the harness on its own branch"**, and the "repo outside PVI" steps (the delete list,
   `pvi.extras=false`) shrink to a short section at the end. The bots' rules (`06-bot-team.md`) now
   say PVI teams come first.
+
+## Your direction: DECODE is very low priority (2026-10-28)
+
+- **You said:** DECODE is a very low priority, as it's an old field. The Pedro paths are just
+  leftovers and will be updated.
+- **What changes:** the season setting from D12 and the DECODE field work in D15 are **parked**
+  (stopped, not built). The three old routes keep today's setup: their tests run with the field
+  elements off, and one test flags that they hit the BIOBUZZ HIVE, as a reminder until the team
+  updates them.

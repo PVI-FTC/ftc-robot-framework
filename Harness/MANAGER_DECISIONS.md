@@ -94,6 +94,17 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   motors `fl`/`fr`/`bl`/`br`) are listed too, and stop at INIT with the SDK's "missing device"
   message, as on a real robot.
 
+## D8 · The viewer's "Drive: ..." list (2026-10-27)
+
+- **Decided:** the viewer's live-drive dropdown lists the TeleOps the harness finds by annotation
+  (like Unity's Live mode, D7), and a new config key, `viewer.defaultTeleOp`, names the one it
+  starts in. PVI's file sets it to Team A's TeleOp, so the viewer opens exactly as it does today.
+  If the key is empty, the viewer starts on the first TeleOp.
+- **Why:** WorkerBot suggested keeping the hand-written list of Team A OpModes, which is simplest.
+  But that list would break in another team's repo, against your drop-in goal. The key keeps
+  today's behavior here and works anywhere.
+- **To change it:** set `viewer.defaultTeleOp` in `harness.properties` to any TeleOp's name.
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

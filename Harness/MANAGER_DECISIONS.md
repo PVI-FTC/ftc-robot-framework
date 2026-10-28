@@ -87,6 +87,12 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
 - **Why:** this fits the drop-in goal (a new repo's OpModes appear in Unity with no list to edit)
   and keeps PVI's three-robot setup working.
 - **To change it:** say which OpModes should use which robot; it's one rule in the bridge.
+- **Refined (2026-10-27):** the rule looks at the OpMode's Driver Station **group** only ("Team B"
+  / "Team C"), not its package, because no PVI OpMode lives in a `robots.teamB` / `robots.teamC`
+  package today. The bridge, the viewer and recorded tests all share this one rule
+  (`RobotConfigs.forOpMode`). OpModes for robots the harness doesn't have (e.g. `KimCode/TeleopV1`,
+  motors `fl`/`fr`/`bl`/`br`) are listed too, and stop at INIT with the SDK's "missing device"
+  message, as on a real robot.
 
 ## Pedro 3 merge (2026-10-27)
 

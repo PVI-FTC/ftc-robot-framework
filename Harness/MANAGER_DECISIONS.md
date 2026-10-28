@@ -142,6 +142,30 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
 - **To change it:** if the delete list becomes a nuisance, the alternative is the test split you
   declined earlier (PVI's tests moved under the PVI extras, so `pvi.extras=false` is enough).
 
+## D12 · Team A's Pedro routes drive into the HIVE (2026-10-27) ⚠️ worth reading
+
+- **Found:** once the robot is stopped by the HIVE frame (D9), **3 of Team A's 4 Pedro routes
+  can't finish on the BIOBUZZ field.** They are DECODE-season paths that cross the middle of the
+  field, where the BIOBUZZ HIVE now stands:
+  - **DECODE Route** hits the HIVE frame at 3.4 s and gets stuck. Its end point, Pedro (48, 81),
+    is right on the blue HIVE's lip, so it can't be reached on this field at all.
+  - **Curving Test** hits the frame at 3.6 s and is still trying at 30 s.
+  - **Illegal Path** hits the frame at 2.9 s (17 times).
+  - **LP-11 Pilot** (24 in) is fine.
+
+  The real robot would be stopped the same way on a BIOBUZZ field. This is a route problem in
+  TeamCode, not a harness bug. The harness can't change TeamCode, so the team needs to redraw
+  these routes for BIOBUZZ.
+- **Decided:** the existing route tests (and one battery test) keep checking the routes' path
+  following, but with the field elements switched off, marked as DECODE-season paths. One new
+  test pins the finding: it checks that these routes hit the HIVE on the BIOBUZZ field. When the
+  team fixes a route, that test fails and says so, a reminder to switch the field elements back on
+  for that route's test.
+- **Why:** this keeps the harness's other checks working, and the problem stays visible instead of
+  being hidden or leaving the suite red.
+- **To change it:** once Team A has BIOBUZZ routes, a bot updates the route tests to run with the
+  field elements on.
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

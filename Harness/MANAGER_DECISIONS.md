@@ -50,3 +50,14 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   for it.
 - **Why:** RP2 removes most of the harness's direct use of Pedro, so after it the Pedro 3 fix is
   much smaller, and each step can be tested on its own.
+
+## D5 · How to fix the crowd if it runs below 30 fps (2026-10-27)
+
+- **Decided:** if the Unity app with the full hall crowd averages under 30 fps, UnityBot uses the
+  fix that changes the look least, in this order: GPU instancing / shared materials first, then a
+  lower-detail model for distant people, then fewer people. The full crowd stays available in
+  the Visuals settings; the default is whatever reaches 30 fps.
+- **Why:** you said 30 fps is good enough, and you've put work into the people and the hall. This
+  keeps them looking the same where possible and never removes the full crowd.
+- **To change it:** pick a different default in the app's Visuals settings, or tell the manager.
+  (If the crowd already runs at 30 fps or more, nothing is changed, and this entry says so later.)

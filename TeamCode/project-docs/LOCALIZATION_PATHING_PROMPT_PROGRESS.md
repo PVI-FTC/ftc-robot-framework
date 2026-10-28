@@ -6,6 +6,11 @@ conversation.
 
 Working branch: `PedroPathingSetup2.0`
 
+Current implementation note: this progress record preserves the original LP learning history.
+The active repository now uses Pedro 3 RevHub `3.0.2` and tuning `1.0.1`; consult
+`IMPLEMENTATION_STATUS.md` and `PEDRO_ROBOT_SETUP_REFERENCE.md` for the current code and workflow.
+Older LP rows that mention Pedro 2, Panels, or Predictive Braking are historical records.
+
 ## Status meanings
 
 - `Not started`: the prompt has not been executed on this branch.

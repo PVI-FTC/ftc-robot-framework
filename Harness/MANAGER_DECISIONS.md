@@ -290,3 +290,14 @@ All three bots are idle with empty lists. The details of each decision follow.
 - **D12, old routes: both.** The team redraws the three routes for BIOBUZZ (TeamCode, the team's
   job), **and** the harness gets a **season setting** so old routes can still be tested on last
   season's DECODE field.
+
+## D15 · Last season's DECODE field has walls only, for now (2026-10-28)
+
+- **Decided:** for the season setting you chose in D12, last season's **DECODE field** becomes
+  selectable again (BIOBUZZ stays the default), but **with walls and AprilTags only, no field
+  elements**. The old DECODE-season routes are tested against the walls on that field.
+- **Why:** there is no official DECODE field geometry on this PC (no DECODE manual or CAD; only
+  BIOBUZZ's), and the bots never guess measurements.
+- **To change it:** give the bots the official DECODE 2025-26 field CAD export and/or the DECODE
+  Competition Manual, or OK them downloading the manual from FIRST's site. Then UnityBot adds the
+  DECODE field elements as collision shapes.

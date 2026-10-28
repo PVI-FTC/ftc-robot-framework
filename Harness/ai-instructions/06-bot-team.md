@@ -75,6 +75,11 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ### Decided by the user
 
+- **Which team is whose (2026-10-28):** the user is **Team 2**, and Team 2's robot is **Team A**
+  in the code. Each team now works on its **own branch** (e.g. `Team2-Robot-Code`,
+  `feature/team-3-setup`); the Team A / B / C robot files are left over from an older plan that
+  kept every team's code in one branch. Don't pull other teams' branches into this one. Team 3's
+  branch could later serve as a real "new team" drop-in test, but **not now** (user, 2026-10-28).
 - **Team B and C (2026-10-24):** "Don't mess with them for now, just keep them up to date."
   Their fake robots stay copies of the shared Team A hardware, and change only when TeamCode's
   Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user

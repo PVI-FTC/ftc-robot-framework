@@ -94,6 +94,9 @@ All three bots are idle with empty lists. The details of each decision follow.
   is.
 - **To change it:** once the config work (RP2) is done, switching robots only means changing the
   values in `Harness/harness.properties`. Tell the manager which robot, and a bot can do it.
+- **Confirmed by you (2026-10-28):** Team A in the code *is* your Team 2 robot. Each team now
+  works on its own branch; the Team A / B / C robot files are left over from an older plan that
+  kept every team's code in one branch.
 
 ## D4 · Order: config first, then Pedro 3 (2026-10-27)
 

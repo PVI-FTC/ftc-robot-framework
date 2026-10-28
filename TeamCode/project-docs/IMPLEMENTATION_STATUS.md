@@ -18,11 +18,12 @@ PVI-FTC | Editable master guide
   intake mappings were removed. The shared default `intake` hardware name and `FORWARD` direction
   remain available to Teams B and C. Input continues through `InputManager`, the OpMode calls only
   the Robot public API, and motor access remains in the hardware wrapper.
-- Team A's simple drivetrain composition now reverses all four recorded motor directions for the
-  geared drivetrain: front-left, front-right, rear-left, and rear-right all use `REVERSE`. The
-  shared `DriveHardware` defaults remain unchanged for Teams B and C, and the Team A TeleOp
-  control mapping is unchanged. `DriveHardware` and `RobotHardware` gained narrow configuration
-  constructors so the direction change remains owned by Team A's robot composition.
+- Team A's simple drivetrain composition configures the geared drivetrain with the two left motors
+  set to `REVERSE` and the two right motors set to `FORWARD`, correcting all four wheels rotating
+  backward during a physically tested forward-stick command. The shared `DriveHardware` defaults
+  remain unchanged for Teams B and C, and the Team A TeleOp control mapping is unchanged.
+  `DriveHardware` and `RobotHardware` gained narrow configuration constructors so the direction
+  change remains owned by Team A's robot composition.
   `TeamCode:assembleDebug` passed (52 tasks, 0 errors), and `git diff --check` passed.
 - SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
   SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in

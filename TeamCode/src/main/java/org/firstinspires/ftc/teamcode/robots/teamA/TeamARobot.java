@@ -30,9 +30,9 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     public TeamARobot() {
         this(new RobotHardware(new DriveHardware(
                 DcMotor.Direction.REVERSE,
+                DcMotor.Direction.FORWARD,
                 DcMotor.Direction.REVERSE,
-                DcMotor.Direction.REVERSE,
-                DcMotor.Direction.REVERSE),
+                DcMotor.Direction.FORWARD),
                 new IntakeHardware("intakeMotor", DcMotor.Direction.REVERSE)));
     }
 

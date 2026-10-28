@@ -13,8 +13,23 @@ screen, turn a drive into a test and read a failing test, in five short steps.
 
 ## 1. What you need
 
-- **Android Studio** installed (the harness uses its built-in Java, the `jbr` folder).
-- An internet connection the **first** time you build (to download libraries).
+- **Java 17 or newer.** Android Studio's built-in Java (its `jbr` folder) is the easiest, and
+  `view.bat` finds it by itself. Any other Java 17+ JDK works too (for example Eclipse Temurin
+  from adoptium.net), with `JAVA_HOME` set to its folder.
+- An internet connection the **first** time you build (to download Gradle and the libraries).
+
+### Running on another PC
+
+- Copy the whole repository (the `Harness` folder needs `../TeamCode` and
+  `../build.dependencies.gradle` next to it; see "The config file" if yours are elsewhere).
+- Install Java 17 or newer: Android Studio, or a JDK with `JAVA_HOME` set. `view.bat` looks
+  for Android Studio's Java first (even if `JAVA_HOME` points somewhere else), then `JAVA_HOME`,
+  then `java` on the PATH, and says plainly if it finds none or one older than 17. Typing
+  `.\gradlew.bat ...` yourself uses `JAVA_HOME` (or `java` on the PATH) instead.
+- Be online the first time, while Gradle downloads itself and the robot libraries. After that it
+  works offline.
+- Logitech F310/F710 controllers: set the switch on the back to **X** (XInput), not D, before
+  plugging in.
 
 ---
 

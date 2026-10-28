@@ -71,11 +71,23 @@ configurations {
     bridgeImplementation.extendsFrom implementation
 }
 
-java {
-    toolchain {
-        // Use Java 25: the version bundled with Android Studio (its "jbr" folder).
-        languageVersion = JavaLanguageVersion.of(25)
-    }
+// ---------------------------------------------------------------------------
+// Java: the harness builds and runs on the Java that runs Gradle (JAVA_HOME, or java on the
+// PATH), if it is Java 17 or newer. Android Studio's built-in Java (its "jbr" folder) works.
+// No fixed version is required, so another PC needs no extra download. Gradle 9 itself
+// already refuses to start on anything older than 17; this check says so in plain words.
+// ---------------------------------------------------------------------------
+if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+    throw new GradleException("The harness needs Java 17 or newer, but Gradle is running on Java "
+            + "${JavaVersion.current()} (${System.getProperty('java.home')}). Install Android Studio, or a "
+            + "Java 17+ JDK such as Eclipse Temurin from https://adoptium.net, and set JAVA_HOME to it.")
+}
+// JVM options that only some Java versions know. An option a Java doesn't know stops it from
+// starting, so each one is added only where it exists. Every test and JavaExec task uses these.
+def runJvmArgs = []
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_23)) {
+    // Byte Buddy probes sun.misc.Unsafe at startup; this silences Java 23+'s warning about it.
+    runJvmArgs << '--sun-misc-unsafe-memory-access=allow'
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -257,8 +269,7 @@ tasks.named('test') {
     // The robot libraries this build really uses ("group:name:version", comma-separated), so
     // SdkCompatibilityTest can check them against the robot build.
     systemProperty 'harness.robotLibraries', robotLibraries.join(',')
-    // Byte Buddy probes sun.misc.Unsafe at startup; this silences Java 24+'s warning about it.
-    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    jvmArgs runJvmArgs   // only the options this Java knows (see the top of this file)
     // What to print while tests run.
     testLogging {
         events 'passed', 'failed', 'skipped'   // one line per test
@@ -284,7 +295,7 @@ tasks.register('viewRecording', JavaExec) {
     dependsOn agentJar
     def viewerAgentFile = agentJar.flatMap { it.archiveFile }
     jvmArgumentProviders.add({ ["-javaagent:${viewerAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
-    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    jvmArgs runJvmArgs   // only the options this Java knows (see the top of this file)
     if (project.hasProperty('file')) {
         args project.property('file')
     }
@@ -308,7 +319,7 @@ tasks.register('makeTest', JavaExec) {
     dependsOn agentJar
     def makeTestAgentFile = agentJar.flatMap { it.archiveFile }
     jvmArgumentProviders.add({ ["-javaagent:${makeTestAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
-    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    jvmArgs runJvmArgs   // only the options this Java knows (see the top of this file)
     systemProperty 'java.awt.headless', 'true'
     args(project.findProperty('file') ?: '', project.findProperty('testName') ?: '')
 }
@@ -331,7 +342,7 @@ tasks.register('unityBridge', JavaExec) {
     dependsOn agentJar
     def bridgeAgentFile = agentJar.flatMap { it.archiveFile }
     jvmArgumentProviders.add({ ["-javaagent:${bridgeAgentFile.get().asFile.absolutePath}"] } as CommandLineArgumentProvider)
-    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    jvmArgs runJvmArgs   // only the options this Java knows (see the top of this file)
     if (project.hasProperty('port')) {
         args project.property('port')
     }

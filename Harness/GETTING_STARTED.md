@@ -7,6 +7,9 @@ for every step are in the [README](README.md); this page links to them.
 You need **Android Studio** installed. The first time, you also need internet (it downloads
 libraries).
 
+Using another computer? You need Java 17 or newer (Android Studio's built-in Java is fine) and
+internet the first time. See the README, [Running on another PC](README.md#running-on-another-pc).
+
 ---
 
 ## Step 1: Run the tests

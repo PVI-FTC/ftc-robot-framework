@@ -270,3 +270,23 @@ All three bots are idle with empty lists. The details of each decision follow.
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).
   It changed only TeamCode and `build.dependencies.gradle`; no harness file. WorkerBot is fixing the
   harness for Pedro 3 (list W8).
+
+## Your answers to the manager's follow-up questions (2026-10-28)
+
+- **D1, Pedro 2 and Pedro 3:** "compatible with both" means the **same harness must also work on
+  robot code that still uses Pedro 2** (e.g. `master`). A bot tests that in a throwaway copy.
+- **D6, ball weights:** enter them as measured, from the AndyMark store page: **POLLEN 0.055 lb =
+  24.9 g** (am-5851), **NECTAR 0.091 lb = 41.3 g** (am-5852). Bounce and rolling friction stay
+  placeholders.
+- **D7, robot save files (later):** a `robots/` folder with **one folder per robot**, each holding
+  its **config file next to its 3D model**. Robots are **created in Unity's Visuals screen**, which
+  should be **renamed "Settings"**. Not started yet.
+- **D9, HIVE tipping (later, with the outtake):** each colored HIVE sits on a bar that **tips like
+  a seesaw when enough weight is in its upper basket** (check the manual for details). The tip can
+  come from **Unity's physics** or from a **real-life estimate of which POLLEN/NECTAR combinations
+  tip it**. Not started yet.
+- **D10 and D14:** clear now; keep as they are.
+- **D11:** decide later how another team avoids deleting PVI files; the delete list stays for now.
+- **D12, old routes: both.** The team redraws the three routes for BIOBUZZ (TeamCode, the team's
+  job), **and** the harness gets a **season setting** so old routes can still be tested on last
+  season's DECODE field.

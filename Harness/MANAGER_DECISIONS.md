@@ -78,6 +78,16 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
 - **To change it:** weigh one POLLEN and one NECTAR (and, if you like, roll them on a tile), or
   paste the AndyMark weight; a bot then puts the numbers in, marked measured.
 
+## D7 · Which robot each Live-mode OpMode uses (2026-10-27)
+
+- **Decided:** the Unity bridge stops using its hand-written list of 5 OpModes. It lists every
+  OpMode the harness finds by annotation (RP8), and each runs on the robot in
+  `harness.properties`. With `pvi.extras=true`, OpModes in a "Team B" / "Team C" group or package
+  keep using PVI's Team B / Team C robots.
+- **Why:** this fits the drop-in goal (a new repo's OpModes appear in Unity with no list to edit)
+  and keeps PVI's three-robot setup working.
+- **To change it:** say which OpModes should use which robot; it's one rule in the bridge.
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

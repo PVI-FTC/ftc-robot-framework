@@ -302,3 +302,13 @@ All three bots are idle with empty lists. The details of each decision follow.
   Competition Manual, or OK them downloading the manual from FIRST's site. Then UnityBot adds the
   DECODE field elements as collision shapes.
 - **Your answer (2026-10-28):** walls only is fine. DECODE stays without field elements.
+
+## Your direction: who the harness is for (2026-10-28)
+
+- **You said:** most if not all use of this harness will come from **teams using the PVI repo**
+  (each on its own branch). Teams outside the PVI repo can have a small section, but it should
+  in no way be a big part.
+- **What changes:** `BRING_YOUR_OWN_ROBOT.md` is reworked so its main path is **"a PVI team
+  setting up the harness on its own branch"**, and the "repo outside PVI" steps (the delete list,
+  `pvi.extras=false`) shrink to a short section at the end. The bots' rules (`06-bot-team.md`) now
+  say PVI teams come first.

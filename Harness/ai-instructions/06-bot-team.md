@@ -75,6 +75,10 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ### Decided by the user
 
+- **Who the harness is for (2026-10-28):** "Most if not all use of this harness will come from
+  teams using the PVI repo." The main users are **PVI teams, each on its own branch** of the PVI
+  repo (Team 1, Team 2, Team 3, ...). Docs and features are written for them first. Teams **outside**
+  the PVI repo get only **a small section**, never a big part of the docs or the work.
 - **Which team is whose (the user's naming, final 2026-10-28):**
   - The user is **Team 2**. Team 2's main branch is `origin/Pedro-3-Implementation`.
   - **Only trust the term "Team A" when it's on the user's own branch.** On this branch, the

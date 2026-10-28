@@ -301,3 +301,4 @@ All three bots are idle with empty lists. The details of each decision follow.
 - **To change it:** give the bots the official DECODE 2025-26 field CAD export and/or the DECODE
   Competition Manual, or OK them downloading the manual from FIRST's site. Then UnityBot adds the
   DECODE field elements as collision shapes.
+- **Your answer (2026-10-28):** walls only is fine. DECODE stays without field elements.

@@ -75,11 +75,18 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ### Decided by the user
 
-- **Which team is whose (2026-10-28):** the user is **Team 2**, and Team 2's robot is **Team A**
-  in the code. Each team now works on its **own branch** (e.g. `Team2-Robot-Code`,
-  `feature/team-3-setup`); the Team A / B / C robot files are left over from an older plan that
-  kept every team's code in one branch. Don't pull other teams' branches into this one. Team 3's
-  branch could later serve as a real "new team" drop-in test, but **not now** (user, 2026-10-28).
+- **Which team is whose (2026-10-28, the user's naming):**
+  - The user is **Team 2**. The robot code on this branch is theirs; the harness simulates it
+    under the code name **Team A** (`TeamCode/robots/teamA`), left over from an older plan where
+    Team A / B / C were robot files in one shared branch. Each team now works on its **own branch**.
+  - As a *team*, **"Team A" means IanKile007's team.** It is **not** theskier15's team, which is
+    **Team 3** (`feature/team-3-setup`, `Team3…` classes).
+  - **`origin/TeamA_TeleOp_Update` is not the user's** (commit `a390578`, IanKile007, 2026-10-14,
+    reverses all four drive motors). Ignore it: don't merge it, and don't change the harness's motor
+    directions because of it. The current directions match this branch's code and its Pedro 3
+    tuning.
+  - Don't pull other teams' branches into this one. Team 3's branch could later serve as a real
+    "new team" drop-in test, but **not now**.
 - **Team B and C (2026-10-24):** "Don't mess with them for now, just keep them up to date."
   Their fake robots stay copies of the shared Team A hardware, and change only when TeamCode's
   Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user

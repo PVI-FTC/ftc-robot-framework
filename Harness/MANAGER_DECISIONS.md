@@ -12,6 +12,58 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
 
 ---
 
+## Summary of the 2026-10-27 round
+
+**Every task on the list is done**, committed as `3dfe4df` on `Team2-Testing-Pedro3` and copied
+to the USB (USBRANLY).
+
+**Final checks**
+
+- Java: the full suite, run by the manager with all bots idle: **360 tests in 60 classes,
+  0 failures**. 5 are skipped on purpose: KimCode's TeleOp (D10), and the three tool TeleOps in
+  the drive check only (D14).
+- Unity: **95/95**, from UnityBot's run (the manager didn't rerun Unity).
+- Only `Harness/` changed, except the Pedro 3 merge you approved, which brought in your
+  teammates' TeamCode changes.
+
+**Read first: D12.** Three of Team A's Pedro routes (DECODE, Curving, Illegal Path) are last
+season's paths. On the BIOBUZZ field they drive into the HIVE and can't finish, on the real field
+too. The team needs to redraw them.
+
+**What got done**
+
+- **Your drop-in goal works.** Everything about a robot now lives in `harness.properties`, and
+  Pedro is optional (only PVI's extras use it). WorkerBot proved it in a pretend "other team" repo
+  (different motor names, no Pedro, a LinearOpMode). Following only
+  [`BRING_YOUR_OWN_ROBOT.md`](BRING_YOUR_OWN_ROBOT.md), its suite passed: 169 tests, 0 failed.
+- **Pedro 3** is merged, and the harness works with it, with no TeamCode edits.
+- **New harness features:**
+  - LinearOpMode support;
+  - nine new sensor fakes: IMU, CR servo, distance, touch, color, analog, OTOS, dead wheels,
+    Limelight;
+  - finding OpModes by their annotations;
+  - a smoke test that runs every OpMode and checks that TeleOps drive;
+  - the viewer opening after tests (Step 15, option A).
+- **Field realism:** the official ball sizes; balls bounce off the HIVE and FLOWERs; the robot is
+  blocked by them, in both the harness physics and Unity's physics.
+- **Unity:** a "needs Java 17+" message in Live mode; the crowd measured at 60 fps (nothing to
+  fix); AprilTag sight lines; a HUD fix for long OpMode names.
+- **Your extra request:** [`robot-recorder/`](robot-recorder/README.md) records a real-robot TeleOp
+  drive as a harness recording, for replay or `makeTest`.
+
+**Not checked yet (needs you or the robot)**
+
+- Nothing has run on a real Java 17 or on the other PC yet.
+- The viewer window and Unity Live mode weren't tried in the drop-in copy (they need a screen).
+- The robot recorder hasn't run on a Control Hub.
+- **Measurements still needed:** Team A's size (for FW1, the walls), calibration at the robot
+  (`CALIBRATION.md`), and the ball weights (D6).
+- Whether to move `Team2-Testing` forward to this branch is your call.
+
+All three bots are idle with empty lists. The details of each decision follow.
+
+---
+
 ## D1 · Work on a new local branch (2026-10-27)
 
 - **Decided:** all of this round's work goes on a new local branch, `Team2-Testing-Pedro3`, made

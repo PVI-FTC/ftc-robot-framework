@@ -107,7 +107,18 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 - **Intake: not now.** It comes after the placeholder robot is replaced by a real design.
 - **Balls collide with the HIVE frame and FLOWERs:** yes.
 - **Step 15 viewer switches:** a **config file setting**, not command-line switches. Normal test
-  runs still never open a window.
+  runs still never open a window. **Option A** (2026-10-27): with `viewer.open=true`, the viewer
+  opens *after* `gradlew test` finishes, on the newest recording (or the failed test's), with
+  every recording from that run in the dropdown. Default `viewer.open=false`; with no screen it
+  doesn't open.
+- **BIOBUZZ game manual** (2026-10-27): the user approved downloading the official manual, for
+  the ball facts.
+- **Pedro 3 go-ahead** (2026-10-27): the user approved merging Pedro 3 and updating the harness
+  for it.
+- **Work on alone, manager decides** (2026-10-27): the user asked the team to finish the whole
+  task list without them. Where a task needs the user's input, the **manager** decides and writes
+  it in [`Harness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md), then commits and updates the
+  USB. Bots send such questions to the manager, not the user.
 
 ### Waiting on the user
 

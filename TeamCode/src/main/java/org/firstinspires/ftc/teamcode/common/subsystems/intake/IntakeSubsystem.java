@@ -27,6 +27,7 @@ public class IntakeSubsystem implements Subsystem {
     private final FSM fsm;
 
     private RequestedMode requestedMode = RequestedMode.IDLE;
+    private double requestedIntakePower = INTAKE_POWER;
 
     /** Creates an intake subsystem that sends all motor commands through {@code intakeHardware}. */
     public IntakeSubsystem(IntakeHardware intakeHardware) {
@@ -67,6 +68,12 @@ public class IntakeSubsystem implements Subsystem {
 
     /** Requests normal forward intake behavior. */
     public void startIntake() {
+        startIntake(INTAKE_POWER);
+    }
+
+    /** Requests forward intake behavior at the supplied power. */
+    public void startIntake(double power) {
+        requestedIntakePower = clampPower(power);
         requestedMode = RequestedMode.INTAKING;
     }
 
@@ -97,7 +104,7 @@ public class IntakeSubsystem implements Subsystem {
     }
 
     void runIntakeForward() {
-        intakeHardware.forward(INTAKE_POWER);
+        intakeHardware.forward(requestedIntakePower);
     }
 
     void runIntakeReverse() {
@@ -106,6 +113,13 @@ public class IntakeSubsystem implements Subsystem {
 
     void stopOutput() {
         intakeHardware.stop();
+    }
+
+    private double clampPower(double power) {
+        if (Double.isNaN(power)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(1.0, power));
     }
 
     private void addTransitions() {

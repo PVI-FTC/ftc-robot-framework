@@ -8,7 +8,31 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 public class IntakeHardware {
     public static final String INTAKE_MOTOR_NAME = "intake";
 
+    private final String motorName;
+    private final DcMotor.Direction motorDirection;
     private DcMotorEx intakeMotor;
+
+    /** Creates the shared baseline intake configuration. */
+    public IntakeHardware() {
+        this(INTAKE_MOTOR_NAME, DcMotor.Direction.FORWARD);
+    }
+
+    /** Creates intake hardware with an explicit hardware configuration name. */
+    public IntakeHardware(String motorName) {
+        this(motorName, DcMotor.Direction.FORWARD);
+    }
+
+    /** Creates intake hardware with an explicit configuration name and motor direction. */
+    public IntakeHardware(String motorName, DcMotor.Direction motorDirection) {
+        if (motorName == null || motorName.isEmpty()) {
+            throw new IllegalArgumentException("Intake hardware needs a motor name.");
+        }
+        if (motorDirection == null) {
+            throw new IllegalArgumentException("Intake hardware needs a motor direction.");
+        }
+        this.motorName = motorName;
+        this.motorDirection = motorDirection;
+    }
 
     /** Finds the optional intake motor without preventing drivetrain startup when it is absent. */
     public void initialize(HardwareMap hardwareMap) {
@@ -17,7 +41,8 @@ public class IntakeHardware {
         }
 
         try {
-            intakeMotor = hardwareMap.get(DcMotorEx.class, INTAKE_MOTOR_NAME);
+            intakeMotor = hardwareMap.get(DcMotorEx.class, motorName);
+            intakeMotor.setDirection(motorDirection);
             intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             stop();

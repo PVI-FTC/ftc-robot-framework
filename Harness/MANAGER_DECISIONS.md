@@ -117,6 +117,31 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   look wrong.
 - **To change it:** set the new switch to `false` in `harness.properties`.
 
+## D10 · OpModes the "every OpMode" smoke test skips (2026-10-27)
+
+- **Decided:** the new smoke test (RP10) runs every OpMode the harness finds. A config key,
+  `smokeTest.skipOpModes`, lists any it should skip. PVI's file lists **KimCode TeleopV1**. Skipped
+  OpModes show as *skipped* in the test report with the reason "listed in
+  smokeTest.skipOpModes", never silently.
+- **Why:** KimCode TeleopV1 drives a different robot (motors `fl`/`fr`/`bl`/`br`) than the one the
+  harness simulates (Team A, D3), so it can only fail with "missing device". The other options
+  were a whole second robot profile (a bigger change), or leaving the test red.
+- **To change it:** remove the name from `smokeTest.skipOpModes`. If the harness ever simulates
+  that robot, the skip isn't needed.
+
+## D11 · What another team deletes, since tests stay one set (2026-10-27)
+
+- **Decided:** your rule stands: one test set, no split. So `BRING_YOUR_OWN_ROBOT.md` says
+  exactly what a team does in another repo: set `pvi.extras=false` and delete the PVI test files,
+  listed one by one (about 26 under `src/test`). The viewer's `Scenarios.java` would otherwise
+  also break outside PVI's repo, so WorkerBot changes it: its generic scenarios come from the
+  OpModes the harness finds, and PVI's own scenarios move into the PVI extras.
+- **Why:** TestBot found that `pvi.extras=false` alone isn't enough. Those 26 test files use PVI's
+  TeamCode classes and won't compile elsewhere. Deleting test files is easy and safe, but the
+  viewer has to keep working, so it can't be one of the deleted files.
+- **To change it:** if the delete list becomes a nuisance, the alternative is the test split you
+  declined earlier (PVI's tests moved under the PVI extras, so `pvi.extras=false` is enough).
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

@@ -78,6 +78,16 @@ Copy only the contents of the snippet below. Stop at the closing snippet marker;
 
 ## Purpose
 
+## Current implementation notice
+
+The repository now contains the Pedro 3 migration described by this guide's later pathing stages.
+For the active implementation, use `IMPLEMENTATION_STATUS.md`, `ARCHITECTURE.md`, and
+`PEDRO_ROBOT_SETUP_REFERENCE.md` as the current source of truth. Earlier LP prompts and examples
+preserve the learning history and may mention Pedro 2, Panels, `FollowerConstants`, or a future
+implementation; those references are historical, not instructions to restore old dependencies.
+The current build uses RevHub `3.0.2` and tuning `1.0.1`, and the device-free verification command
+is `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug`.
+
 Use AI as a guided engineering partner to add a pilot localization and pathing capability without
 being handed a packaged implementation. The target pilot uses Pedro Pathing, a goBILDA Pinpoint
 Odometry Computer with two odometry pods, and a four-wheel mecanum chassis.

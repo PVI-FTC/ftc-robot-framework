@@ -12,6 +12,11 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Merged `origin/Pedro-3-Implementation` into `feature/team-3-setup`:
+  - Upgraded Pedro Pathing from v2 to v3 (`com.pedropathing:revhub:3.0.2` and `com.pedropathing:tuning:1.0.1`).
+  - Added Pedro 3 package `pedro` with `Constants.java`, `Tuning.java`, and AutoTune procedures (`ForesightTuner`, `MecanumTuner`, `PinpointTuner`, `Tests`, etc.).
+  - AutoTune now runs directly through the robot-hosted web page at `http://192.168.43.1:10158`.
+  - Adapted Team 3's Pedro pathing architecture to Pedro 3 Foresight.
 - (branch: feature/team-3-setup) Created complete robot-specific codebase, Pedro Pathing
   integration, and OpModes for Team 3 under `robots.team3` and `opmodes.*`:
   - `robots.team3`: `Team3Robot`, `Team3PedroRobot`, `Team3PedroConfiguration`, `Team3PedroFollowerFactory`,
@@ -67,6 +72,24 @@ PVI-FTC | Editable master guide
   TeleOp) via `robot.deployIntake()`. `Team3PedroRobot` was updated to compose `Team3MechanismHardware` and
   expose `deployIntake()`, `stowIntake()`, `toggleIntakeDeploy()`, and mechanism controls. Zero-power
   deceleration, Predictive Braking, and mass still hold earlier baseline values until physical assembly is finalized.
+- Fixed the standalone `KimCode/TeleopV1` mecanum rotation and strafe mappings by negating the
+  right-stick X and left-stick X inputs before passing them to Pedro's manual drive API. Forward
+  and reverse mappings are unchanged; this corrects left/right rotation and strafe direction at
+  the TeleOp input boundary.
+- Pedro 3 migration completed: `revhub:3.0.2` and `tuning:1.0.1`
+  replace the Pedro 2 artifacts. The Pedro 3 `pedro/procedures` sources are present, with
+  `Constants.java` and `Tuning.java` registered for the AutoTune web server on port 10158.
+  Existing Pedro 2-era Team A paths and the autonomous route selector were adapted to the
+  Pedro 3 APIs. The obsolete Pedro 2 monolithic tuner was removed.
+- Added independent `KimCode/TeleopV1.java`, adapted from the reference `pedro3` project. It does
+  not depend on `TeamAPedroRobot` or `TeamAPedroPathStep`, uses `InputManager`, and owns follower
+  and Limelight access in a private controller within the one-file KimCode entry point.
+
+### Historical records below
+
+Entries below this point preserve earlier prompt evidence and may describe the former Pedro 2,
+Panels, or Predictive Braking workflow. They are historical records, not instructions for the
+current Pedro 3 implementation.
 - SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
   SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in
   `VisionPortalAprilTagSource` because individual-tag `id` and `metadata` fields are no longer
@@ -90,11 +113,11 @@ PVI-FTC | Editable master guide
   `TeamCode:assembleDebug` passed with `BUILD SUCCESSFUL` (52 tasks, 0 errors). Architecture
   boundaries are preserved: `RumbleManager` still holds only a `Gamepad` reference and contains
   no hardware map, FSM, subsystem, or autonomous logic.
-- Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
-  Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
-  Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,
-  localization/direction evidence, future-robot replacement map, and sign-off checklist. Unverified
-  physical dimensions are explicitly separated from inconsistent Visualizer-only footprints.
+- Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable Pedro 3 setup and tuning guide grounded in the
+  current Team A code and official AutoTune workflow. It inventories the pinned dependencies,
+  hardware and Pinpoint facts, current config locations, procedure registration, build steps,
+  localization/direction evidence, future-robot replacement map, and sign-off checklist. Older
+  Pedro 2/Panels records are explicitly marked historical.
 - LP-11 preserves the student-created Pedro Visualizer `1.2.1` export as
   `TeamCode/project-docs/TeamA_LP11_Pilot.pp`. The reviewed chain contains one straight line from
   `(0, 0)` to `(24, 0)` inches, no control points or waits, and an effective `0` degree heading.
@@ -866,26 +889,26 @@ PVI-FTC | Editable master guide
   - disabled-by-default LP-09 pose telemetry and deadman-controlled raised-wheel requests at the
     configured restricted ceiling
 ## Build status
-- Approved JDK: Record the team-approved version here. Microsoft OpenJDK Java 17.0.x
+- Build runtime observed in the latest verification: Java 24; source/target 8 deprecation warnings are emitted.
 - Android Studio version: Quail 1
-- FTC SDK version or tag: Release 11.2.1
+- FTC SDK version or tag: Release 12.0.0
+- Pedro dependencies: `revhub:3.0.2`, `tuning:1.0.1`
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
+- Latest result: `BUILD SUCCESSFUL`; `git diff --check` passed.
 ## Known limitations and TODO items
-- `TeamAPedroTuning` exposes the full Pedro Quickstart menu applicable to Team A's mecanum robot.
-  The Swerve-only folder is omitted. The operator must follow the documented Pedro order rather
-  than menu order because every applicable option is now visible.
-- Full-power velocities, heading PIDF, Predictive Braking coefficients, `P=0.15`, and the `0.97`
-  parametric-end constraint are recorded and validated by the Line test. The director accepted the
-  evidence and the `0.20` application limit, so path readiness is open. No pilot path exists yet.
-- Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
-  resolves and compiles Pedro 2.1.2.
-- LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder
-  directions, recorded motor directions, restricted raised-wheel movement, cancellation, Driver
-  Station STOP, and `robot.stop()`. Ground driving outside a later supervised tuning/test plan has
-  not been authorized.
-- Path readiness is open after version-matched tuning recorded accepted velocities, heading PIDF,
-  Predictive Braking values, constraints, repeatability, and safe stop behavior. LP-11 still must
-  implement and cautiously validate the first pilot path.
+- `pedro/Constants.java` is copied from the local `pedro3` project and `create()` intentionally
+  returns `null`. `KimCode/TeleopV1` therefore compiles but cannot drive until the team completes
+  constants and constructs the follower.
+- Mecanum, Pinpoint, and Foresight procedures are registered. The local reference has not completed
+  Foresight tuning; generated values still need review and must be copied into the Pedro 3
+  `ForesightConfig`. Pinpoint configuration also remains unfinished in the reference Constants file.
+- Earlier LP-10 velocities, heading PIDF, Predictive Braking coefficients, `P=0.15`, and the `0.97`
+  parametric-end constraint are historical Pedro 2 evidence. They are not verified Pedro 3 tuning
+  results and must not be used to open the current path-following gate.
+- No successful physical hardware validation has been recorded for this Pedro 3 integration. The
+  build proves compilation and packaging only.
+- Older LP-09/LP-10 records describe hardware and tuning checks made with the former Pedro 2
+  implementation. They do not establish Pedro 3 localization, tuning, or path readiness.
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
 - MV-03 software checks verify that `VisionPortalAprilTagSource` preserves

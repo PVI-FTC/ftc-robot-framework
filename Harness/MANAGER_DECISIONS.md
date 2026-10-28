@@ -105,6 +105,18 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   today's behavior here and works anywhere.
 - **To change it:** set `viewer.defaultTeleOp` in `harness.properties` to any TeleOp's name.
 
+## D9 · The robot can't drive through the HIVE frame or FLOWERs (2026-10-27)
+
+- **Decided:** WorkerBot adds robot-vs-field-element collisions. The simulated robot is stopped by
+  the HIVE frame's feet and lip and by the FLOWER brackets, the same way it's stopped by the field
+  walls today (it slides along them, and a hit is logged as an event). It's switched on for
+  BIOBUZZ and can be turned off in `harness.properties`.
+- **Why:** after balls started bouncing off those parts, WorkerBot found that the robot itself
+  still drove straight through them, carrying balls through the frame. You asked for balls to
+  collide with the HIVE and FLOWERs; a robot passing through them would make those collisions
+  look wrong.
+- **To change it:** set the new switch to `false` in `harness.properties`.
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

@@ -180,6 +180,19 @@ stays exactly as it was at commit `960534a`, so you can always go back to it.
   `viewer.defaultTeleOp`, not keeping the original `MyFirstRobotTest`, and marking another
   robot's speeds as placeholders until measured.)
 
+## D14 · TeleOps that aren't meant to drive (2026-10-27)
+
+- **Decided:** the smoke test now also checks that pushing the left stick powers a drive motor in
+  each TeleOp. A config key, `smokeTest.notDrivingTeleOps`, lists TeleOps that aren't meant to
+  drive. They skip only that check, shown as skipped with the reason "listed as not driving",
+  and still get the "doesn't crash" check. PVI's file lists **Team A AprilTag Vision Test**,
+  **Team A Camera Calibration Capture** and **Team A Pedro Diagnostic** (tool OpModes in the
+  "Testing" group, which never read the sticks).
+- **Why:** an explicit list is clear and works in any team's repo. Treating the group name
+  "Testing" as special would be PVI-only, and the existing skip list would also drop their crash
+  check.
+- **To change it:** edit `smokeTest.notDrivingTeleOps` in `harness.properties`.
+
 ## Pedro 3 merge (2026-10-27)
 
 - Merged `origin/Pedro-3-Implementation` into `Team2-Testing-Pedro3` as commit `0f9c602` (D1, D2).

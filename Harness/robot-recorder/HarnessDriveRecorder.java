@@ -2,8 +2,6 @@ package org.firstinspires.ftc.teamcode.harness;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
-import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,6 +31,13 @@ import java.util.Locale;
 public final class HarnessDriveRecorder {
     /** The harness's loop period: one entry per 20 ms, like a drive recorded in the viewer. */
     private static final double TICK_SECONDS = 0.02;
+    /**
+     * Where recordings go on the Control Hub. "/sdcard/FIRST" is the SDK's own FIRST folder
+     * (where robot configurations live). A plain path, not the SDK's AppUtil, so this class can
+     * also be created off the robot (the harness compiles and runs all of TeamCode).
+     */
+    private static final File ROBOT_FOLDER = new File("/sdcard/FIRST/harness");
+
     private final String opModeName;
     private final String robotConfig;
     private final File folder;
@@ -49,8 +54,7 @@ public final class HarnessDriveRecorder {
      * @param robotConfig the harness robot to replay on: "teamA", "teamB", "teamC" or "driveOnly"
      */
     public HarnessDriveRecorder(String opModeName, String robotConfig) {
-        // Where recordings go on the Control Hub: /sdcard/FIRST/harness.
-        this(opModeName, robotConfig, new File(AppUtil.ROOT_FOLDER, "harness"));
+        this(opModeName, robotConfig, ROBOT_FOLDER);
     }
 
     /** Same, but saves into another folder. */
@@ -171,6 +175,11 @@ public final class HarnessDriveRecorder {
                 + "\"events\":[{\"sinceInitSeconds\":0,\"matchTimeSeconds\":0,"
                 + "\"text\":\"Recorded on the real robot (HarnessDriveRecorder)\"}],\n"
                 + "\"loops\":[\n";
+        if (folder == ROBOT_FOLDER && !new File("/sdcard/FIRST").isDirectory()) {
+            // Not on a Control Hub (e.g. running inside the harness on a laptop): don't create
+            // a stray /sdcard folder there.
+            return "Harness recorder: not on a robot (no /sdcard/FIRST), nothing saved.";
+        }
         if (!folder.isDirectory() && !folder.mkdirs()) {
             return "Harness recorder: couldn't make the folder " + folder;
         }

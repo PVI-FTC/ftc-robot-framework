@@ -89,13 +89,16 @@ telemetry.update();
 - A 2-minute drive is about 1.5 MB and is kept in memory until STOP, which is fine on a Control
   Hub. If the file can't be written, the TeleOp still works and the Driver Station says why.
 - The harness compiles all of TeamCode, so once these files are in TeamCode the harness sees the
-  "Record: ..." TeleOp too. In the harness it runs fine. If it's stopped there, it tries to save
-  under the SDK's `FIRST` folder, which may not exist on a laptop; then it just reports that it
-  couldn't save.
+  "Record: ..." TeleOp too, and it runs fine there. On a laptop there is no `/sdcard/FIRST`, so
+  at STOP it saves nothing and just says "not on a robot". (Inside the harness, drives are
+  recorded by the viewer instead.)
+- Files go to `/sdcard/FIRST/harness`, next to the robot configurations the SDK keeps in
+  `/sdcard/FIRST`. To save somewhere else, use `new HarnessDriveRecorder(name, robot, folder)`.
 
 ## Checked
 
 Both files were compiled for Java 8 against FTC SDK 12.0.0 and Team A's TeleOp (2026-10-27). A
 simulated drive (fake gamepads, real-time loop of 7–13 ms) was saved by the recorder and loaded
 back by the harness's own `RunRecordingJson` and `RecordedInputs`. It gave the expected steps
-(stick to −1, hold A for 0.2 s, trigger 0.5). It has **not** yet been run on a real Control Hub.
+(stick to −1, hold A for 0.2 s, trigger 0.5). Creating and stopping it off the robot saves
+nothing and creates no folder. It has **not** yet been run on a real Control Hub.

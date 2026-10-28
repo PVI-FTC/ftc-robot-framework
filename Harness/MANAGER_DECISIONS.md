@@ -72,6 +72,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   Pedro 3). Keeping it on its own branch means `Team2-Testing` stays a known-good copy.
 - **To change it:** if you're happy with the result, `Team2-Testing` can be moved forward to this
   branch later (ask the manager). To throw it away, switch back to `Team2-Testing`.
+- **User Reply:** `Team2-Testing-Pedro3` is fine for now. Keep it seperate though until further instructions.  `Team2-Testing-Pedro3` should have all the same abilities as `Team2-Testing` plus the compatablility with both Pedro 3 and Pedro 2.
 
 ## D2 · Which Pedro 3 branch to merge (2026-10-27)
 
@@ -81,6 +82,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   `origin/team-2-pedro-3-implementation`, changes 215 files, deletes about 25,000 lines and was
   uploaded through the GitHub website, so it's much riskier.
 - **To change it:** say which branch to use instead.
+- **User Reply:** Manager made Correct Decision. To my knowledge `origin/Pedro-3-Implementation` is Team 2's main branch now.
 
 ## D3 · Which robot the harness simulates (2026-10-27)
 
@@ -100,6 +102,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   IanKile007's team (not Team 3, which is theskier15's). Its branch `TeamA_TeleOp_Update`, which
   reverses all four drive motors, is **not yours**: the harness ignores it and keeps the motor
   directions your branch and its Pedro 3 tuning use.
+- **User Reply:** Assume anything labeled Team A is not ours and should not be used for now. If the Term Team A is in a Team 2 Branch inform me first. The response claiming Team A is ours came from a mix up between Robot A and Team A.
 
 ## D4 · Order: config first, then Pedro 3 (2026-10-27)
 
@@ -108,6 +111,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   for it.
 - **Why:** RP2 removes most of the harness's direct use of Pedro, so after it the Pedro 3 fix is
   much smaller, and each step can be tested on its own.
+- **User Reply:**  Good
 
 ## D5 · How to fix the crowd if it runs below 30 fps (2026-10-27)
 
@@ -122,6 +126,7 @@ All three bots are idle with empty lists. The details of each decision follow.
 - **Outcome:** not needed. UnityBot measured the full hall crowd at a steady **60 fps** (the
   vsync limit) in every heavy view on this PC (RTX 2060, Ultra quality), so nothing was changed.
   The app gained a measuring option, `-fpslog <file>`, documented in `unity/README.md`.
+- **User Reply:** Note: When the avatars were downloaded the website said they were at 30fps
 
 ## D6 · Ball mass, bounce and friction (2026-10-27)
 
@@ -135,6 +140,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   (HTTP 429), and a web search found no published weight.
 - **To change it:** weigh one POLLEN and one NECTAR (and, if you like, roll them on a tile), or
   paste the AndyMark weight; a bot then puts the numbers in, marked measured.
+- **User Reply:** AndyMark store page has Pollen listed as 0.055 lbs and Nectar as 0.091 lbs
 
 ## D7 · Which robot each Live-mode OpMode uses (2026-10-27)
 
@@ -151,6 +157,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   (`RobotConfigs.forOpMode`). OpModes for robots the harness doesn't have (e.g. `KimCode/TeleopV1`,
   motors `fl`/`fr`/`bl`/`br`) are listed too, and stop at INIT with the SDK's "missing device"
   message, as on a real robot.
+- **User Reply:** Sounds good. I plan to more fully flesh out having multiple bot save files.
 
 ## D8 · The viewer's "Drive: ..." list (2026-10-27)
 
@@ -162,6 +169,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   But that list would break in another team's repo, against your drop-in goal. The key keeps
   today's behavior here and works anywhere.
 - **To change it:** set `viewer.defaultTeleOp` in `harness.properties` to any TeleOp's name.
+- **User Reply:** Good Idea.
 
 ## D9 · The robot can't drive through the HIVE frame or FLOWERs (2026-10-27)
 
@@ -174,6 +182,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   collide with the HIVE and FLOWERs; a robot passing through them would make those collisions
   look wrong.
 - **To change it:** set the new switch to `false` in `harness.properties`.
+- **User Reply:** Sounds good. I plan to implement an outtake system later so it is probably a good idea,if possible, to allow the hive to have collisions and tip. The tip can be caused by a preset
 
 ## D10 · OpModes the "every OpMode" smoke test skips (2026-10-27)
 
@@ -186,6 +195,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   were a whole second robot profile (a bigger change), or leaving the test red.
 - **To change it:** remove the name from `smokeTest.skipOpModes`. If the harness ever simulates
   that robot, the skip isn't needed.
+- **User Reply:** This seems fine but I might need a bit more explaining.
 
 ## D11 · What another team deletes, since tests stay one set (2026-10-27)
 
@@ -199,6 +209,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   viewer has to keep working, so it can't be one of the deleted files.
 - **To change it:** if the delete list becomes a nuisance, the alternative is the test split you
   declined earlier (PVI's tests moved under the PVI extras, so `pvi.extras=false` is enough).
+- **User Reply:** This is fine for now. In  the future thismight be modified to clear out the PVIstuff so no deleting is needed.
 
 ## D12 · Team A's Pedro routes drive into the HIVE (2026-10-27) ⚠️ worth reading
 
@@ -223,6 +234,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   being hidden or leaving the suite red.
 - **To change it:** once Team A has BIOBUZZ routes, a bot updates the route tests to run with the
   field elements on.
+- **User Reply:** Lets discuss this togeather.
 
 ## D13 · Unity bridge tests work in any repo (2026-10-27)
 
@@ -237,6 +249,7 @@ All three bots are idle with empty lists. The details of each decision follow.
 - **To change it:** nothing to do. (The guide also got 3 fixes from the rehearsal: setting
   `viewer.defaultTeleOp`, not keeping the original `MyFirstRobotTest`, and marking another
   robot's speeds as placeholders until measured.)
+- **User Reply:** Sounds good.
 
 ## D14 · TeleOps that aren't meant to drive (2026-10-27)
 
@@ -250,6 +263,7 @@ All three bots are idle with empty lists. The details of each decision follow.
   "Testing" as special would be PVI-only, and the existing skip list would also drop their crash
   check.
 - **To change it:** edit `smokeTest.notDrivingTeleOps` in `harness.properties`.
+- **User Reply:** Might need more explaining.
 
 ## Pedro 3 merge (2026-10-27)
 

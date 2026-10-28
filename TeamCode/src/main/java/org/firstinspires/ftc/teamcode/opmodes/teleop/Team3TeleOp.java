@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.core.input.InputManager;
+import org.firstinspires.ftc.teamcode.robots.team3.Team3DriveAssistLevel;
 import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
 
 /**
@@ -23,11 +24,16 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
  * Left Bumper (hold) = Green Machine Roller reverse (eject / clear jams).<br>
  * Right Trigger (hold) = outtake (shoot); power matches how far you pull the
  * trigger.<br>
- * Right Bumper (hold) = midtake feed (pushes the game piece into the
- * outtake).<br>
+ * Right Bumper (hold) = brake: drive motors get zero power so BRAKE mode stops the robot;
+ * sticks are ignored until released.<br>
+ * D-pad Up (hold) = midtake feed (pushes the game piece into the outtake).<br>
  * A = toggle intake-deploy servo between stowed and deployed.<br>
  * D-pad Down = toggle intake auto-run idle (starts OFF, runs at {@code IDLE_INTAKE_POWER} when ON).<br>
- * Y = toggle heading hold ON / OFF (locks heading using Pinpoint odometry; starts OFF).<br>
+ * Y = toggle full pose lock ON / OFF (starts OFF; when ON, resists all displacement and returns to original spot).<br>
+ * X = snap heading to 0° (face forward).<br>
+ * B = snap heading to 180° (face backward).<br>
+ * D-pad Left = snap heading to +90° (face left).<br>
+ * D-pad Right = snap heading to -90° (face right).<br>
  * </p>
  *
  * <p>
@@ -46,7 +52,6 @@ public class Team3TeleOp extends OpMode {
     private InputManager driverInput;
     private InputManager operatorInput;
     private boolean idleIntakeEnabled;
-    private boolean headingHoldEnabled;
 
     @Override
     public void init() {
@@ -55,7 +60,6 @@ public class Team3TeleOp extends OpMode {
         driverInput = new InputManager(gamepad1);
         operatorInput = new InputManager(gamepad2);
         idleIntakeEnabled = false;
-        headingHoldEnabled = false;
 
         telemetry.addData("Status", "Team 3 robot initialized");
         telemetry.addData("Pinpoint", robot.isPinpointAvailable() ? "READY" : "NOT CONNECTED");
@@ -69,9 +73,8 @@ public class Team3TeleOp extends OpMode {
     public void start() {
         driverInput.update();
         operatorInput.update();
-        robot.enableManualDrive();
+        robot.setDriveAssistLevel(Team3DriveAssistLevel.HEADING);
         idleIntakeEnabled = false;
-        headingHoldEnabled = false;
         robot.setIntakeIdlePower(0.0);
     }
 
@@ -80,14 +83,26 @@ public class Team3TeleOp extends OpMode {
         driverInput.update();
         operatorInput.update();
 
-        // Heading hold toggle: press Y to switch heading hold ON or OFF. Starts OFF.
+        // Y toggle: toggles additional XY position hold ON (FULL) or OFF (HEADING only).
+        // Direction holding always remains active!
         if (driverInput.wasYJustPressed()) {
-            headingHoldEnabled = !headingHoldEnabled;
-            if (headingHoldEnabled) {
-                robot.enableHeadingHold();
+            Team3DriveAssistLevel newLevel = robot.toggleDriveAssist();
+            if (newLevel == Team3DriveAssistLevel.FULL) {
+                gamepad1.rumbleBlips(2); // 2 blips: FULL (XY + Heading lock ON)
             } else {
-                robot.enableManualDrive();
+                gamepad1.rumbleBlips(1); // 1 blip: HEADING (Direction hold only, XY manual)
             }
+        }
+
+        // Cardinal heading snaps: instantly align to and lock onto field directions.
+        if (driverInput.wasXJustPressed()) {
+            robot.snapToHeading(0.0);
+        } else if (driverInput.wasBJustPressed()) {
+            robot.snapToHeading(180.0);
+        } else if (driverInput.wasDpadLeftJustPressed()) {
+            robot.snapToHeading(90.0);
+        } else if (driverInput.wasDpadRightJustPressed()) {
+            robot.snapToHeading(-90.0);
         }
 
         // Operator vision controls.
@@ -113,18 +128,23 @@ public class Team3TeleOp extends OpMode {
             robot.setIntakeIdlePower(idleIntakeEnabled ? IDLE_INTAKE_POWER : 0.0);
         }
 
-        // Shooter: right trigger sets outtake power (0 to 1), right bumper feeds the
+        // Shooter: right trigger sets outtake power (0 to 1), hold D-pad Up to feed the
         // midtake.
         robot.setOuttakePower(driverInput.getRightTrigger());
-        robot.setMidtakeFeeding(driverInput.isRightBumperHeld());
+        robot.setMidtakeFeeding(driverInput.isDpadUpHeld());
 
         // Intake-deploy servo: press A to switch between stowed and deployed.
         if (driverInput.wasAJustPressed()) {
             robot.toggleIntakeDeploy();
         }
 
-        robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),
-                driverInput.getRightStickX());
+        // Brake: hold right bumper to stop the drivetrain and reset the anchor. Sticks are ignored while held.
+        if (driverInput.isRightBumperHeld()) {
+            robot.brake();
+        } else {
+            robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),
+                    driverInput.getRightStickX());
+        }
         robot.update();
         publishDriveTelemetry();
     }
@@ -138,11 +158,25 @@ public class Team3TeleOp extends OpMode {
 
     private void publishDriveTelemetry() {
         if (robot.isPinpointAvailable()) {
-            telemetry.addData("Drive", "%s | H: %.1f deg %s", robot.getDriveStateName(),
-                    robot.getHeadingDegrees(),
-                    robot.isHeadingHoldActive() ? String.format("[LOCKED: %.1f deg]", robot.getTargetHeadingDegrees()) : "[MANUAL]");
+            boolean xyLockActive = robot.isPoseLockActive();
+            telemetry.addData("Heading Hold", "ALWAYS ON (Target: %.1f deg)", robot.getTargetHeadingDegrees());
+            telemetry.addData("XY Pose Lock", "%s [%s] (Y to toggle) | Loop: %.1f ms",
+                    xyLockActive ? "ON (HOLDING XY)" : "OFF (MANUAL XY)",
+                    xyLockActive ? robot.getPoseLockTranslationStateName() : "MANUAL",
+                    robot.getLoopTimeMs());
+            telemetry.addData("Pinpoint (Odo+IMU)", "(%.1f, %.1f in, %.1f deg) | Speed: %.1f in/s",
+                    robot.getXInches(), robot.getYInches(), robot.getHeadingDegrees(), robot.getRobotSpeedIps());
+            if (xyLockActive) {
+                telemetry.addData("Locked Origin", "(%.1f, %.1f in, %.1f deg)",
+                        robot.getTargetXInches(), robot.getTargetYInches(), robot.getTargetHeadingDegrees());
+                telemetry.addData("Disturbance Err", "%.2f in, %.1f deg",
+                        robot.getPoseLockErrorInches(), robot.getPoseLockHeadingErrorDegrees());
+            }
         } else {
             telemetry.addData("Drive", "%s | Pinpoint: NOT CONNECTED", robot.getDriveStateName());
+        }
+        if (driverInput.isRightBumperHeld()) {
+            telemetry.addData("Brake", "ON (holding position)");
         }
         telemetry.addData("Intake", "%s (Auto-Run: %s)", robot.getIntakeStateName(),
                 idleIntakeEnabled ? String.format("%.0f%%", IDLE_INTAKE_POWER * 100.0) : "OFF");

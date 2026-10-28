@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl;
@@ -9,6 +10,8 @@ import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.core.robot.Robot;
+
+import java.util.List;
 
 /**
  * Team 3's robot composition and public drivetrain API.
@@ -21,8 +24,8 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
     private final RobotHardware robotHardware;
     private final Team3MechanismHardware mechanismHardware = new Team3MechanismHardware();
     private final Team3PinpointHardware pinpointHardware = new Team3PinpointHardware();
+    private final Team3StabilizedDriveController driveController;
     private final DriveSubsystem driveSubsystem;
-    private final Team3HeadingHoldSubsystem headingHoldSubsystem;
     private final IntakeSubsystem intakeSubsystem;
     private final Team3IntakeDeploySubsystem intakeDeploySubsystem;
     private final Team3MidtakeSubsystem midtakeSubsystem;
@@ -46,15 +49,14 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         }
 
         this.robotHardware = robotHardware;
-        driveSubsystem = new DriveSubsystem(robotHardware.getDriveHardware());
-        headingHoldSubsystem = new Team3HeadingHoldSubsystem(pinpointHardware);
+        driveController = new Team3StabilizedDriveController(robotHardware.getDriveHardware(), pinpointHardware);
+        driveSubsystem = new DriveSubsystem(driveController);
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
         intakeDeploySubsystem = new Team3IntakeDeploySubsystem(mechanismHardware);
         midtakeSubsystem = new Team3MidtakeSubsystem(mechanismHardware);
         outtakeSubsystem = new Team3OuttakeSubsystem(mechanismHardware);
         visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
         registerSubsystem(driveSubsystem);
-        registerSubsystem(headingHoldSubsystem);
         registerSubsystem(intakeSubsystem);
         registerSubsystem(intakeDeploySubsystem);
         registerSubsystem(midtakeSubsystem);
@@ -72,6 +74,16 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
             return;
         }
 
+        // Enable Lynx bulk caching mode AUTO to minimize I2C/CAN bus latency and maximize loop speed
+        try {
+            List<LynxModule> allHubs = hardwareMap.getAll(LynxModule.class);
+            for (LynxModule hub : allHubs) {
+                hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
+            }
+        } catch (Exception ignored) {
+            // Safe fallback if running in a mock environment
+        }
+
         robotHardware.initialize(hardwareMap);
         mechanismHardware.initialize(hardwareMap);
         pinpointHardware.initialize(hardwareMap);
@@ -81,8 +93,15 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
 
     /** Requests mecanum drive values for the next robot update. */
     public void drive(double forward, double strafe, double rotate) {
-        double effectiveRotate = headingHoldSubsystem.calculateRotateCommand(rotate);
-        driveSubsystem.drive(forward, strafe, effectiveRotate);
+        driveSubsystem.drive(forward, strafe, rotate);
+    }
+
+    /**
+     * Requests zero drive power and resets the pose-lock anchor to current position.
+     */
+    public void brake() {
+        driveController.brake();
+        driveSubsystem.drive(0.0, 0.0, 0.0);
     }
 
     /** Requests drivetrain behavior that applies the stored drive values. */
@@ -92,30 +111,102 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
 
     /**
      * Requests normal manual drivetrain behavior.
-     *
-     * <p>This TeleOp-facing name is retained for compatibility. Autonomous code should use
-     * {@link #enableRequestedDrive()}.</p>
      */
     public void enableManualDrive() {
-        headingHoldSubsystem.setActive(false);
+        driveController.getPoseLock().setAssistLevel(Team3DriveAssistLevel.OFF);
         enableRequestedDrive();
     }
 
     /** Requests the safe disabled drivetrain behavior. */
     public void disableDrive() {
-        headingHoldSubsystem.setActive(false);
         driveSubsystem.disableDrive();
     }
 
-    /** Requests Pinpoint-backed heading hold behavior. */
+    /** Requests heading hold behavior (corrects rotation only). */
     public void enableHeadingHold() {
-        headingHoldSubsystem.setActive(true);
+        driveController.getPoseLock().setAssistLevel(Team3DriveAssistLevel.HEADING);
         driveSubsystem.enableHeadingHold();
     }
 
-    /** Returns whether heading hold is currently active. */
+    /** Sets the drive assist level (OFF, HEADING, or FULL). */
+    public void setDriveAssistLevel(Team3DriveAssistLevel level) {
+        driveController.getPoseLock().setAssistLevel(level);
+        if (level == Team3DriveAssistLevel.OFF) {
+            driveSubsystem.enableManualDrive();
+        } else {
+            driveSubsystem.enableHeadingHold();
+        }
+    }
+
+    /** Returns current drive assist level. */
+    public Team3DriveAssistLevel getDriveAssistLevel() {
+        return driveController.getPoseLock().getAssistLevel();
+    }
+
+    /** Toggles XY pose lock between HEADING (direction holding only) and FULL (direction + XY hold). */
+    public Team3DriveAssistLevel toggleDriveAssist() {
+        if (getDriveAssistLevel() == Team3DriveAssistLevel.FULL) {
+            setDriveAssistLevel(Team3DriveAssistLevel.HEADING);
+        } else {
+            setDriveAssistLevel(Team3DriveAssistLevel.FULL);
+            if (pinpointHardware.isAvailable()) {
+                driveController.getPoseLock().resetAnchor(
+                        pinpointHardware.getXInches(),
+                        pinpointHardware.getYInches(),
+                        pinpointHardware.getHeadingRadians());
+            }
+        }
+        return getDriveAssistLevel();
+    }
+
+    /** Returns whether full XY pose lock is currently active (FULL level). */
+    public boolean isPoseLockActive() {
+        return driveController.getPoseLock().getAssistLevel() == Team3DriveAssistLevel.FULL;
+    }
+
+    /** Cycles drive assist level: OFF -> HEADING -> FULL -> OFF. */
+    public Team3DriveAssistLevel cycleDriveAssistLevel() {
+        Team3DriveAssistLevel nextLevel = driveController.getPoseLock().getAssistLevel().next();
+        setDriveAssistLevel(nextLevel);
+        return nextLevel;
+    }
+
+    /**
+     * Snaps the heading hold target to a specified angle in degrees and activates heading hold.
+     *
+     * @param headingDegrees target angle in degrees (e.g. 0 forward, 90 left, 180 back, -90 right)
+     */
+    public void snapToHeading(double headingDegrees) {
+        driveController.getPoseLock().snapToHeading(
+                Math.toRadians(headingDegrees),
+                pinpointHardware.getXInches(),
+                pinpointHardware.getYInches());
+        driveSubsystem.enableHeadingHold();
+    }
+
+    /** Returns whether heading hold or full pose stabilization is currently active. */
     public boolean isHeadingHoldActive() {
-        return headingHoldSubsystem.isActive();
+        return driveController.getPoseLock().getAssistLevel() != Team3DriveAssistLevel.OFF;
+    }
+
+    /** Returns current X position in inches reported by Pinpoint. */
+    public double getXInches() {
+        return pinpointHardware.getXInches();
+    }
+
+    /** Returns current Y position in inches reported by Pinpoint. */
+    public double getYInches() {
+        return pinpointHardware.getYInches();
+    }
+
+    /** Returns locked target X in inches when assist is active. */
+    public double getTargetXInches() {
+        return driveController.getPoseLock().getTargetXInches();
+    }
+
+    /** Returns locked target Y in inches when assist is active. */
+    public double getTargetYInches() {
+        return driveController.getPoseLock().getTargetYInches();
     }
 
     /** Returns current heading in degrees reported by Pinpoint. */
@@ -123,9 +214,34 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         return pinpointHardware.getHeadingDegrees();
     }
 
-    /** Returns locked target heading in degrees when heading hold is active. */
+    /** Returns locked target heading in degrees when assist is active. */
     public double getTargetHeadingDegrees() {
-        return headingHoldSubsystem.getTargetHeadingDegrees();
+        return driveController.getPoseLock().getTargetHeadingDegrees();
+    }
+
+    /** Returns current translational error in inches for telemetry. */
+    public double getPoseLockErrorInches() {
+        return driveController.getPoseLock().getErrorInches();
+    }
+
+    /** Returns current heading error in degrees for telemetry. */
+    public double getPoseLockHeadingErrorDegrees() {
+        return driveController.getPoseLock().getHeadingErrorDegrees();
+    }
+
+    /** Returns active pose lock translation state name for telemetry. */
+    public String getPoseLockTranslationStateName() {
+        return driveController.getPoseLock().getTranslationStateName();
+    }
+
+    /** Returns current physical speed in inches per second. */
+    public double getRobotSpeedIps() {
+        return driveController.getPoseLock().getRobotSpeedIps();
+    }
+
+    /** Returns the loop execution time in milliseconds. */
+    public double getLoopTimeMs() {
+        return driveController.getLastLoopTimeMs();
     }
 
     /** Returns whether the Pinpoint computer was found and is available. */

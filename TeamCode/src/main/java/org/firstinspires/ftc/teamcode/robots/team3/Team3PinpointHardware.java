@@ -22,6 +22,8 @@ public class Team3PinpointHardware {
     public static final double STRAFE_POD_X_INCHES = -5.75;
 
     private GoBildaPinpointDriver pinpoint;
+    private double xInches;
+    private double yInches;
     private double headingRadians;
     private double headingDegrees;
 
@@ -54,6 +56,8 @@ public class Team3PinpointHardware {
             }
         }
 
+        xInches = 0.0;
+        yInches = 0.0;
         headingRadians = 0.0;
         headingDegrees = 0.0;
     }
@@ -71,6 +75,8 @@ public class Team3PinpointHardware {
             pinpoint.update();
             Pose2D pose = pinpoint.getPosition();
             if (pose != null) {
+                xInches = pose.getX(DistanceUnit.INCH);
+                yInches = pose.getY(DistanceUnit.INCH);
                 headingRadians = pose.getHeading(AngleUnit.RADIANS);
                 headingDegrees = Math.toDegrees(headingRadians);
             }
@@ -82,6 +88,16 @@ public class Team3PinpointHardware {
     /** Returns whether the Pinpoint computer was found and initialized. */
     public boolean isAvailable() {
         return pinpoint != null;
+    }
+
+    /** Returns current X position in inches. */
+    public double getXInches() {
+        return xInches;
+    }
+
+    /** Returns current Y position in inches. */
+    public double getYInches() {
+        return yInches;
     }
 
     /** Returns current heading in radians (-pi to +pi). */
@@ -99,6 +115,8 @@ public class Team3PinpointHardware {
         if (pinpoint != null) {
             try {
                 pinpoint.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
+                xInches = 0.0;
+                yInches = 0.0;
                 headingRadians = 0.0;
                 headingDegrees = 0.0;
             } catch (Exception exception) {

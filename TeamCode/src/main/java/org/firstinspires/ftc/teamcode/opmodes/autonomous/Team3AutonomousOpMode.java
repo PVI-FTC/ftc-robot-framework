@@ -13,13 +13,13 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3PedroRobot;
 /**
  * Team 3 official autonomous OpMode.
  *
- * <p>On START, the robot strafes 6 inches to the right via Pedro Pathing.
+ * <p>On START, the robot drives 36 inches (3 feet) straight forward via Pedro Pathing.
  * At 2.0 seconds into the run, the intake-deploy servo is moved to its deployed
  * position (the same default value controlled by button A in TeleOp).</p>
  */
 @Autonomous(name = "Team 3 Autonomous", group = "Team 3")
 public class Team3AutonomousOpMode extends OpMode {
-    private static final Team3PedroPathRoute ROUTE = Team3PedroPathRoute.STRAFE_RIGHT_6;
+    private static final Team3PedroPathRoute ROUTE = Team3PedroPathRoute.FORWARD_36;
     private static final double SERVO_DEPLOY_DELAY_SECONDS = 2.0;
 
     private Team3PedroRobot robot;

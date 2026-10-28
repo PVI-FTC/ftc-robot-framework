@@ -12,6 +12,14 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Corrected Team A's physically observed drive-channel ordering. The Control Hub names map to the
+  physical front-left, front-right, rear-left, and rear-right positions in the order `frontRight`,
+  `rearLeft`, `frontLeft`, and `rearRight`. `DriveHardware` now has a narrow name-and-direction
+  constructor so Team A can record that wiring fact without changing the shared defaults used by
+  Teams B and C. Physical testing confirmed that forward/back and strafe are now independent but
+  both left-stick directions required sign reversal. `TeamATeleOp` therefore maps left-stick Y to
+  forward and inverted left-stick X to strafe; right-stick X rotation remains unchanged. No Robot
+  or subsystem API changed.
 - Team A's simple TeleOp maps gamepad 1's right trigger to proportional forward intake power and
   safely stops the intake below a small trigger deadzone. Team A now uses the hardware
   configuration name `intakeMotor` with its direction set to `REVERSE`; its old gamepad 2 A/B/X/Y
@@ -708,7 +716,8 @@ PVI-FTC | Editable master guide
   - `FSM()`, `FSM(State)`, `setInitialState(State)`, `addTransition(Transition)`
   - `initialize()`, `update()`, `getCurrentState()`, and `getCurrentStateName()`
 - `org.firstinspires.ftc.teamcode.common.hardware.DriveHardware`
-  - `DriveHardware()`, direction-configurable constructor, `initialize(HardwareMap)`,
+  - `DriveHardware()`, direction-configurable and name-and-direction-configurable constructors,
+    `initialize(HardwareMap)`,
     `setMotorPowers(double, double, double, double)`, `stop()`,
     `setBrakeMode()`, `setFloatMode()`, and individual last-commanded-power getters
 - `org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware`

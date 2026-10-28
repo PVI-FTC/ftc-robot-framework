@@ -21,6 +21,10 @@ public class DriveHardware {
     private DcMotorEx frontRight;
     private DcMotorEx rearLeft;
     private DcMotorEx rearRight;
+    private final String frontLeftMotorName;
+    private final String frontRightMotorName;
+    private final String rearLeftMotorName;
+    private final String rearRightMotorName;
     private final DcMotor.Direction frontLeftDirection;
     private final DcMotor.Direction frontRightDirection;
     private final DcMotor.Direction rearLeftDirection;
@@ -40,11 +44,29 @@ public class DriveHardware {
     public DriveHardware(DcMotor.Direction frontLeftDirection,
             DcMotor.Direction frontRightDirection, DcMotor.Direction rearLeftDirection,
             DcMotor.Direction rearRightDirection) {
+        this(FRONT_LEFT_MOTOR_NAME, FRONT_RIGHT_MOTOR_NAME, REAR_LEFT_MOTOR_NAME,
+                REAR_RIGHT_MOTOR_NAME, frontLeftDirection, frontRightDirection,
+                rearLeftDirection, rearRightDirection);
+    }
+
+    /** Creates drivetrain hardware with the supplied motor names and directions. */
+    public DriveHardware(String frontLeftMotorName, String frontRightMotorName,
+            String rearLeftMotorName, String rearRightMotorName,
+            DcMotor.Direction frontLeftDirection, DcMotor.Direction frontRightDirection,
+            DcMotor.Direction rearLeftDirection, DcMotor.Direction rearRightDirection) {
+        if (frontLeftMotorName == null || frontRightMotorName == null
+                || rearLeftMotorName == null || rearRightMotorName == null) {
+            throw new IllegalArgumentException("Drive motor names are required.");
+        }
         if (frontLeftDirection == null || frontRightDirection == null
                 || rearLeftDirection == null || rearRightDirection == null) {
             throw new IllegalArgumentException("Drive motor directions are required.");
         }
 
+        this.frontLeftMotorName = frontLeftMotorName;
+        this.frontRightMotorName = frontRightMotorName;
+        this.rearLeftMotorName = rearLeftMotorName;
+        this.rearRightMotorName = rearRightMotorName;
         this.frontLeftDirection = frontLeftDirection;
         this.frontRightDirection = frontRightDirection;
         this.rearLeftDirection = rearLeftDirection;
@@ -57,10 +79,10 @@ public class DriveHardware {
             throw new IllegalArgumentException("Drive hardware needs a hardware map.");
         }
 
-        frontLeft = getRequiredMotor(hardwareMap, FRONT_LEFT_MOTOR_NAME);
-        frontRight = getRequiredMotor(hardwareMap, FRONT_RIGHT_MOTOR_NAME);
-        rearLeft = getRequiredMotor(hardwareMap, REAR_LEFT_MOTOR_NAME);
-        rearRight = getRequiredMotor(hardwareMap, REAR_RIGHT_MOTOR_NAME);
+        frontLeft = getRequiredMotor(hardwareMap, frontLeftMotorName);
+        frontRight = getRequiredMotor(hardwareMap, frontRightMotorName);
+        rearLeft = getRequiredMotor(hardwareMap, rearLeftMotorName);
+        rearRight = getRequiredMotor(hardwareMap, rearRightMotorName);
 
         frontLeft.setDirection(frontLeftDirection);
         frontRight.setDirection(frontRightDirection);

@@ -58,7 +58,7 @@ public class TeamATeleOp extends OpMode {
             robot.stopIntake();
         }
 
-        robot.drive(-driverInput.getLeftStickY(), driverInput.getLeftStickX(),
+        robot.drive(driverInput.getLeftStickY(), -driverInput.getLeftStickX(),
                 driverInput.getRightStickX());
         robot.update();
         publishDriveTelemetry();

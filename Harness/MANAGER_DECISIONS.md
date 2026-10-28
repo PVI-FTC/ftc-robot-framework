@@ -96,13 +96,13 @@ All three bots are idle with empty lists. The details of each decision follow.
   is.
 - **To change it:** once the config work (RP2) is done, switching robots only means changing the
   values in `Harness/harness.properties`. Tell the manager which robot, and a bot can do it.
-- **Confirmed by you (2026-10-28):** the robot code on this branch is your Team 2 robot; the code
-  just calls it "Team A", a name left over from an older plan where Team A / B / C were robot files
-  in one shared branch. Each team now works on its own branch. As a *team*, "Team A" is
-  IanKile007's team (not Team 3, which is theskier15's). Its branch `TeamA_TeleOp_Update`, which
-  reverses all four drive motors, is **not yours**: the harness ignores it and keeps the motor
-  directions your branch and its Pedro 3 tuning use.
+- **Confirmed by you (2026-10-28):** only trust the term "Team A" when it's on your own branch.
+  On this branch, the `teamA` robot code is your Team 2 robot, so D3 stands. IanKile007's team is
+  now called **Team 1**; its branch `TeamA_TeleOp_Update` (all four drive motors reversed) is not
+  yours, so the harness ignores it. Team 3 is theskier15's team.
 - **User Reply:** Assume anything labeled Team A is not ours and should not be used for now. If the Term Team A is in a Team 2 Branch inform me first. The response claiming Team A is ours came from a mix up between Robot A and Team A.
+- **Your later rule (2026-10-28) replaces that reply:** only trust "Team A" when it's on your own
+  branch; IanKile007's team is "Team 1" (see the confirmation above).
 
 ## D4 · Order: config first, then Pedro 3 (2026-10-27)
 

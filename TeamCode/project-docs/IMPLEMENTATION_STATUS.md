@@ -11,6 +11,31 @@ PVI-FTC | Editable master guide
 - Current sequential prompt: LP-11 four-path Pedro selector ready for deployment review
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
+## Team 3 Development Session Notes (October 30, 2026)
+### Problems Addressed & Solutions Implemented
+1. **Pedro 3 Autonomous Drift Fix**:
+   - *Problem*: After following autonomous paths (e.g., 24-inch pilot), the robot drifted slowly backward and to the right without stopping.
+   - *Root Cause*: `follower.holdEnd` was actively attempting to hold target position using continuous motor power after completion.
+   - *Solution*: Set `follower.holdEnd.set(false)` in `Team3PedroFollowerFactory.java`, updated `Team3PedroDriveController.java` (`isPathFollowingActive()` checks `follower.following()`, `stop()` cuts drive motor power).
+2. **Temporary Autonomous (2" Forward + 8" Right with Servo Deploy)**:
+   - Created `Team3TempStrafeRight8AutoOpMode.java` (`@Autonomous(name = "Team 3 Temp Strafe Right 8 in", group = "Team 3 Testing")`) and `Team3PedroStrafeRight8Path.java` (`(0,0) -> (2,0) -> (2,-8)`).
+   - *Requirement*: Servo must NOT move during `init()`, but at `start()` must deploy (matching 'A' in TeleOp). Added `robot.deployIntake()` inside `start()`.
+3. **Intake-Deploy Servo Startup Behavior**:
+   - *Requirement*: Robot starts with intake physically deployed on field; servo must NOT move or twitch at all during `init()` or TeleOp start, and the first press of 'A' must stow it.
+   - *Solution*: Created `Team3IntakeNotMovedState.java` as initial FSM state in `Team3IntakeDeploySubsystem.java` (sends no commands until requested). Initialized `deployRequested = true` so the first press of 'A' transitions to `stowedState` (`STOWED_POSITION = 0.0`).
+4. **Single-Gamepad Mechanism Controls & Power Tuning**:
+   - Setup: Only Gamepad 1 exists (no Gamepad 2).
+   - *Intake*: Added `setIntakePower(double)` and `setEjectPower(double)` to `IntakeSubsystem.java` (defaults remain 1.0 for other teams); `Team3Robot.java` exposes them. In `Team3TeleOp.java`: Left Trigger (hold) = 75% IN, Left Bumper (hold) = 15% OUT.
+   - *Midtake*: Set `MIDTAKE_POWER = 0.5` (50% power in forward and reverse) in `Team3MidtakeSubsystem.java`. In `Team3TeleOp.java`: Right Trigger (hold) = 50% Forward, Right Bumper (hold) = 50% Reverse.
+   - *Outtake*: Disregarded for now; commanded to `0.0`.
+   - *Brake*: Mapped to Back button (`gamepad1.back` hold). Cleared old idle auto-run toggle from Back button.
+   - *Heading Snaps*: Removed all snap logic on X, B, D-pad Left, D-pad Right to clear collisions.
+   - *Pose Lock*: Kept Y button toggle.
+5. **Controller Hardware Diagnostics for Future AI**:
+   - Driver uses a gamepad with rear ring-finger paddles/buttons.
+   - Hardware Diagnostic: Left rear paddle is factory hardware-mapped to duplicate `gamepad.a`, while right rear paddle is unprogrammed.
+   - *Note for Future AI*: Android and FTC SDK cannot distinguish physical rear paddles from the standard buttons they duplicate because the controller chip transmits standard HID codes. Ring-finger paddles can only be used by hardware-programming them on the controller to mirror unused front buttons (e.g. stick clicks or D-pad).
+
 ## Completed work
 - Merged `origin/Pedro-3-Implementation` into `feature/team-3-setup`:
   - Upgraded Pedro Pathing from v2 to v3 (`com.pedropathing:revhub:3.0.2` and `com.pedropathing:tuning:1.0.1`).

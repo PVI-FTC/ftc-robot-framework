@@ -1,14 +1,14 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.common.localization.PoseEstimate;
 import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveController;
 
-/** Team 3 adapter that keeps Pedro types out of the shared drive API. */
+/** Team 3 adapter that keeps Pedro 3 types out of the shared drive API. */
 public final class Team3PedroDriveController implements DriveController {
     private Follower follower;
-    private boolean teleOpStarted;
+    private boolean manualStarted;
 
     void setFollower(Follower follower) {
         if (follower == null) throw new IllegalArgumentException("Pedro drive controller needs a follower.");
@@ -18,43 +18,52 @@ public final class Team3PedroDriveController implements DriveController {
     void preparePath(Team3PedroPathRoute route) {
         requireFollower();
         if (route == null) throw new IllegalArgumentException("Select a Team 3 Pedro route first.");
-        follower.breakFollowing();
-        teleOpStarted = false;
-        follower.setStartingPose(route.createStartPose());
+        follower.stop();
+        manualStarted = false;
+        follower.setPose(route.createStartPose());
     }
 
     void startPath(Team3PedroPathRoute route) {
         requireFollower();
         if (route == null) throw new IllegalArgumentException("Select a Team 3 Pedro route first.");
-        follower.breakFollowing();
-        teleOpStarted = false;
-        follower.followPath(route.build(follower));
+        follower.stop();
+        manualStarted = false;
+        follower.follow(route.build(follower));
     }
 
     @Override public void updateManualDrive(double forward, double strafe, double rotate) {
         requireFollower();
-        if (!teleOpStarted) {
-            follower.startTeleOpDrive();
-            teleOpStarted = true;
-            follower.setTeleOpDrive(forward, strafe, rotate, true);
-            return;
-        }
-        follower.setTeleOpDrive(forward, strafe, rotate, true);
+        follower.manual(forward, strafe, rotate);
+        manualStarted = true;
         follower.update();
     }
-    @Override public void updatePathFollowing() { requireFollower(); teleOpStarted = false; follower.update(); }
+
+    @Override public void updatePathFollowing() {
+        requireFollower();
+        manualStarted = false;
+        follower.update();
+    }
+
     @Override public void stop() {
         if (follower != null) {
-            follower.breakFollowing();
-            follower.updatePose();
+            follower.stop();
+            follower.drivetrain.stop();
         }
-        teleOpStarted = false;
+        manualStarted = false;
     }
+
     @Override public PoseEstimate getPoseEstimate() {
         if (follower == null) return PoseEstimate.unavailable();
-        Pose pose = follower.getPose();
-        return PoseEstimate.available(pose.getX(), pose.getY(), pose.getHeading());
+        Pose pose = follower.pose();
+        return PoseEstimate.available(pose.x(), pose.y(), pose.heading());
     }
-    @Override public boolean isPathFollowingActive() { return follower != null && follower.isBusy(); }
-    private void requireFollower() { if (follower == null) throw new IllegalStateException("Initialize Team 3 Pedro robot before driving."); }
+
+    @Override public boolean isPathFollowingActive() {
+        return follower != null && follower.following();
+    }
+
+    private void requireFollower() {
+        if (follower == null) throw new IllegalStateException(
+                "Initialize Team 3 Pedro robot before driving.");
+    }
 }

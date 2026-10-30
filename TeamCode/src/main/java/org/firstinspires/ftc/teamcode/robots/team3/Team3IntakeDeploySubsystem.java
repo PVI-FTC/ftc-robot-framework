@@ -12,20 +12,27 @@ public class Team3IntakeDeploySubsystem implements Subsystem {
     public static final double DEPLOYED_POSITION = 0.5;
 
     private final Team3MechanismHardware hardware;
+    private final Team3IntakeNotMovedState notMovedState;
     private final Team3IntakeStowedState stowedState;
     private final Team3IntakeDeployedState deployedState;
     private final FSM fsm;
 
-    private boolean deployRequested;
+    /** The robot starts with the intake physically deployed, so the first toggle stows it. */
+    private boolean deployRequested = true;
+    /** False until the first deploy/stow/toggle request, so the servo never moves at init or start. */
+    private boolean commanded;
 
     public Team3IntakeDeploySubsystem(Team3MechanismHardware hardware) {
         if (hardware == null) {
             throw new IllegalArgumentException("Intake deploy subsystem needs mechanism hardware.");
         }
         this.hardware = hardware;
+        notMovedState = new Team3IntakeNotMovedState();
         stowedState = new Team3IntakeStowedState(this);
         deployedState = new Team3IntakeDeployedState(this);
-        fsm = new FSM(stowedState);
+        fsm = new FSM(notMovedState);
+        fsm.addTransition(new Transition(notMovedState, deployedState, () -> commanded && deployRequested));
+        fsm.addTransition(new Transition(notMovedState, stowedState, () -> commanded && !deployRequested));
         fsm.addTransition(new Transition(stowedState, deployedState, () -> deployRequested));
         fsm.addTransition(new Transition(deployedState, stowedState, () -> !deployRequested));
     }
@@ -53,21 +60,24 @@ public class Team3IntakeDeploySubsystem implements Subsystem {
     /** Switches the requested position between stowed and deployed. */
     public void toggleDeploy() {
         deployRequested = !deployRequested;
+        commanded = true;
     }
 
     /** Requests the deployed position. */
     public void deploy() {
         deployRequested = true;
+        commanded = true;
     }
 
     /** Requests the stowed position. */
     public void stow() {
         deployRequested = false;
+        commanded = true;
     }
 
     public String getCurrentStateName() {
         String name = fsm.getCurrentStateName();
-        return name == null ? stowedState.getName() : name;
+        return name == null ? notMovedState.getName() : name;
     }
 
     public boolean isAvailable() {

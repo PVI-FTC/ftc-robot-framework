@@ -85,6 +85,7 @@ public class Team3PedroRobot extends Robot {
     public String getIntakeDeployStateName() { return intakeDeploySubsystem.getCurrentStateName(); }
     public void setOuttakePower(double power) { outtakeSubsystem.setPower(power); }
     public void setMidtakeFeeding(boolean feeding) { midtakeSubsystem.setFeeding(feeding); }
+    public void setMidtakeReversing(boolean reversing) { midtakeSubsystem.setReversing(reversing); }
     @Override protected void onStop() {
         driveController.stop();
         mechanismHardware.stop();

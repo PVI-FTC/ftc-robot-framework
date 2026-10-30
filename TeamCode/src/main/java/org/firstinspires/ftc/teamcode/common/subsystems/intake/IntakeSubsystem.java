@@ -28,6 +28,8 @@ public class IntakeSubsystem implements Subsystem {
 
     private RequestedMode requestedMode = RequestedMode.IDLE;
     private double idlePower;
+    private double intakePower = INTAKE_POWER;
+    private double ejectPower = EJECT_POWER;
 
     /** Creates an intake subsystem that sends all motor commands through {@code intakeHardware}. */
     public IntakeSubsystem(IntakeHardware intakeHardware) {
@@ -90,6 +92,20 @@ public class IntakeSubsystem implements Subsystem {
         }
     }
 
+    /**
+     * Overrides the forward intake power (default {@link #INTAKE_POWER}). Limited to 0.0 through 1.0.
+     */
+    public void setIntakePower(double power) {
+        intakePower = Double.isNaN(power) ? 0.0 : Math.max(0.0, Math.min(1.0, power));
+    }
+
+    /**
+     * Overrides the reverse eject power (default {@link #EJECT_POWER}). Limited to 0.0 through 1.0.
+     */
+    public void setEjectPower(double power) {
+        ejectPower = Double.isNaN(power) ? 0.0 : Math.max(0.0, Math.min(1.0, power));
+    }
+
     /** Requests baseline holding behavior. */
     public void hold() {
         requestedMode = RequestedMode.HOLDING;
@@ -112,11 +128,11 @@ public class IntakeSubsystem implements Subsystem {
     }
 
     void runIntakeForward() {
-        intakeHardware.forward(INTAKE_POWER);
+        intakeHardware.forward(intakePower);
     }
 
     void runIntakeReverse() {
-        intakeHardware.reverse(EJECT_POWER);
+        intakeHardware.reverse(ejectPower);
     }
 
     void stopOutput() {

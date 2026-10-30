@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
+import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
 
 /** Team 3 paths that can be selected from the Pedro autonomous menu. */
 public enum Team3PedroPathRoute {
@@ -13,6 +13,7 @@ public enum Team3PedroPathRoute {
     ILLEGAL_PATH("Illegal Path", 56.0, 8.0, 90.0,
             103.42511867493754, 32.68189726856656, 90.0),
     STRAFE_RIGHT_6("Strafe Right 6 in", 0.0, 0.0, 0.0, 0.0, -6.0, 0.0),
+    STRAFE_RIGHT_8("Strafe Right 8 in", 0.0, 0.0, 0.0, 2.0, -8.0, 0.0),
     FORWARD_36("Forward 36 in (3 ft)", 0.0, 0.0, 0.0, 36.0, 0.0, 0.0);
 
     private final String displayName;
@@ -47,7 +48,7 @@ public enum Team3PedroPathRoute {
         return new Pose(startXInches, startYInches, getStartHeadingRadians());
     }
 
-    PathChain build(Follower follower) {
+    Path build(Follower follower) {
         switch (this) {
             case LP11_PILOT:
                 return Team3PedroPilotPath.build(follower);
@@ -59,6 +60,8 @@ public enum Team3PedroPathRoute {
                 return Team3PedroIllegalPath.build(follower);
             case STRAFE_RIGHT_6:
                 return Team3PedroStrafeRightPath.build(follower);
+            case STRAFE_RIGHT_8:
+                return Team3PedroStrafeRight8Path.build(follower);
             case FORWARD_36:
                 return Team3PedroForward36Path.build(follower);
             default:

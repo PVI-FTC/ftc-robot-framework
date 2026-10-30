@@ -7,14 +7,16 @@ import org.firstinspires.ftc.teamcode.core.robot.Subsystem;
 /** Controls Team 3's midtake (feeder) motor with a two-state finite-state machine. */
 public class Team3MidtakeSubsystem implements Subsystem {
     /** Change this value to tune feed speed. */
-    public static final double MIDTAKE_POWER = 1.0;
+    public static final double MIDTAKE_POWER = 0.5;
 
     private final Team3MechanismHardware hardware;
     private final Team3MidtakeIdleState idleState;
     private final Team3MidtakeFeedingState feedingState;
+    private final Team3MidtakeReversingState reversingState;
     private final FSM fsm;
 
     private boolean feedRequested;
+    private boolean reverseRequested;
 
     public Team3MidtakeSubsystem(Team3MechanismHardware hardware) {
         if (hardware == null) {
@@ -23,9 +25,14 @@ public class Team3MidtakeSubsystem implements Subsystem {
         this.hardware = hardware;
         idleState = new Team3MidtakeIdleState(this);
         feedingState = new Team3MidtakeFeedingState(this);
+        reversingState = new Team3MidtakeReversingState(this);
         fsm = new FSM(idleState);
-        fsm.addTransition(new Transition(idleState, feedingState, () -> feedRequested));
-        fsm.addTransition(new Transition(feedingState, idleState, () -> !feedRequested));
+        fsm.addTransition(new Transition(idleState, feedingState, () -> feedRequested && !reverseRequested));
+        fsm.addTransition(new Transition(idleState, reversingState, () -> reverseRequested));
+        fsm.addTransition(new Transition(feedingState, idleState, () -> !feedRequested && !reverseRequested));
+        fsm.addTransition(new Transition(feedingState, reversingState, () -> reverseRequested));
+        fsm.addTransition(new Transition(reversingState, idleState, () -> !reverseRequested && !feedRequested));
+        fsm.addTransition(new Transition(reversingState, feedingState, () -> feedRequested && !reverseRequested));
     }
 
     @Override
@@ -41,6 +48,7 @@ public class Team3MidtakeSubsystem implements Subsystem {
     @Override
     public void stop() {
         feedRequested = false;
+        reverseRequested = false;
         hardware.setMidtakePower(0.0);
     }
 
@@ -49,9 +57,14 @@ public class Team3MidtakeSubsystem implements Subsystem {
         return "Midtake";
     }
 
-    /** Requests that the midtake feed (true) or stop (false). */
+    /** Requests that the midtake feed forward (true) or stop (false). */
     public void setFeeding(boolean feeding) {
         feedRequested = feeding;
+    }
+
+    /** Requests that the midtake reverse (true) or stop (false). */
+    public void setReversing(boolean reversing) {
+        reverseRequested = reversing;
     }
 
     public String getCurrentStateName() {
@@ -65,6 +78,10 @@ public class Team3MidtakeSubsystem implements Subsystem {
 
     void runMidtake() {
         hardware.setMidtakePower(MIDTAKE_POWER);
+    }
+
+    void reverseMidtake() {
+        hardware.setMidtakePower(-MIDTAKE_POWER);
     }
 
     void stopOutput() {

@@ -16,8 +16,23 @@ PVI-FTC | Editable master guide
   - Upgraded Pedro Pathing from v2 to v3 (`com.pedropathing:revhub:3.0.2` and `com.pedropathing:tuning:1.0.1`).
   - Added Pedro 3 package `pedro` with `Constants.java`, `Tuning.java`, and AutoTune procedures (`ForesightTuner`, `MecanumTuner`, `PinpointTuner`, `Tests`, etc.).
   - AutoTune now runs directly through the robot-hosted web page at `http://192.168.43.1:10158`.
-  - Adapted Team 3's Pedro pathing architecture to Pedro 3 Foresight.
-- (branch: feature/team-3-setup) Created complete robot-specific codebase, Pedro Pathing
+  - Completed Team 3 Pedro 3 Foresight migration:
+    - Updated `Team3PedroConfiguration.java` and `Constants.java` with AutoTune Foresight constants: max velocities (`70.02 in/s` forward, `52.01 in/s` strafe), natural deceleration (`32.55 in/s²` forward, `62.90 in/s²` strafe), heading feedback (`5.60`), linear and quadratic braking matrices, while preserving measured physical Pinpoint pod offsets (`-8.0`, `-5.75` inches).
+    - Resolved autonomous path endpoint drift: disabled `follower.holdEnd.set(false)` in `Team3PedroFollowerFactory.java` and updated `Team3PedroDriveController.java` (`isPathFollowingActive()` checks `follower.following()`, `stop()` explicitly commands `follower.drivetrain.stop()`) so paths complete cleanly and cut drive motor power when reaching the target instead of creeping in continuous hold.
+    - Updated Team 3 TeleOp control mappings and mechanism subsystems:
+      - `IntakeSubsystem.java`: Added `setIntakePower(double)` and `setEjectPower(double)` narrow shared APIs (defaults remain `1.0` so other teams are unaffected).
+      - `Team3Robot.java`: Exposed `setIntakePower(double)` and `setIntakeEjectPower(double)`.
+      - `Team3MidtakeSubsystem.java`: Set `MIDTAKE_POWER = 0.5` (50% power in forward and reverse).
+      - `Team3IntakeDeploySubsystem.java` & `Team3IntakeNotMovedState.java`: Added initial `Not Moved` state ensuring the intake servo is never commanded during `init()` or `start()` until 'A' is pressed; configured to start physically deployed so the first 'A' press stows it.
+      - `Team3TeleOp.java`: Configured single-gamepad mappings: Left Trigger = intake IN at 75%, Left Bumper = intake OUT at 15%, Right Trigger = midtake forward at 50%, Right Bumper = midtake reverse at 50%, Back button (hold) = brake, A = toggle intake deploy servo, Y = toggle XY Pose Lock. Disregarded outtake, removed heading snaps, and cleared idle intake auto-run toggle.
+    - Added and updated temporary forward-then-strafe autonomous: created `Team3PedroStrafeRight8Path.java` configured to move 2 inches forward (`(0,0) -> (2,0)`) then 8 inches right (`(2,0) -> (2,-8)`), updated `STRAFE_RIGHT_8` in `Team3PedroPathRoute.java`, and configured `Team3TempStrafeRight8AutoOpMode.java` to deploy the intake servo at start (`start()`, matching pressing 'A' in TeleOp, kept stowed during `init()`) before following the path. Easily deletable later.
+    - Updated `Team3PedroFollowerFactory.java` to construct `Follower` with `PinpointLocalizer`, `Mecanum`, and `Foresight`.
+    - Updated `Team3PedroDriveController.java` to use Pedro 3 `follower.manual(forward, strafe, rotate)`, `follower.follow(Path)`, and `follower.pose()`.
+    - Adapted all Team 3 path definitions to Pedro 3 `Paths.line(...)` and `Paths.curve(...)` building `Path` objects: `Team3PedroPilotPath.java`, `Team3PedroForward36Path.java`, `Team3PedroStrafeRightPath.java`, `Team3PedroCurvingTestPath.java`, `Team3PedroDecodePath.java`, and `Team3PedroIllegalPath.java`.
+    - Updated `Team3PedroPathRoute.java` to return `Path` and use `com.pedropathing.math.Pose`.
+    - Replaced the removed Pedro 2 `SelectableOpMode` in `Team3PedroPilotAutoOpMode.java` with a clean FTC `OpMode` offering interactive D-pad route selection in `init_loop()`.
+    - Removed obsolete Pedro 2 monolithic tuner `Team3PedroTuning.java`.
+    - Verified complete build with `TeamCode:assembleDebug` (BUILD SUCCESSFUL, 0 errors).
   integration, and OpModes for Team 3 under `robots.team3` and `opmodes.*`:
   - `robots.team3`: `Team3Robot`, `Team3PedroRobot`, `Team3PedroConfiguration`, `Team3PedroFollowerFactory`,
     `Team3PedroDriveController`, `Team3PedroPathRoute`, `Team3PedroPathStep`, `Team3PedroPilotPath`,

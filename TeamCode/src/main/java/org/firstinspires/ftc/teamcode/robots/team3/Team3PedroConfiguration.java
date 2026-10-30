@@ -1,40 +1,38 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
-import com.pedropathing.control.PIDFCoefficients;
-import com.pedropathing.control.PredictiveBrakingCoefficients;
-import com.pedropathing.follower.FollowerConstants;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.ftc.drivetrains.MecanumConstants;
-import com.pedropathing.ftc.localization.constants.PinpointConstants;
-import com.pedropathing.paths.PathConstraints;
+import com.pedropathing.algorithm.ForesightConfig;
+import com.pedropathing.api.PoseFactory;
+import com.pedropathing.controllers.Controller;
+import com.pedropathing.math.Matrix;
+import com.pedropathing.math.Pose;
+import com.pedropathing.math.Vector2D;
+import com.pedropathing.revhub.drivetrains.MecanumConfig;
+import com.pedropathing.revhub.localizers.PinpointConfig;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
-/** Team 3-only Pedro configuration. Real hardware values must be supplied before follower creation. */
+/** Team 3-only Pedro 3 configuration. Real hardware values must be supplied before follower creation. */
 public final class Team3PedroConfiguration {
     public static final double APPLICATION_MAX_POWER = 0.20;
     /** Hardware map name for the goBILDA Pinpoint odometry computer on Team 3's robot. */
     public static final String PINPOINT_HARDWARE_MAP_NAME = "pinpoint";
 
     private final String missingConfigurationReason;
-    private final FollowerConstants followerConstants;
-    private final MecanumConstants mecanumConstants;
-    private final PinpointConstants pinpointConstants;
-    private final PathConstraints pathConstraints;
+    private final ForesightConfig foresightConfig;
+    private final MecanumConfig mecanumConfig;
+    private final PinpointConfig pinpointConfig;
     private final Pose startingPose;
     private final boolean restrictedManualDriveReady;
     private final boolean pathFollowingReady;
 
-    private Team3PedroConfiguration(String missingConfigurationReason, FollowerConstants followerConstants,
-            MecanumConstants mecanumConstants, PinpointConstants pinpointConstants,
-            PathConstraints pathConstraints, Pose startingPose, boolean restrictedManualDriveReady,
-            boolean pathFollowingReady) {
+    private Team3PedroConfiguration(String missingConfigurationReason, ForesightConfig foresightConfig,
+            MecanumConfig mecanumConfig, PinpointConfig pinpointConfig, Pose startingPose,
+            boolean restrictedManualDriveReady, boolean pathFollowingReady) {
         this.missingConfigurationReason = missingConfigurationReason;
-        this.followerConstants = followerConstants;
-        this.mecanumConstants = mecanumConstants;
-        this.pinpointConstants = pinpointConstants;
-        this.pathConstraints = pathConstraints;
+        this.foresightConfig = foresightConfig;
+        this.mecanumConfig = mecanumConfig;
+        this.pinpointConfig = pinpointConfig;
         this.startingPose = startingPose;
         this.restrictedManualDriveReady = restrictedManualDriveReady;
         this.pathFollowingReady = pathFollowingReady;
@@ -43,17 +41,16 @@ public final class Team3PedroConfiguration {
     /** Returns the safe default until Team 3 records inspected physical configuration values. */
     public static Team3PedroConfiguration unconfigured() {
         return new Team3PedroConfiguration("Team 3 Pedro hardware configuration has not been recorded.",
-                null, null, null, null, null, false, false);
+                null, null, null, null, false, false);
     }
 
     /** Creates a configuration from supplied facts while keeping both powered permissions closed. */
-    public static Team3PedroConfiguration configured(FollowerConstants followerConstants,
-            MecanumConstants mecanumConstants, PinpointConstants pinpointConstants) {
-        if (followerConstants == null || mecanumConstants == null || pinpointConstants == null) {
-            throw new IllegalArgumentException("Pedro configuration needs follower, mecanum, and Pinpoint constants.");
+    public static Team3PedroConfiguration configured(ForesightConfig foresightConfig,
+            MecanumConfig mecanumConfig, PinpointConfig pinpointConfig) {
+        if (foresightConfig == null || mecanumConfig == null || pinpointConfig == null) {
+            throw new IllegalArgumentException("Pedro 3 configuration needs Foresight, mecanum, and Pinpoint configs.");
         }
-        return new Team3PedroConfiguration(null, followerConstants, mecanumConstants, pinpointConstants,
-                PathConstraints.defaultConstraints.copy(), null, false, false);
+        return new Team3PedroConfiguration(null, foresightConfig, mecanumConfig, pinpointConfig, null, false, false);
     }
 
     /** Holds Team 3 facts and path permission. */
@@ -68,37 +65,59 @@ public final class Team3PedroConfiguration {
 
     private static Team3PedroConfiguration createRecordedTeam3Configuration(
             boolean restrictedManualDriveReady, boolean pathFollowingReady) {
-        FollowerConstants follower = new FollowerConstants()
-                .mass(8.62) // 19 lbs nominal (17-21 lb range: 7.71 - 9.53 kg)
-                .headingPIDFCoefficients(new PIDFCoefficients(2.2, 0.2, 0.189, 0.02))
-                .forwardZeroPowerAcceleration(-42.4832745291992)
-                .lateralZeroPowerAcceleration(-50.60694780564594)
-                .predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(
-                        0.15, 0.051792761842529726, 0.002367856854157051))
-                .centripetalScaling(0.0);
-        MecanumConstants mecanum = new MecanumConstants()
-                .xVelocity(57.666) // 5-run average: 56.67, 57.76, 58.01, 58.28, 57.61
-                .yVelocity(58.178) // 5-run average: 56.12, 55.9, 59.67, 59.2, 60
-                .maxPower(APPLICATION_MAX_POWER)
-                .leftFrontMotorName("frontLeft")
-                .leftRearMotorName("rearLeft")
-                .rightFrontMotorName("frontRight")
-                .rightRearMotorName("rearRight")
-                .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
-                .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
-                .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-                .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
-        PinpointConstants pinpoint = new PinpointConstants()
-                .forwardPodY(-8.0)
-                .strafePodX(-5.75) // measured: 5.75 inches behind center of rotation
-                .distanceUnit(DistanceUnit.INCH)
-                .hardwareMapName(PINPOINT_HARDWARE_MAP_NAME)
-                .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)
-                .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
-                .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD);
-        PathConstraints constraints = new PathConstraints(0.97, 100.0);
-        return new Team3PedroConfiguration(null, follower, mecanum, pinpoint, constraints,
-                new Pose(0.0, 0.0, 0.0), restrictedManualDriveReady, pathFollowingReady);
+        ForesightConfig foresight = new ForesightConfig(c -> {
+            Controller primaryTranslationalForward = Controller.proportional(0.6340519057428275);
+            Controller secondaryTranslationalForward = Controller.proportional(0.23426523699302473);
+            Controller primaryTranslationalLateral = Controller.proportional(0.506689633462168);
+            Controller secondaryTranslationalLateral = Controller.proportional(0.1872082805679137);
+
+            c.forwardTranslational.set(Controller.piecewise(secondaryTranslationalForward).put(2.5, primaryTranslationalForward));
+            c.strafeTranslational.set(Controller.piecewise(secondaryTranslationalLateral).put(2.5, primaryTranslationalLateral));
+
+            c.coast.set(Controller.proportionalFeedforward(0.014646926517752679));
+            c.brake.set(Controller.proportionalFeedforward(0.012449887540089776));
+
+            c.headingFeedback.set(Controller.proportional(5.598759885671741));
+            c.headingBrakeCoefficients.set(Vector2D.cartesian(0.04652137561314064, 0.013741321592943428));
+
+            c.linearBrakeCoefficients.set(Matrix.diag(0.06848421743295197, 0.05854183147252824));
+            c.quadraticBrakeCoefficients.set(Matrix.diag(0.0020064501092362367, 0.0024716957768805316));
+
+            c.maxAchievableForwardVelocity.set(70.01563114118758);
+            c.maxAchievableStrafeVelocity.set(52.014594764628455);
+            c.naturalForwardDeceleration.set(32.54832913388586);
+            c.naturalStrafeDeceleration.set(62.89693210699509);
+            c.maxPathSpeed.set(0.97);
+            c.maxVelocityConstraint.set(100.0);
+            c.velocityConstraint.set(1.0);
+            c.translationalConstraint.set(1.0);
+            c.headingConstraint.set(1.0);
+            c.timeoutConstraint.set(100.0);
+        });
+        MecanumConfig mecanum = new MecanumConfig(c -> {
+            c.frontLeftName.set("frontLeft");
+            c.backLeftName.set("rearLeft");
+            c.frontRightName.set("frontRight");
+            c.backRightName.set("rearRight");
+            c.frontLeftDirection.set(DcMotorSimple.Direction.REVERSE);
+            c.backLeftDirection.set(DcMotorSimple.Direction.REVERSE);
+            c.frontRightDirection.set(DcMotorSimple.Direction.FORWARD);
+            c.backRightDirection.set(DcMotorSimple.Direction.FORWARD);
+            c.manualBrakeMode.set(true);
+        });
+        PinpointConfig pinpoint = new PinpointConfig(c -> {
+            c.name.set(PINPOINT_HARDWARE_MAP_NAME);
+            c.xPodOffset.set(-8.0);
+            c.yPodOffset.set(-5.75); // measured: 5.75 inches behind center of rotation
+            c.offsetUnits.set(DistanceUnit.INCH);
+            c.globalDistanceUnit.set(DistanceUnit.INCH);
+            c.encoderResolutionUnit.set(DistanceUnit.INCH);
+            c.podType.set(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
+            c.xPodDirection.set(GoBildaPinpointDriver.EncoderDirection.REVERSED);
+            c.yPodDirection.set(GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        });
+        return new Team3PedroConfiguration(null, foresight, mecanum, pinpoint,
+                PoseFactory.radians().of(0.0, 0.0, 0.0), restrictedManualDriveReady, pathFollowingReady);
     }
 
     public boolean isConfigured() { return missingConfigurationReason == null; }
@@ -106,20 +125,19 @@ public final class Team3PedroConfiguration {
     public boolean isRestrictedManualDriveReady() { return restrictedManualDriveReady; }
     public boolean isPathFollowingReady() { return pathFollowingReady; }
     public String getMissingConfigurationReason() { return missingConfigurationReason; }
-    FollowerConstants getFollowerConstants() { requireConfigured(); return followerConstants; }
-    MecanumConstants getMecanumConstants() { requireConfigured(); return mecanumConstants; }
-    PinpointConstants getPinpointConstants() { requireConfigured(); return pinpointConstants; }
-    PathConstraints getPathConstraints() { requireConfigured(); return pathConstraints; }
+    ForesightConfig getForesightConfig() { requireConfigured(); return foresightConfig; }
+    MecanumConfig getMecanumConfig() { requireConfigured(); return mecanumConfig; }
+    PinpointConfig getPinpointConfig() { requireConfigured(); return pinpointConfig; }
     Pose getStartingPose() { requireConfigured(); return startingPose; }
-    void requireConfigured() { if (!isConfigured()) throw new IllegalStateException(missingConfigurationReason); }
+    void requireConfigured() {
+        if (!isConfigured()) throw new IllegalStateException(missingConfigurationReason);
+    }
     void requireRestrictedManualDriveReady() {
-        if (!restrictedManualDriveReady) {
-            throw new IllegalStateException("Restricted manual drive is locked until safety checks begin.");
-        }
+        if (!restrictedManualDriveReady) throw new IllegalStateException(
+                "Restricted manual drive is locked until safety checks begin.");
     }
     void requirePathFollowingReady() {
-        if (!pathFollowingReady) {
-            throw new IllegalStateException("Path following is locked until localization and tuning are verified.");
-        }
+        if (!pathFollowingReady) throw new IllegalStateException(
+                "Path following is locked until localization and tuning are verified.");
     }
 }

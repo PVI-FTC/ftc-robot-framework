@@ -1,17 +1,16 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
+import com.pedropathing.api.Paths;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
-import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
+import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
 
-/** Team 3 illegal path. */
+/** Team 3 illegal path adapted to the Pedro 3 API. */
 final class Team3PedroIllegalPath {
     private Team3PedroIllegalPath() {
     }
 
-    static PathChain build(Follower follower) {
+    static Path build(Follower follower) {
         if (follower == null) {
             throw new IllegalArgumentException("The Team 3 illegal path needs a Pedro follower.");
         }
@@ -21,17 +20,11 @@ final class Team3PedroIllegalPath {
         Pose p2 = pose(120.05288968162552, 70.19872520338755, 180.0);
         Pose p3 = pose(103.42511867493754, 32.68189726856656, 90.0);
 
-        return follower.pathBuilder()
-                .addPath(new BezierCurve(p0,
-                        point(133.89685582822085, 68.55176380368098),
-                        point(-0.17101226993865729, 51.476993865030686), p1))
-                .setLinearHeadingInterpolation(p0.getHeading(), p1.getHeading())
-                .addPath(new BezierCurve(p1,
-                        point(80.82629146657963, 79.88693928881037), p2))
-                .setLinearHeadingInterpolation(p1.getHeading(), p2.getHeading())
-                .addPath(new BezierLine(p2, p3))
-                .setLinearHeadingInterpolation(p2.getHeading(), p3.getHeading())
-                .build();
+        return Paths.path(
+                Paths.curve(p0, point(133.89685582822085, 68.55176380368098),
+                        point(-0.17101226993865729, 51.476993865030686), p1).linear(p0, p1),
+                Paths.curve(p1, point(80.82629146657963, 79.88693928881037), p2).linear(p1, p2),
+                Paths.line(p2, p3).linear(p2, p3));
     }
 
     private static Pose point(double x, double y) {

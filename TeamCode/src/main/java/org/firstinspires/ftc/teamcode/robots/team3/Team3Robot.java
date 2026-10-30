@@ -264,6 +264,16 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         intakeSubsystem.setIdlePower(power);
     }
 
+    /** Sets the forward intake power (0.0 to 1.0). */
+    public void setIntakePower(double power) {
+        intakeSubsystem.setIntakePower(power);
+    }
+
+    /** Sets the reverse eject intake power (0.0 to 1.0). */
+    public void setIntakeEjectPower(double power) {
+        intakeSubsystem.setEjectPower(power);
+    }
+
     /** Requests the baseline intake holding behavior. */
     public void holdIntake() {
         intakeSubsystem.hold();
@@ -287,6 +297,11 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
     /** Requests that the midtake feed (true) or stop (false). */
     public void setMidtakeFeeding(boolean feeding) {
         midtakeSubsystem.setFeeding(feeding);
+    }
+
+    /** Requests that the midtake reverse (true) or stop (false). */
+    public void setMidtakeReversing(boolean reversing) {
+        midtakeSubsystem.setReversing(reversing);
     }
 
     /** Requests the outtake power from 0.0 (stopped) to 1.0 (full power). */

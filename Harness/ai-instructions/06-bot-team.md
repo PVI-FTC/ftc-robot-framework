@@ -75,6 +75,10 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ### Decided by the user
 
+- **Handover (2026-10-30):** "The likely handover would be through GitHub with other teams copying
+  the folder into their code." Docs describe it that way (copy `Harness/` from Team 2's branch on
+  GitHub into your own branch). Nothing is pushed until the user says so (rule 6). Checked: no
+  tracked harness file is over 50 MB (largest 46.9 MB); `Harness/` is about 367 MB in git.
 - **Who the harness is for (2026-10-28):** "Most if not all use of this harness will come from
   teams using the PVI repo." The main users are **PVI teams, each on its own branch** of the PVI
   repo (Team 1, Team 2, Team 3, ...). Docs and features are written for them first. Teams **outside**
@@ -181,9 +185,10 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
    - run the full suite once;
    - check that `git status` shows nothing outside `Harness/`;
    - stage `Harness/` only.
-6. **Never push, and don't suggest pushing.** This is the user's personal project, and pushing
-   to the shared GitHub remote would reveal it. The user knows there's no off-machine copy and
-   accepts that. Commit locally on `Team2-Testing` only.
+6. **Never push, and don't suggest pushing.** Pushing to the shared GitHub remote is the user's
+   decision alone. Commit locally only (now on `Team2-Testing-Pedro3`). The user plans to hand the
+   harness over **through GitHub later**, with other PVI teams copying the `Harness` folder into
+   their own branches (2026-10-30), but nothing is pushed until the user says so.
 7. **Ask the user** for anything that is theirs to decide (robot measurements, new
    dependencies, formats that leave the JVM, anything outside `Harness/`).
 

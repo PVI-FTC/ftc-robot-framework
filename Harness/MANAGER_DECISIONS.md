@@ -321,3 +321,14 @@ All three bots are idle with empty lists. The details of each decision follow.
   (stopped, not built). The three old routes keep today's setup: their tests run with the field
   elements off, and one test flags that they hit the BIOBUZZ HIVE, as a reminder until the team
   updates them.
+
+## Your direction: handover through GitHub (2026-10-30)
+
+- **You said:** the likely handover is through GitHub, with other teams copying the `Harness`
+  folder into their code.
+- **What changes:** `BRING_YOUR_OWN_ROBOT.md` says to copy `Harness/` from Team 2's branch on
+  GitHub into your own branch. Nothing is pushed until you say so.
+- **Checked for GitHub:** no harness file is over GitHub's 50 MB warning or 100 MB limit (the
+  largest is the moon-base rover model, 46.9 MB). The whole `Harness` folder is about 367 MB in
+  git, mostly Unity art. Teams on the same PVI repo share identical files, so copying it into
+  several branches doesn't multiply that.

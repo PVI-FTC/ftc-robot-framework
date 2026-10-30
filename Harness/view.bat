@@ -13,11 +13,55 @@ rem Java: any Java 17 or newer. This file looks in this order:
 rem   1. Android Studio's built-in Java (its "jbr" folder)
 rem   2. JAVA_HOME
 rem   3. java on the PATH
+rem
+rem Before building, it checks the drive it's on. On a USB stick (removable, or formatted FAT32
+rem or exFAT) or a drive with under 1 GB free, building is slow and often fails, so it says so
+rem and asks before going on.
 rem ---------------------------------------------------------------------------
 setlocal
 
 rem Run from the folder this file is in (Harness\), wherever it was started from.
 cd /d "%~dp0"
+
+rem ---- Is this drive a good place to build? ---------------------------------------------
+rem Windows' own PowerShell (Get-Volume) says the drive's type, file system and free space,
+rem as "Removable;FAT32;290". If it can't tell (a network folder, an old Windows), carry on.
+rem HARNESS_TEST_DRIVE_INFO lets a test pretend to be on another drive, in the same form.
+set "DRIVE_INFO=%HARNESS_TEST_DRIVE_INFO%"
+set "DRIVE_LETTER=%~d0"
+set "DRIVE_LETTER=%DRIVE_LETTER:~0,1%"
+if not defined DRIVE_INFO for /f "delims=" %%i in ('powershell -NoProfile -Command "try { $v = Get-Volume -DriveLetter %DRIVE_LETTER% -ErrorAction Stop; '{0};{1};{2}' -f $v.DriveType, $v.FileSystemType, [math]::Floor($v.SizeRemaining / 1MB) } catch { }" 2^>nul') do set "DRIVE_INFO=%%i"
+set "DRIVE_TYPE="
+set "DRIVE_FS="
+set "DRIVE_FREE_MB="
+if defined DRIVE_INFO for /f "tokens=1-3 delims=;" %%a in ("%DRIVE_INFO%") do (
+    set "DRIVE_TYPE=%%a"
+    set "DRIVE_FS=%%b"
+    set "DRIVE_FREE_MB=%%c"
+)
+set "DRIVE_RISKY="
+if /i "%DRIVE_TYPE%"=="Removable" set "DRIVE_RISKY=1"
+if /i "%DRIVE_FS%"=="FAT32" set "DRIVE_RISKY=1"
+if /i "%DRIVE_FS%"=="FAT" set "DRIVE_RISKY=1"
+if /i "%DRIVE_FS%"=="exFAT" set "DRIVE_RISKY=1"
+set "DRIVE_LOW="
+rem Unknown free space counts as plenty (cmd can't compare an empty value).
+if not defined DRIVE_FREE_MB set "DRIVE_FREE_MB=999999"
+if %DRIVE_FREE_MB% LSS 1024 set "DRIVE_LOW=1"
+if not defined DRIVE_RISKY if not defined DRIVE_LOW goto :driveOk
+
+echo.
+if /i "%DRIVE_TYPE%"=="Removable" echo This copy of the harness is on a USB stick or other removable drive (%DRIVE_FS%).
+if /i not "%DRIVE_TYPE%"=="Removable" if defined DRIVE_RISKY echo This copy of the harness is on a drive formatted %DRIVE_FS%, like a USB stick.
+if defined DRIVE_LOW echo The drive has only %DRIVE_FREE_MB% MB free; building needs about 1 GB.
+echo Building here is slow and often fails (for example "Unable to delete directory").
+echo Copy the whole ftc-robot-framework folder to this PC's own drive (for example C:\Dev)
+echo and run view.bat from there.
+echo.
+set "ANSWER="
+set /p "ANSWER=Build here anyway? Type Y and press Enter to go on, or just press Enter to stop: "
+if /i not "%ANSWER%"=="Y" goto :stoppedForDrive
+:driveOk
 
 set "ANDROID_STUDIO_JAVA=C:\Program Files\Android\Android Studio\jbr"
 set "JAVA_EXE="
@@ -70,5 +114,11 @@ exit /b 0
 :failed
 echo.
 echo The viewer did not open. Read the messages above, then press any key to close.
+pause >nul
+exit /b 1
+
+:stoppedForDrive
+echo.
+echo Stopped. Nothing was built. Press any key to close.
 pause >nul
 exit /b 1

@@ -59,6 +59,11 @@ class BridgeSessionTest {
     }
 
     @SuppressWarnings("unchecked")
+    private static double yInches(Map<String, Object> frame) {
+        return (Double) ((Map<String, Object>) loop(frame).get("pose")).get("yInches");
+    }
+
+    @SuppressWarnings("unchecked")
     private static double power(Map<String, Object> frame, String motor) {
         for (Object item : (List<Object>) loop(frame).get("motors")) {
             Map<String, Object> m = (Map<String, Object>) item;
@@ -138,10 +143,16 @@ class BridgeSessionTest {
 
         assertEquals("LOOP", loop(frame).get("stage"));
         assertEquals(1.0, (Double) loop(frame).get("matchTimeSeconds"), 1e-9);
-        assertEquals(1.0, power(frame, FRONT_LEFT), 1e-6);
-        // How far exactly depends on the physics model (top speed 62.6 in/s); 1 s of full
-        // forward must clearly move the robot forward.
-        assertTrue(xInches(frame) > 30, "drove forward: " + xInches(frame));
+        BridgeTestOpModes.assertFullStick(power(frame, FRONT_LEFT), "full forward");
+        // How far exactly depends on the physics model (top speed 62.6 in/s); 1 s of full stick
+        // must clearly move the robot: over 30 in forward for PVI's Team A, over 10 in some way for
+        // another team's TeleOp.
+        if (BridgeTestOpModes.pvi()) {
+            assertTrue(xInches(frame) > 30, "drove forward: " + xInches(frame));
+        } else {
+            // Another team's TeleOp may drive this stick sideways, into the HIVE frame about 15 in away.
+            assertTrue(Math.hypot(xInches(frame), yInches(frame)) > 10, "drove: " + xInches(frame) + ", " + yInches(frame));
+        }
         assertEquals(Boolean.FALSE, frame.get("finished"));
         Map<String, Object> stopped = send("{\"type\": \"stop\"}");
         assertEquals("STOP", loop(stopped).get("stage"));
@@ -163,7 +174,7 @@ class BridgeSessionTest {
 
         send("{\"type\": \"step\", \"gamepad1\": " + FORWARD + "}");
         Map<String, Object> held = send("{\"type\": \"step\"}");
-        assertEquals(1.0, power(held, FRONT_LEFT), 1e-6, "still full forward");
+        BridgeTestOpModes.assertFullStick(power(held, FRONT_LEFT), "still full forward");
 
         Map<String, Object> released = send("{\"type\": \"step\", \"gamepad1\": " + RELEASED + "}");
         assertEquals(0.0, power(released, FRONT_LEFT), 1e-9);

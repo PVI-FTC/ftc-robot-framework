@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -36,6 +37,34 @@ namespace PviHarness.Replay
         public const string AndroidStudioJava = @"C:\Program Files\Android\Android Studio\jbr";
         /// <summary>The oldest Java the harness build runs on.</summary>
         public const int MinimumJava = 17;
+        /// <summary>Less free space than this on the Harness folder's drive and Live mode won't start (Gradle's build folder grows to about 0.5 GB).</summary>
+        public const long MinimumFreeBytes = 1L << 30;
+        /// <summary>
+        /// What Live mode adds after <see cref="DriveProblem"/>'s sentences, worded like view.bat's own
+        /// drive check (the window puts "Live mode: " first).
+        /// </summary>
+        public const string UsbDriveAdvice = "Building here is slow and often fails (for example \"Unable to delete "
+            + "directory\"). Copy the whole ftc-robot-framework folder to this PC's own drive (for example C:\\Dev) "
+            + "and open the app from there.";
+
+        /// <summary>
+        /// What Live mode needs to know about the drive the Harness folder is on: whether Windows calls
+        /// it removable, its file system ("NTFS", "FAT32", "exFAT") and its free space.
+        /// </summary>
+        public readonly struct DriveFacts
+        {
+            public DriveFacts(bool removable, string format, long freeBytes)
+            {
+                Removable = removable;
+                Format = format ?? "";
+                FreeBytes = freeBytes;
+            }
+
+            public bool Removable { get; }
+            public string Format { get; }
+            public long FreeBytes { get; }
+        }
+
         /// <summary>What Live mode says when there is no Java it can use (the window puts "Live mode: " first).</summary>
         public const string NeedsJavaMessage = "Needs Java 17 or newer: install Android Studio or a "
             + "Java 17+ JDK (adoptium.net) and set JAVA_HOME.";
@@ -55,6 +84,8 @@ namespace PviHarness.Replay
 
         /// <summary>Where live mode is now.</summary>
         public LaunchState State { get; private set; } = LaunchState.Off;
+        /// <summary>Reads the Harness folder's drive (<see cref="ReadDrive"/>); tests put in a pretend drive.</summary>
+        public Func<string, DriveFacts?> DriveReader { get; set; } = ReadDrive;
         /// <summary>Why it failed (with the end of the Gradle log when there is one), or null.</summary>
         public string Problem { get; private set; }
         /// <summary>True if the bridge was already running when live mode was switched on (started by hand).</summary>
@@ -195,6 +226,59 @@ namespace PviHarness.Replay
             return major >= 0 && major < MinimumJava ? which + " is Java " + major : null;
         }
 
+        /// <summary>
+        /// The drive <paramref name="folder"/> is on, or null if Windows can't say (a network path, a
+        /// drive that isn't ready, any error): then Live mode doesn't block.
+        /// </summary>
+        public static DriveFacts? ReadDrive(string folder)
+        {
+            try
+            {
+                var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder)));
+                if (!drive.IsReady)
+                {
+                    return null;
+                }
+                return new DriveFacts(drive.DriveType == DriveType.Removable, drive.DriveFormat, drive.AvailableFreeSpace);
+            }
+            catch (Exception e) when (e is IOException || e is ArgumentException || e is UnauthorizedAccessException
+                || e is NotSupportedException || e is System.Security.SecurityException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Why Gradle shouldn't build on this drive, in view.bat's words, or null if it's fine (or unknown).
+        /// The same rules as view.bat: a removable drive, or a FAT32 / FAT / exFAT one (a USB stick: Gradle
+        /// fails part-way with "Unable to delete directory ... process has files open"), or under 1024 MB
+        /// free (the build folder needs about 0.5 GB). Both sentences when both are true.
+        /// </summary>
+        public static string DriveProblem(DriveFacts? drive)
+        {
+            if (!drive.HasValue)
+            {
+                return null;
+            }
+            DriveFacts d = drive.Value;
+            string format = d.Format.ToUpperInvariant();
+            bool fat = format == "FAT32" || format == "FAT" || format == "EXFAT";
+            var sentences = new List<string>();
+            if (d.Removable)
+            {
+                sentences.Add("This copy of the harness is on a USB stick or other removable drive (" + d.Format + ").");
+            }
+            else if (fat)
+            {
+                sentences.Add("This copy of the harness is on a drive formatted " + d.Format + ", like a USB stick.");
+            }
+            if (d.FreeBytes < MinimumFreeBytes)
+            {
+                sentences.Add("The drive has only " + d.FreeBytes / (1024 * 1024) + " MB free; building needs about 1 GB.");
+            }
+            return sentences.Count == 0 ? null : string.Join(" ", sentences);
+        }
+
         /// <summary>True if something is listening on this computer's port (no connection is made).</summary>
         public static bool IsListening(int port)
         {
@@ -234,6 +318,14 @@ namespace PviHarness.Replay
             if (string.IsNullOrEmpty(javaHome) && Directory.Exists(AndroidStudioJava))
             {
                 javaHome = AndroidStudioJava;
+            }
+            string badDrive = DriveProblem(DriveReader(harnessFolder));
+            if (badDrive != null)
+            {
+                // Gradle would fail part-way with "Unable to delete directory": say what to do instead.
+                Problem = badDrive + " " + UsbDriveAdvice;
+                State = LaunchState.Failed;
+                return;
             }
             string noJava = JavaProblem(javaHome, Environment.GetEnvironmentVariable("PATH"));
             if (noJava != null)

@@ -110,7 +110,7 @@ class BridgeControllersTest {
             frame = send("{\"type\": \"step\"}");
         }
 
-        assertEquals(1.0, frontLeftPower(frame), 1e-6);
+        BridgeTestOpModes.assertFullStick(frontLeftPower(frame), "full forward");
         // One controller: its D-pad also works the operator's face buttons (as in the Swing live drive).
         assertEquals(List.of("Test Pad (D-pad = operator)", "Test Pad D-pad"), frame.get("controllers"));
         Map<String, Object> gamepad1 = (Map<String, Object>) loop(frame).get("gamepad1");
@@ -135,7 +135,7 @@ class BridgeControllersTest {
         fake.connectedFor(5, FORWARD);
         startWithControllers();
         for (int i = 0; i < 3; i++) {
-            assertEquals(1.0, frontLeftPower(send("{\"type\": \"step\"}")), 1e-6, "still connected");
+            BridgeTestOpModes.assertFullStick(frontLeftPower(send("{\"type\": \"step\"}")), "still connected");
         }
 
         Map<String, Object> dropped = send("{\"type\": \"step\"}");

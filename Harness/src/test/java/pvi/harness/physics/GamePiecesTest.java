@@ -44,14 +44,14 @@ class GamePiecesTest {
 
     /**
      * WHAT: The balls' sizes are the official manual's (TU06 section 9.8: POLLEN 2.8 in, NECTAR
-     * 3.6 in, polyethylene), and the mass, bounce and rolling values stay placeholders because the
-     * manual gives none.
+     * 3.6 in, polyethylene); the masses are AndyMark's (POLLEN 24.9 g, NECTAR 41.3 g, from its store
+     * pages, D6); bounce and rolling stay placeholders because no source gives them.
      *
      * <p>WHY: The user asked for official facts where they exist and marked guesses everywhere
      * else, never invented numbers.</p>
      */
     @Test
-    void ballSizesAreTheOfficialManualsAndTheRestStayPlaceholders() {
+    void ballSizesComeFromTheManualAndMassesFromAndyMark() {
         assertEquals(2.8, GamePiece.POLLEN_DIAMETER.value(), 1e-9, "POLLEN, manual 9.8");
         assertEquals(3.6, GamePiece.NECTAR_DIAMETER.value(), 1e-9, "NECTAR, manual 9.8");
         assertEquals(1.4, GamePiece.radiusInches(GamePiece.POLLEN), 1e-9);
@@ -61,11 +61,16 @@ class GamePiecesTest {
         assertTrue(GamePiece.POLLEN_DIAMETER.source().contains("TU06, section 9.8"), GamePiece.POLLEN_DIAMETER.source());
         assertTrue(GamePiece.NECTAR_DIAMETER.source().contains("polyethylene"), GamePiece.NECTAR_DIAMETER.source());
 
-        // The manual gives no mass, bounce or friction, so every piece-model value stays a guess.
+        // Masses from AndyMark's store pages (0.055 lb and 0.091 lb), measured; the rest are guesses.
         PieceModel model = PieceModel.bioBuzz();
-        assertEquals(6, model.unmeasured().size(), "nothing in the manual to replace: " + model.unmeasured());
-        assertTrue(model.pollenMass().source().startsWith("not given in the BIOBUZZ Competition Manual TU06"),
-                model.pollenMass().source());
+        assertEquals(24.9, model.pollenMass().value(), 1e-9, "POLLEN, 0.055 lb");
+        assertEquals(41.3, model.nectarMass().value(), 1e-9, "NECTAR, 0.091 lb");
+        assertTrue(model.pollenMass().measured() && model.nectarMass().measured(), "AndyMark's weights count as known");
+        assertTrue(model.nectarMass().source().contains("AndyMark"), model.nectarMass().source());
+        assertEquals(List.of("ball rolling deceleration", "ball wall bounce", "ball-to-ball bounce",
+                "robot-to-ball bounce"), model.unmeasured(), "no source gives these yet");
+        assertTrue(model.wallBounce().source().startsWith("not given in the BIOBUZZ Competition Manual TU06"),
+                model.wallBounce().source());
     }
 
     /**

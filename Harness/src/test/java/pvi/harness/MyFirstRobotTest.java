@@ -59,8 +59,12 @@ class MyFirstRobotTest {
         Pose end = runner.positionEstimator().pose();
         double forwardInches = (end.xInches() - start.xInches()) * Math.cos(start.headingRadians())
                 + (end.yInches() - start.yInches()) * Math.sin(start.headingRadians());
+        double sidewaysInches = -(end.xInches() - start.xInches()) * Math.sin(start.headingRadians())
+                + (end.yInches() - start.yInches()) * Math.cos(start.headingRadians());
         assertTrue(forwardInches > 6.0, "The robot should drive forward, but moved " + forwardInches
-                + " in. If it drove backwards, a motor direction may be wrong. " + runner.positionReport());
+                + " in forward and " + sidewaysInches + " in sideways (left positive). If it drove backwards, a"
+                + " motor direction may be wrong; if it drove sideways, check how the TeleOp maps the sticks. "
+                + runner.positionReport());
 
         // TODO: add your own checks here, for example:
         //   assertEquals("Ready", runner.telemetry().lastValue("Status"));

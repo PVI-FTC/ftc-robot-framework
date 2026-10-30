@@ -10,8 +10,8 @@ libraries).
 Using another computer? You need Java 17 or newer (Android Studio's built-in Java is fine) and
 internet the first time. See the README, [Running on another PC](README.md#running-on-another-pc).
 
-Using the harness on **your own team's robot code**, in another repository? Do these five steps
-here first, then follow [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md).
+Another PVI team (Team 1, Team 3, …) wanting the harness on **your own branch and robot**? Do
+these five steps here first, then follow [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md).
 
 ---
 
@@ -113,7 +113,7 @@ lists the common ones.
 | Test sensors: IMU, distance, touch, color, OTOS, Limelight… | [README, "More sensors (RP7) and the sensor script"](README.md#more-sensors-rp7-and-the-sensor-script) |
 | Test a `LinearOpMode` | [README, "LinearOpModes"](README.md#linearopmodes-runopmode) (nothing special: it just runs) |
 | Check every OpMode at once | `EveryOpModeSmokeTest.java` (one quick run of each, plus "does the left stick drive?") |
-| Use the harness on your own team's robot | [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md) |
+| Use the harness on your own team's branch and robot | [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md) |
 | Turn a real-robot drive into a test | [robot-recorder](robot-recorder/README.md) |
 | Know what can't be tested yet | [README §6](README.md#6-what-can-be-tested-yet) |
 | Make the simulated robot match the real one | [CALIBRATION.md](CALIBRATION.md) |

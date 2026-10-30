@@ -84,7 +84,10 @@ Java 17 or newer: `JAVA_HOME`, else Android Studio's Java (which it finds by its
 the PATH. If none of those is a Java 17 or newer, Live mode doesn't try to start and says so: "Live
 mode: Needs Java 17 or newer: install Android Studio or a Java 17+ JDK (adoptium.net) and set
 JAVA_HOME", followed by what it found (for example "JAVA_HOME (...) is Java 11"). Replays don't
-need Java.
+need Java. Live mode also won't start from a USB stick (a removable drive, or one formatted FAT32,
+FAT or exFAT) or a drive with under 1 GB free, where Gradle's build fails part-way ("Unable to delete
+directory"). It says so in the same words as `view.bat` and asks you to copy the whole
+ftc-robot-framework folder to the PC's own drive. If Windows can't tell what the drive is, it carries on.
 
 **Harness → Live Smoke Test** checks the connection without a controller (needs `unityBridge`
 running). **Harness → Live Mode Smoke Test** does the same, but lets the Live mode launcher start and

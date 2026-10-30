@@ -57,7 +57,40 @@ class RobotConfigsTest {
      */
     @Test
     void theDeviceListsAddTheirDevices() throws IOException {
-        String text = Files.readString(Path.of(HarnessConfig.FILE_NAME))
+        String text = withDevices(Files.readString(Path.of(HarnessConfig.FILE_NAME)));
+        FakeHardwareMap robot = RobotConfigs.robot(HarnessConfig.fromText(text, "devices"));
+        java.util.Set<String> names = robot.deviceNames();
+        for (String name : new String[] {"imu", "frontDistance", "rearDistance", "button", "intakeColor", "spinner",
+                "pot", "otos", "limelight", "camera", "leftOdo", "claw", "wrist"}) {
+            assertTrue(names.contains(name), name + " should be on the robot: " + names);
+        }
+
+        java.util.Set<String> pvi = RobotConfigs.teamA().deviceNames();
+        assertTrue(java.util.Collections.disjoint(pvi, java.util.Set.of("imu", "frontDistance")), "PVI adds none: " + pvi);
+    }
+
+    /**
+     * WHAT: Filling in the device lists works the same whether the settings file has Windows
+     * (CRLF) or Unix (LF) line endings.
+     *
+     * <p>WHY: Git on Windows checks the file out with CRLF (core.autocrlf), and the test above
+     * then silently changed nothing (W18).</p>
+     */
+    @Test
+    void fillingInTheDeviceListsIgnoresLineEndings() throws IOException {
+        String lf = Files.readString(Path.of(HarnessConfig.FILE_NAME)).replace("\r\n", "\n");
+        String crlf = lf.replace("\n", "\r\n");
+
+        assertTrue(withDevices(lf).contains("devices.imu=imu\n"), "LF file filled in");
+        assertEquals(withDevices(lf), withDevices(crlf), "CRLF file filled in the same way");
+    }
+
+    /**
+     * The settings file text with every device list filled in. Line endings are made "\n" first,
+     * because a Windows checkout has CRLF and the replacements look for "\n".
+     */
+    private static String withDevices(String settingsText) {
+        return settingsText.replace("\r\n", "\n")
                 .replace("devices.imu=\n", "devices.imu=imu\n")
                 .replace("hardware.servos=\n", "hardware.servos=claw, wrist\n")
                 .replace("devices.distanceSensors=\n", "devices.distanceSensors=frontDistance, rearDistance\n")
@@ -69,15 +102,6 @@ class RobotConfigsTest {
                 .replace("devices.limelights=\n", "devices.limelights=limelight\n")
                 .replaceAll("(?m)^devices\\.webcams=.*$", "devices.webcams=camera")
                 .replace("devices.deadWheels=\n", "devices.deadWheels=leftOdo:parallel:7.0\n");
-        FakeHardwareMap robot = RobotConfigs.robot(HarnessConfig.fromText(text.replace("\r\n", "\n"), "devices"));
-        java.util.Set<String> names = robot.deviceNames();
-        for (String name : new String[] {"imu", "frontDistance", "rearDistance", "button", "intakeColor", "spinner",
-                "pot", "otos", "limelight", "camera", "leftOdo", "claw", "wrist"}) {
-            assertTrue(names.contains(name), name + " should be on the robot: " + names);
-        }
-
-        java.util.Set<String> pvi = RobotConfigs.teamA().deviceNames();
-        assertTrue(java.util.Collections.disjoint(pvi, java.util.Set.of("imu", "frontDistance")), "PVI adds none: " + pvi);
     }
 
     /**

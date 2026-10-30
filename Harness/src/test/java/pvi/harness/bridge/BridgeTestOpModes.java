@@ -50,6 +50,19 @@ final class BridgeTestOpModes {
         return HarnessConfig.load().pviExtras();
     }
 
+    /**
+     * Checks a drive motor's power for "left stick full forward": exactly +1.0 for PVI's Team A TeleOp;
+     * in another repo, only that the stick moved that motor hard (any sign), because another team's
+     * TeleOp may map the sticks differently (for example Team 1's on origin/master drives sideways).
+     */
+    static void assertFullStick(double power, String what) {
+        if (pvi()) {
+            org.junit.jupiter.api.Assertions.assertEquals(1.0, power, 1e-6, what);
+        } else {
+            org.junit.jupiter.api.Assertions.assertTrue(Math.abs(power) > 0.5, what + ": the stick moved the drive (" + power + ")");
+        }
+    }
+
     /** Skips the rest of a test outside PVI's repo. */
     static void assumePvi() {
         assumeTrue(pvi(), "PVI's own robot code only (pvi.extras=true)");

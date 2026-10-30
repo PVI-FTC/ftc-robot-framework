@@ -1,43 +1,50 @@
 # Bring your own robot
 
-This page is for a team that wants to use the test harness on **its own robot code**, in its own
-FTC repository. You copy one folder, change one settings file, and run one test that tells you
-what's still missing. You don't need to know how the harness works inside.
+This page is for a **PVI team (Team 1, Team 3, …)** that wants the test harness on **its own
+branch** of the PVI repository, testing **its own robot**. You add one folder, change one settings
+file, and run one test that tells you what's still missing. You don't need to know how the harness
+works inside.
+
+The harness in this folder is set up for **Team 2's robot** (the `teamA` code on Team 2's branch).
+Your branch has the same PVI framework, so most of it works as it is; this page says what to
+change for your robot. (Not on the PVI repo at all? See the short section at the end.)
 
 If you haven't used the harness before, do [GETTING_STARTED.md](GETTING_STARTED.md) first, on
-this repository. Then come back here.
+Team 2's setup. Then come back here.
 
 **What the harness can simulate today:** a **mecanum** drive with a **goBILDA Pinpoint**, plus
 motors, servos, CR servos, an IMU, distance, touch, color and analog sensors, an OTOS, dead
 wheels, a webcam with scripted AprilTags and a Limelight 3A. Both iterative OpModes and
-LinearOpModes run. Other drivetrains (tank, swerve) can't be tracked on the field yet.
+LinearOpModes run, on Pedro 2 or Pedro 3. Other drivetrains (tank, swerve) can't be tracked on the
+field yet.
 
 ---
 
-## Step 1: Copy the `Harness` folder into your repository
+## Step 1: Put the `Harness` folder on your branch
 
-Copy the whole `Harness` folder next to your `TeamCode` folder, so your repository looks like
-this. Copy it from a fresh **git clone** (or a downloaded ZIP) of PVI's repository, not from
-someone's working copy: a working copy also holds big files git ignores (Unity's library, art
-downloads, build output), about 4.5 GB instead of about 370 MB.
+Get the `Harness` folder from Team 2 and put it in the root of your branch, next to `TeamCode`:
 
 ```
-your-repo/
+your-branch/
   TeamCode/
   FtcRobotController/
   build.dependencies.gradle
-  Harness/          <- the copied folder
+  Harness/          <- the folder from Team 2
 ```
 
+Take it from a clean copy, not from someone's working folder: a working folder also holds big
+files git ignores (Unity's library, art downloads, build output), about 4.5 GB instead of about
+370 MB.
+
 The harness only **reads** your code. It never changes anything outside `Harness/`, and nothing
-in it is ever put on your robot.
+in it is ever put on your robot. It builds with your branch's own libraries (whatever
+`build.dependencies.gradle` lists), so it works on Pedro 2 and Pedro 3 branches alike.
 
 ---
 
-## Step 2: Remove PVI's own robot tests
+## Step 2: Turn off Team 2's extras and remove Team 2's robot tests
 
-The folder you copied comes with tests written for **PVI's** robot (Team A). They use PVI's
-TeamCode classes, so they won't compile with yours. Do two things:
+The folder comes with checks and tests written for **Team 2's** robot. Do two things:
 
 1. In `Harness/harness.properties`, set:
 
@@ -45,10 +52,13 @@ TeamCode classes, so they won't compile with yours. Do two things:
    pvi.extras=false
    ```
 
-   That leaves out the extras that read PVI's Pedro settings (`src/pvi/` and `src/pviTest/`).
+   The extras (`src/pvi*/`) compare the settings with Team 2's own Pedro 3 configuration, so they
+   don't fit your robot (and don't compile on a Pedro 2 branch).
 
-2. Delete these test files from `Harness/src/test/java/pvi/harness/`. They all test PVI's own
-   OpModes:
+2. Delete these test files from `Harness/src/test/java/pvi/harness/`. They test Team 2's robot
+   through the framework's `teamA` classes. Your branch has those classes too, so the tests
+   compile, but they check how Team 2's robot behaves, and on another team's branch dozens of
+   them fail. Delete these test files:
 
    ```
    GamepadSourceTest.java            HarnessSmokeTest.java
@@ -70,47 +80,46 @@ TeamCode classes, so they won't compile with yours. Do two things:
    ```
 
    Keep every other test: they test the harness itself, on whatever robot your settings describe.
-   (A few of those also check PVI's own OpModes; they skip themselves when `pvi.extras=false`.)
+   (A few of those also check Team 2's OpModes; they skip themselves when `pvi.extras=false`.)
 
 ---
 
 ## Step 3: Describe your robot in `harness.properties`
 
 Open `Harness/harness.properties`. Every line has a comment saying what it is. Change these to
-match **your** robot configuration (the names you use in `hardwareMap.get(...)`):
+match **your** robot configuration (the names your code passes to `hardwareMap.get(...)`):
 
 | Setting | What to put |
 |---|---|
-| `teamCode.sourceDir` | Where your robot code is. `../TeamCode/src/main/java` is right for a normal FTC repository. |
-| `teamCode.opModePackages` | The Java package your OpModes are in, usually `org.firstinspires.ftc.teamcode`. |
-| `robot.name` | Your robot's name, for reports. |
+| `robot.name` | Your robot's name, for reports, for example `Team 3`. |
 | `drive.frontLeft` … `drive.rearRight` | Your four drive motors' names. |
 | `drive.frontLeft.direction` … | `FORWARD` or `REVERSE`: the direction setting that makes each wheel drive the robot **forward** on positive power, as on your real robot. |
 | `pinpoint` | Your Pinpoint's name. No Pinpoint? Leave the name as it is: the harness adds a fake Pinpoint your code never uses, which does no harm. |
-| `hardware.otherMotors` | Every other motor, comma-separated: `intake, arm, lift`. (PVI's file has `intake`; replace it.) |
+| `hardware.otherMotors` | Every other motor, comma-separated: `intake, arm, lift`. (Team 2's file has `intake`; replace it.) |
 | `hardware.servos` | Every servo, comma-separated: `claw, wrist`. |
 | `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams` | The names of those devices on your robot, comma-separated. Leave a line empty if you have none. |
 | `devices.deadWheels` | Odometry pods plugged into motor encoder ports, if you have them (the file shows the format). |
-| `drive.forwardSpeedInchesPerSecond` and the other numbers | Your robot's measured speeds, if you have them (for example from Pedro's tuners). Otherwise you may keep PVI's numbers to start with, **but change `measured` to `placeholder`** on each of those lines: they were measured on PVI's robot, not yours. |
-| `viewer.defaultTeleOp` | The TeleOp the viewer drives when it opens: your TeleOp's Driver Station name, or leave it empty for the first TeleOp by name. (PVI's file says `TeamATeleOp`, which your code doesn't have.) |
-| `smokeTest.skipOpModes` | Leave it empty for now (PVI's file lists `KimCode TeleopV1`); see Step 4. |
-| `smokeTest.notDrivingTeleOps` | Leave it empty for now (PVI's file lists three of its tool OpModes); see Step 4. |
+| `drive.forwardSpeedInchesPerSecond` and the other numbers | Your robot's measured speeds, if you have them (for example from your Pedro tuners). Otherwise you may keep Team 2's numbers to start with, **but change `measured` to `placeholder`** on each of those lines: they were measured on Team 2's robot, not yours. |
+| `viewer.defaultTeleOp` | The TeleOp the viewer drives when it opens: your TeleOp's Driver Station name, or leave it empty for the first TeleOp by name. (Team 2's file says `TeamATeleOp`.) |
+| `smokeTest.skipOpModes` | Leave it empty for now (Team 2's file lists `KimCode TeleopV1`); see Step 4. |
+| `smokeTest.notDrivingTeleOps` | Leave it empty for now (Team 2's file lists three of its tool OpModes); see Step 4. |
 
-**Clear PVI's own values** you don't need: anything in `hardware.*`, `devices.*` and
-`smokeTest.skipOpModes` that names a PVI device or OpMode (for example `devices.webcams=logitechVisionWebcam`).
+**Clear Team 2's own values** you don't need: anything in `hardware.*`, `devices.*` and the
+`smokeTest.*` lines that names a Team 2 device or OpMode (for example
+`devices.webcams=logitechVisionWebcam`, unless your robot has that webcam too).
 A line ending in `\` carries on onto the next line (as `host.skipLibraries` does, which you keep):
 if you ever empty such a value, delete its following line too, or the harness stops with "not a
 harness setting".
 
-Leave the build lines (`host.dependenciesFile`, `host.skipLibraries`) as they are unless the
-first build tells you a library is missing. All the settings are explained in the
+Leave the other lines (`teamCode.*`, `host.*`, `field`) as they are: they're right for every PVI
+branch. All the settings are explained in the
 [README](README.md#the-config-file-harnessproperties).
 
 ---
 
 ## Step 4: Run the smoke test
 
-The **smoke test** gives every OpMode in your code one quick run: INIT, half a second of waiting,
+The **smoke test** gives every OpMode on your branch one quick run: INIT, half a second of waiting,
 PLAY, 2 seconds of running, STOP. Nobody presses anything. It only checks that nothing crashes.
 
 In Android Studio, open `src/test/java/pvi/harness/EveryOpModeSmokeTest.java` and click the green
@@ -130,9 +139,10 @@ That means your code asks for a motor called `armMotor` that the settings file d
 it to `hardware.otherMotors` and run again. Repeat until every OpMode passes, or until the only
 failures are real bugs in your code. Those are worth knowing about!
 
-If one OpMode is written for a **different robot** than the one in your settings (say, last
-year's robot), list its Driver Station name in `smokeTest.skipOpModes`. It then shows as
-**skipped** in the report, with that reason, instead of failing.
+Your branch also has **other teams' OpModes** (the framework's Team A, B and C ones, for
+example). If one is written for a **different robot** than yours, list its Driver Station name in
+`smokeTest.skipOpModes`. It then shows as **skipped** in the report, with that reason, instead of
+failing.
 
 Each **TeleOp** also gets a second run with the left stick pushed forward for a second; at least
 one drive motor must get power. A TeleOp that isn't meant to drive (a camera or tuning tool)
@@ -147,6 +157,7 @@ Common messages:
 | `missing device "x" (DcMotorEx)` or `(DcMotor)` | Add `x` to `hardware.otherMotors`. |
 | `missing device "x" (Servo)` | Add `x` to `hardware.servos`. |
 | `missing device "x" (IMU)`, `(DistanceSensor)`, `(TouchSensor)`, … | Add `x` to the matching `devices.…` line. |
+| `RuntimeException: No OpMode selected!` at PLAY | A menu OpMode (for example Pedro 2's `SelectableOpMode`) that needs a choice during INIT; with nobody pressing anything it stops, as it would on the robot. List its name in `smokeTest.skipOpModes`, and test it in its own test with a `GamepadScript` that makes the choice. |
 | `didn't call idle(), opModeIsActive(), sleep() …` | A LinearOpMode has a loop that never gives the SDK a turn, like `while (!gamepad1.a) { }`. Add `opModeIsActive()` to the loop. |
 | any other exception | A crash in your code. The full error is printed under the line. |
 
@@ -155,9 +166,9 @@ Common messages:
 ## Step 5: Write your first real test
 
 **Rename** `src/test/java/pvi/harness/MyFirstRobotTest.java` to a name of your own, for example
-`ArmTest.java`, and rename the class inside to match (in Android Studio: right-click the class
-name, **Refactor → Rename**). Don't keep the original next to it: it looks for PVI's TeleOp and
-would fail. At the top, change
+`Team3DriveTest.java`, and rename the class inside to match (in Android Studio: right-click the
+class name, **Refactor → Rename**). Don't keep the original next to it: it looks for Team 2's
+TeleOp and would fail. At the top, change
 
 ```java
 private static final String MY_TELEOP = "Team A Mecanum Drive";
@@ -177,8 +188,14 @@ Then add your own checks where it says `TODO`. Every test has the same four step
 The [README](README.md#3-write-a-test) has more examples, and the quick reference lists everything
 you can script and check.
 
-**Want a test from a real drive?** Record a drive on your real robot with
-[robot-recorder](robot-recorder/README.md), then turn the recording into a test with `makeTest`.
+---
+
+## Step 6: Record a drive on your real robot
+
+Drive your real robot, and turn the drive into a test. [robot-recorder](robot-recorder/README.md)
+has two small robot-code files you copy into your `TeamCode`. Its example wraps Team 2's TeleOp;
+follow its "Record a different TeleOp" part to wrap **yours**. Then copy the saved file to your
+laptop and run `.\gradlew.bat makeTest` in the `Harness` folder.
 
 ---
 
@@ -189,10 +206,26 @@ you can script and check.
 - **"The harness can't track this robot":** your drive isn't four mecanum motors with the names
   in `drive.frontLeft` and so on. Check the names, or (for another drivetrain) test without
   position checks for now.
+- **The robot drives the wrong way in a test:** check the four `drive.*.direction` lines against
+  your real robot, and how your TeleOp maps the sticks. `MyFirstRobotTest` says how far it went
+  forward and sideways.
 - **A Pedro or other autonomous path stops early in the harness:** the simulated robot is
   blocked by the season's field elements, like on the real field. A path drawn for another
-  season's field may drive straight into this season's (PVI's DECODE-season paths hit the BIOBUZZ
-  HIVE). Redraw the path, or for a test of the path following itself, turn the obstacles off:
-  `field.robotObstacles=false`, or `estimator.withoutRobotObstacles()` in one test.
+  season's field may drive straight into this season's (Team 2's DECODE-season paths hit the
+  BIOBUZZ HIVE). Redraw the path, or for a test of the path following itself, turn the obstacles
+  off: `field.robotObstacles=false`, or `estimator.withoutRobotObstacles()` in one test.
 - **Tests pass on your laptop but not on another computer:** see the README,
   [Running on another PC](README.md#running-on-another-pc).
+
+---
+
+## Not on the PVI repository?
+
+The harness also works in any other FTC repository with a `TeamCode` folder. Do the steps above,
+with these differences:
+
+- **Step 1:** copy `Harness` next to your `TeamCode` folder in your own repository.
+- **Step 2:** the same (`pvi.extras=false` and the same list of test files). Here those tests use
+  PVI's `teamA` classes, which your code doesn't have, so they wouldn't even compile.
+- **Step 3:** also check `teamCode.sourceDir` (where your robot code is; `../TeamCode/src/main/java`
+  for a normal FTC repository) and `teamCode.opModePackages` (the Java package your OpModes are in).

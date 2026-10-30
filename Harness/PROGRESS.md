@@ -3,8 +3,8 @@
 Where the FTC test harness stands, what is being worked on and what comes next. Update this file in
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
-**Last updated:** 2026-10-27
-**Test status:** 361 tests in 60 classes (355 pass, 6 skipped), no failures (`.\gradlew.bat test`, 2026-10-27, on Pedro 3, with the bots' uncommitted work); Unity 95/95 (2026-10-27)
+**Last updated:** 2026-10-30
+**Test status:** 361 tests in 60 classes (356 pass, 5 skipped), no failures (`.\gradlew.bat test`, 2026-10-30, on Pedro 3, with the bots' uncommitted work); Unity 98/98 (2026-10-28)
 **Git:** branch `Team2-Testing-Pedro3` (local only, not pushed; manager decision D1)
 **Next up:** see the manager's lists (Step 15 done 2026-10-27)
 
@@ -435,6 +435,10 @@ on mass, bounce or friction. So the sizes are official values with that source, 
 `PieceModel` values stay placeholders, now saying the manual has no number for them. Next step for
 real numbers: weigh and roll real balls (or the AndyMark product pages, which aren't FIRST sources).
 
+**Ball masses (W16, 2026-10-28, decision D6):** the user read AndyMark's store pages: POLLEN
+(am-5851) 0.055 lb = 24.9 g, NECTAR (am-5852) 0.091 lb = 41.3 g. They are now measured values in
+`PieceModel.bioBuzz()`; rolling and the three bounces stay placeholders.
+
 ## Field walls from the official CAD
 
 The official BIOBUZZ field CAD (processed 2026-10-25, see `art-inbox/processed/field/manifest.json`)
@@ -499,6 +503,13 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-10-30 | **W18: RobotConfigsTest works on a CRLF checkout** (WorkerBot): git (core.autocrlf) re-created `harness.properties` with CRLF, and `theDeviceListsAddTheirDevices` filled in the device lists by matching `"...=
+"` before normalizing line endings, so nothing matched ("imu should be on the robot"); it would fail on any fresh Windows checkout. The fill-in is now a helper that turns CRLF into `
+` first; new `fillingInTheDeviceListsIgnoresLineEndings` checks an LF and a CRLF copy give the same text (break-checked: without the normalizing both tests fail). Other tests reading repo files checked: none matches on `
+` (regexes and the JSON reader don't care) | 361 run, 0 failed, 5 skipped |
+| 2026-10-28 | **W16: ball masses measured** (WorkerBot, D6): `PieceModel.bioBuzz()` POLLEN 24.9 g (0.055 lb, AndyMark am-5851) and NECTAR 41.3 g (0.091 lb, am-5852), measured, source the AndyMark store pages; rolling and bounces stay placeholders. Masses only set the ball-to-ball split (ratio 0.5 to 0.6); the robot's push doesn't use them, and no existing result moved. `GamePiecesTest.ballSizesComeFromTheManualAndMassesFromAndyMark` (renamed; break-checked: a 30 g NECTAR made it fail) | (in the full run, see Test status) |
+| 2026-10-28 | **W15: `view.bat` checks its drive** (WorkerBot): before building, PowerShell `Get-Volume` reads the drive's type, file system and free space; on a removable, FAT32/FAT/exFAT or under-1 GB drive it explains why that fails and asks "Build here anyway?" (Y goes on). Unknown free space counts as plenty. `HARNESS_TEST_DRIVE_INFO` fakes a drive for testing | batch file only |
+| 2026-10-28 | **C19.1 Live mode refuses a USB stick** (UnityBot; precaution after view.bat and Live mode failed from the user's FAT32 stick on another PC): before starting `gradlew unityBridge`, `HarnessLauncher` reads the Harness folder's drive (.NET `DriveInfo`) and, like WorkerBot's view.bat (W15, same rules and words), fails at once on a removable drive, a FAT32 / FAT / exFAT one, or under 1024 MB free, saying to copy the whole folder to the PC's own drive; unknown drives don't block. `DriveProblem`, `ReadDrive`, injectable `DriveReader`; 2 new `HarnessLauncherTests` (break-checked). Real drives read: C: Fixed NTFS (passes), the USBRANLY stick E: Removable FAT32 286 MB (would be refused). App rebuilt | Unity 97/97 |
 | 2026-10-28 | **W14: doc and leftover clean-up** (WorkerBot, after TestBot's docs pass): `CALIBRATION.md` points at the `harness.properties` lines (not `ModelValue` code, not "read live"); the robot-profile "what the harness assumes" list is marked as history; RP5 ✅; Step 16 drops the Panels check (Panels left with Pedro 3), also in `05-desktop-viewer.md`; the unused `com.bylazar.` (Panels) prefix removed from `HarnessAgent.robotCode()` and its comments (TestBot's OK) and from README's agent note. Also W13.2: the drop-in rehearsal following `BRING_YOUR_OWN_ROBOT.md` exactly gives 169 run / 0 failed / 15 skipped in another team's repo; `DriveModelTest`'s PVI-only checks now skip without `pvi.extras` | 360 run, 0 failed, 5 skipped (60 classes) |
 | 2026-10-27 | **C18 long OpMode names in the Unity Vehicle card** (UnityBot): each Vehicle value is cut with "..." to fit its column (`ReplayHud.VehicleText`), so a long name like TeamAAprilTagVisionTestOpMode no longer runs into PERIOD; the full name stays in the header line. `HudTextTests.LongOpModeNamesFitTheVehicleCard` (break-checked). App rebuilt; checked with TestBot's turning-robot `vision-tag-22.json` (sight line turns with the robot) | Unity 95/95 |
 | 2026-10-27 | **C17.1 AprilTags in Unity** (UnityBot): the replay (and Live mode, whose frames use the same loop layout) reads each loop's `aprilTags` (recording v3+) and draws a thin cyan sight line from the robot to where each webcam measured each tag (its ftcPose turned into the field with the robot's pose), with the tag id, plus a **Tags in view** card worded exactly like the Swing viewer's (TestBot's TagsInViewCardTest numbers). The webcam's mount isn't in the recording or harness.properties, so lines start at the middle of the robot's top, facing its front (unity/README says so). **A** key and a Visuals switch, on by default and remembered. New `AprilTagSightView`, `HudText.AprilTagLines`, `AprilTagSeenData`; 4 `AprilTagSightTests` (bearing sign and right/left flip failed exactly 3). Checked in my own app copy with TestBot's new `apriltag-vision.json` (tags 20 and 24) | Unity 94/94 |

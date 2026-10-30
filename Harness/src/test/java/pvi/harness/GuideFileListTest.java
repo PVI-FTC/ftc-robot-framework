@@ -18,14 +18,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Keeps {@code BRING_YOUR_OWN_ROBOT.md} honest: its list of PVI test files to delete in another
- * repository must be exactly the test files that use PVI's own TeamCode classes, or the PVI
- * extras that are only built with {@code pvi.extras=true} (the classes in {@code src/pvi*}).
+ * Keeps {@code BRING_YOUR_OWN_ROBOT.md} honest: its list of Team 2's test files that another team
+ * deletes (on its own PVI branch, or in another repository) must be exactly the test files that
+ * use PVI's own TeamCode classes, or the PVI extras that are only built with
+ * {@code pvi.extras=true} (the classes in {@code src/pvi*}).
  *
- * <p>Another team's repository doesn't have PVI's OpModes, so those tests can't compile there.
- * When someone adds or removes such a test, this fails and says which lines of the guide's list
- * to change. It only runs in PVI's own repository ({@code pvi.extras=true}); elsewhere the files
- * are meant to be gone.</p>
+ * <p>Those tests check Team 2's robot: on another PVI team's branch they fail, and outside PVI
+ * they don't even compile. When someone adds or removes such a test, this fails and says which
+ * lines of the guide's list to change. It only runs in Team 2's setup ({@code pvi.extras=true});
+ * elsewhere the files are meant to be gone.</p>
  */
 class GuideFileListTest {
     /** The guide, relative to the Harness folder (the tests' working folder). */

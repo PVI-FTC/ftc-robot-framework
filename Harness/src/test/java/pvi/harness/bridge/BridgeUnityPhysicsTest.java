@@ -83,7 +83,11 @@ class BridgeUnityPhysicsTest {
         Map<String, Object> command = (Map<String, Object>) frame.get("driveCommand");
         assertNotNull(command, String.valueOf(frame));
         for (String wheel : new String[] {"frontLeft", "frontRight", "rearLeft", "rearRight"}) {
-            assertTrue((Double) command.get(wheel) > 0.5, wheel + " pushes forward: " + command);
+            if (BridgeTestOpModes.pvi()) {
+                assertTrue((Double) command.get(wheel) > 0.5, wheel + " pushes forward: " + command);
+            } else {
+                assertTrue(Math.abs((Double) command.get(wheel)) > 0.1, wheel + " pushes (another team's TeleOp may map sticks differently): " + command);
+            }
         }
         assertTrue(command.get("braking") instanceof Boolean, "braking is true or false: " + command);
     }

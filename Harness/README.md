@@ -9,8 +9,9 @@ not part of the robot build. Nothing here gets deployed to the robot.
 **New here?** Start with [GETTING_STARTED.md](GETTING_STARTED.md): run the tests, drive on
 screen, turn a drive into a test and read a failing test, in five short steps.
 
-**Your own robot, in another repository?** See [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md):
-copy this folder, describe your robot in `harness.properties`, and run the smoke test.
+**Another PVI team (Team 1, Team 3, …)?** See [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md):
+put this folder on your branch, describe your robot in `harness.properties`, and run the smoke
+test. (It has a short section for repositories outside PVI too.)
 
 ---
 
@@ -25,6 +26,11 @@ copy this folder, describe your robot in `harness.properties`, and run the smoke
 
 - Copy the whole repository (the `Harness` folder needs `../TeamCode` and
   `../build.dependencies.gradle` next to it; see "The config file" if yours are elsewhere).
+- **Don't run it from a USB stick.** Copy the whole `ftc-robot-framework` folder onto the PC's
+  own drive (for example `C:\Dev`) and run it from there. A build writes about half a gigabyte of
+  files, and on a USB stick (FAT32 or exFAT) it's slow and often fails with "Unable to delete
+  directory". `view.bat` checks this: on a removable or FAT32/exFAT drive, or one with under 1 GB
+  free, it says so and asks before building (Enter stops, `Y` goes on).
 - Install Java 17 or newer: Android Studio, or a JDK with `JAVA_HOME` set. `view.bat` looks
   for Android Studio's Java first (even if `JAVA_HOME` points somewhere else), then `JAVA_HOME`,
   then `java` on the PATH, and says plainly if it finds none or one older than 17. Typing
@@ -980,7 +986,7 @@ robot's new speed and position:
    fast robot can't jump through the 0.2 in lip. Each new hit is recorded ("Robot hit the HIVE
    frame", "Robot hit the far FLOWER"), counted in `estimator.obstacleHits()` and in the report's
    walls line. `estimator.withoutRobotObstacles()` turns it off for one run. Unity's physics
-   (Stage U3) doesn't use this.
+   (Stage U3) uses the same shapes from the field file.
 7. **Walls.** If any part of the robot box would be past a wall (±72 in), the robot is moved back
    so it just touches, and its speed into the wall is cancelled. Driving into a wall at an angle,
    it slides along it. Each new hit is recorded ("Robot hit the +x wall").
@@ -1016,16 +1022,18 @@ lips and each FLOWER's wall brackets (`BioBuzzObstacles`, 18 upright boxes and c
 from `fields/biobuzz-2026.json` "pieceObstacles", with the wall bounce); a ball only hits an
 obstacle that reaches below its top, so balls roll under the raised FLOWER heads. Balls in a
 FLOWER, a CELL or an ALLIANCE AREA stay put. Rolling
-deceleration (15 in/s²), the bounces and the masses are placeholders (`PieceModel.bioBuzz()`):
+deceleration (15 in/s²) and the bounces are placeholders (`PieceModel.bioBuzz()`):
 the official BIOBUZZ Competition Manual (TU06, section 9.8) gives only the balls' size and
 material, approximately 2.8 in (POLLEN) and 3.6 in (NECTAR) Gopher ResisDent polyethylene balls
-(`GamePiece.POLLEN_DIAMETER`, `NECTAR_DIAMETER`), and no mass, bounce or friction. It also says
+(`GamePiece.POLLEN_DIAMETER`, `NECTAR_DIAMETER`), and no mass, bounce or friction. The masses
+are measured values from AndyMark's store pages: POLLEN (am-5851) 0.055 lb = 24.9 g, NECTAR
+(am-5852) 0.091 lb = 41.3 g. Only their ratio matters: it decides how much each ball moves when
+two collide. The robot's push doesn't use them. The manual also says
 the balls aren't perfectly round and vary in size; the harness uses the nominal sizes.
 `estimator.pieces().snapshot()` gives every ball now; `estimator.withPieces(GamePieces.none())`
 runs on an empty field.
 
-**What isn't simulated.** Wheel slip below the traction limit, bumps, other robots, balls
-rolling into the HIVE frame or FLOWERs (only the walls stop them), picking up or scoring
+**What isn't simulated.** Wheel slip below the traction limit, bumps, other robots, picking up or scoring
 pieces (an intake would make a piece `"held"`, reserved), voltage dips from heavy load (only
 steady sag), pod slip and IMU drift in the Pinpoint.
 
@@ -1108,7 +1116,7 @@ phone's built-in cameras.
 | `LinearOpMode`s (`waitForStart`, `sleep`, `opModeIsActive`) | ✅ Now (see "LinearOpModes") |
 | IMU, CR servos, distance, touch, color and analog sensors, OTOS, dead wheels, Limelight 3A | ✅ Now (see "More sensors (RP7) and the sensor script") |
 | BIOBUZZ game pieces pushed by the robot; the robot blocked by walls, the HIVE frame and FLOWERs | ✅ Now (picking pieces up, an intake, isn't simulated yet) |
-| Another team's robot, from `harness.properties` | ✅ Now for mecanum + Pinpoint robots (see BRING_YOUR_OWN_ROBOT.md); other drivetrains aren't tracked yet |
+| Another PVI team's robot (or any team's), from `harness.properties` | ✅ Now for mecanum + Pinpoint robots, on Pedro 2 or Pedro 3 (see BRING_YOUR_OWN_ROBOT.md); other drivetrains aren't tracked yet |
 
 ### About time
 

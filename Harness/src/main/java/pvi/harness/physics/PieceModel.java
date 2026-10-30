@@ -7,10 +7,11 @@ import java.util.List;
  * How the game pieces move: how fast a rolling ball slows down, how much bounce is left after it
  * hits a wall, another ball or the robot, and how heavy each kind is.
  *
- * <p>None of these have been measured yet, so they are all placeholders. The official BIOBUZZ
- * manual (see {@link GamePiece#MANUAL}) gives the balls' size and material but no mass, bounce
- * or friction, so these stay guesses until someone weighs and rolls real balls. Only the masses'
- * ratio matters (it decides who moves more when two balls collide).</p>
+ * <p>The official BIOBUZZ manual (see {@link GamePiece#MANUAL}) gives the balls' size and material
+ * but no mass, bounce or friction. The masses come from the balls' maker, AndyMark (its store
+ * pages for the part numbers the manual names; manager decision D6); bounce and rolling are still
+ * guesses until someone rolls real balls. Only the masses' ratio matters (it decides who moves
+ * more when two balls collide).</p>
  *
  * @param rollingDeceleration how fast a rolling ball slows down on the tiles (in/s²)
  * @param wallBounce          share of a ball's speed into a wall that it bounces back with (0 to 1)
@@ -60,8 +61,8 @@ public record PieceModel(ModelValue rollingDeceleration, ModelValue wallBounce, 
                         NOT_IN_MANUAL + "not measured; a guess for a polyethylene ball against the wall"),
                 ModelValue.placeholder(0.6, RATIO, NOT_IN_MANUAL + "not measured; a guess for two balls"),
                 ModelValue.placeholder(0.2, RATIO, NOT_IN_MANUAL + "not measured; a guess for the robot's bumper"),
-                ModelValue.placeholder(15.0, GRAMS, NOT_IN_MANUAL + "not weighed"),
-                ModelValue.placeholder(30.0, GRAMS, NOT_IN_MANUAL + "not weighed"));
+                ModelValue.measured(24.9, GRAMS, "AndyMark store page, am-5851 (POLLEN): 0.055 lb"),
+                ModelValue.measured(41.3, GRAMS, "AndyMark store page, am-5852 (NECTAR): 0.091 lb"));
     }
 
     /** A ball's mass for its kind, in grams. */

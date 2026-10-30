@@ -142,6 +142,58 @@ namespace PviHarness.Replay.Tests
             }
         }
 
+        /// <summary>
+        /// WHAT: A Harness folder on a USB stick (removable, or FAT32 / FAT / exFAT) or on a drive with under
+        /// 1 GB free is a problem, named in plain words; a normal NTFS drive with room, or a drive Windows
+        /// can't describe, is fine.
+        /// WHY: Gradle fails part-way on a USB stick ("Unable to delete directory ... process has files open").
+        /// </summary>
+        [Test]
+        public void UsbSticksAndFullDrivesAreAProblem()
+        {
+            const long gb = 1L << 30;
+            // The same sentences view.bat prints for the same drive.
+            Assert.AreEqual("This copy of the harness is on a USB stick or other removable drive (FAT32).",
+                HarnessLauncher.DriveProblem(new HarnessLauncher.DriveFacts(true, "FAT32", 50 * gb)));
+            Assert.AreEqual("This copy of the harness is on a drive formatted exFAT, like a USB stick.",
+                HarnessLauncher.DriveProblem(new HarnessLauncher.DriveFacts(false, "exFAT", 50 * gb)));
+            Assert.AreEqual("The drive has only 290 MB free; building needs about 1 GB.",
+                HarnessLauncher.DriveProblem(new HarnessLauncher.DriveFacts(false, "NTFS", 290L * 1024 * 1024)));
+            Assert.AreEqual("This copy of the harness is on a USB stick or other removable drive (FAT32). "
+                + "The drive has only 290 MB free; building needs about 1 GB.",
+                HarnessLauncher.DriveProblem(new HarnessLauncher.DriveFacts(true, "FAT32", 290L * 1024 * 1024)), "both, like the user's stick");
+            Assert.IsNull(HarnessLauncher.DriveProblem(new HarnessLauncher.DriveFacts(false, "NTFS", 50 * gb)), "a normal PC drive");
+            Assert.IsNull(HarnessLauncher.DriveProblem(null), "unknown: don't block");
+        }
+
+        /// <summary>
+        /// WHAT: On a USB stick, Live mode fails at once with the "copy it to this PC" message and never
+        /// starts Gradle.
+        /// </summary>
+        [Test]
+        public void LiveModeRefusesAUsbStick()
+        {
+            string harness = Path.Combine(Path.GetTempPath(), "pvi-test", "harness-on-usb");
+            Directory.CreateDirectory(harness);
+            File.WriteAllText(Path.Combine(harness, "gradlew.bat"), "@exit /b 1\r\n");
+            if (Directory.Exists(Path.Combine(harness, "build")))
+            {
+                Directory.Delete(Path.Combine(harness, "build"), true);
+            }
+            var launcher = new HarnessLauncher(harness, 7699) // a port nothing listens on
+            {
+                DriveReader = folder => new HarnessLauncher.DriveFacts(true, "FAT32", 290L * 1024 * 1024),
+            };
+
+            launcher.Start(0);
+
+            Assert.AreEqual(HarnessLauncher.LaunchState.Failed, launcher.State);
+            StringAssert.StartsWith("This copy of the harness is on a USB stick", launcher.Problem);
+            StringAssert.Contains("only 290 MB free", launcher.Problem);
+            StringAssert.EndsWith(HarnessLauncher.UsbDriveAdvice, launcher.Problem);
+            Assert.IsFalse(File.Exists(Path.Combine(harness, "build", "unity-bridge.log")), "Gradle was never started");
+        }
+
         /// <summary>A folder that looks like a Java install: bin\java.exe (empty) and a release file.</summary>
         private static string FakeJava(string name, string version)
         {

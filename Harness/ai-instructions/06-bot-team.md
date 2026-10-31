@@ -186,7 +186,8 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
    - check that `git status` shows nothing outside `Harness/`;
    - stage `Harness/` only.
 6. **Never push, and don't suggest pushing.** Pushing to the shared GitHub remote is the user's
-   decision alone. Commit locally only (now on `Team2-Testing-Pedro3`). The user plans to hand the
+   decision alone. Commit locally only (on `Team2-Testing-Pedro3`; `Team2-Testing` points at the same commit, and
+   the pre-Pedro-3 state is the tag `before-pedro3`). The user plans to hand the
    harness over **through GitHub later**, with other PVI teams copying the `Harness` folder into
    their own branches (2026-10-30), but nothing is pushed until the user says so.
 7. **Ask the user** for anything that is theirs to decide (robot measurements, new

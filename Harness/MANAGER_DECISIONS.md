@@ -332,3 +332,12 @@ All three bots are idle with empty lists. The details of each decision follow.
   largest is the moon-base rover model, 46.9 MB). The whole `Harness` folder is about 367 MB in
   git, mostly Unity art. Teams on the same PVI repo share identical files, so copying it into
   several branches doesn't multiply that.
+
+## Your direction: one testing branch, old snapshot tagged (2026-10-30)
+
+- **Done:** the old state (`960534a`, harness before the Pedro 3 round, robot code on Pedro 2) is
+  kept as the git **tag `before-pedro3`**. **`Team2-Testing` was moved forward** to the same commit
+  as `Team2-Testing-Pedro3` (no conflicts: the second branch only added to the first). Both names
+  now point at the same work. Local only; nothing pushed. This replaces D1's "keep them separate".
+- **Next (your request):** UnityBot shows the **goBILDA Starter Bot** as the robot in the viewer,
+  as the first piece of the robot save-file plan from D7. It waits for your input before starting.

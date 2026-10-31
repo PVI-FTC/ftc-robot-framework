@@ -22,19 +22,28 @@ field yet.
 
 ## Step 1: Put the `Harness` folder on your branch
 
-Get the `Harness` folder from Team 2 and put it in the root of your branch, next to `TeamCode`:
+The harness lives on **Team 2's harness branch on GitHub** (Team 2 will tell you its name). Copy
+its `Harness` folder into the root of **your own** branch, next to `TeamCode`:
 
-```
-your-branch/
-  TeamCode/
-  FtcRobotController/
-  build.dependencies.gradle
-  Harness/          <- the folder from Team 2
-```
+1. Get Team 2's branch onto your computer: on GitHub, pick that branch and use **Code → Download
+   ZIP**, or check the branch out in a second folder (for example with GitHub Desktop).
+2. Copy the whole `Harness` folder from it into the root of your branch:
 
-Take it from a clean copy, not from someone's working folder: a working folder also holds big
-files git ignores (Unity's library, art downloads, build output), about 4.5 GB instead of about
-370 MB.
+   ```
+   your-branch/
+     TeamCode/
+     FtcRobotController/
+     build.dependencies.gradle
+     Harness/          <- copied from Team 2's branch
+   ```
+
+3. Commit the `Harness` folder on **your** branch, like any other change.
+
+The folder is about **370 MB**, mostly Unity art for the 3D view. Copy it from GitHub (the ZIP or
+a checkout), not from someone's working folder: a working folder also holds big files git ignores
+(Unity's library, art downloads, build output), about 4.5 GB. `Harness/.gitignore` already keeps
+the harness's build output and Unity's generated folders out of git, so committing the folder
+doesn't add them.
 
 The harness only **reads** your code. It never changes anything outside `Harness/`, and nothing
 in it is ever put on your robot. It builds with your branch's own libraries (whatever

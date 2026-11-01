@@ -46,6 +46,39 @@ namespace PviHarness.Replay
         /// wasn't tracked.
         /// </summary>
         public List<PieceData> pieces = new List<PieceData>();
+        /// <summary>
+        /// Each webcam's setup (version 5): where it sits on the robot, which way it looks, its picture
+        /// size, field of view and range. Empty in older files and for a robot without a webcam.
+        /// </summary>
+        public List<CameraData> cameras = new List<CameraData>();
+    }
+
+    /// <summary>
+    /// One webcam's setup (version 5), from harness.properties: where it sits on the robot, which
+    /// way it looks, its picture size, field of view and range. Robot frame: x forward, y left, z up,
+    /// from the robot's center on the floor (the drive pose's point). Angles: all 0 is level, looking
+    /// straight forward; yaw + turns the lens left, pitch + tilts it up, roll + turns the picture
+    /// clockwise as seen from behind the camera; yaw, then pitch, then roll, each about the camera's
+    /// own axes.
+    /// </summary>
+    public sealed class CameraData
+    {
+        /// <summary>The webcam's configuration name, the same as <see cref="AprilTagSeenData.camera"/>.</summary>
+        public string name;
+        public double forwardInches;
+        public double leftInches;
+        public double upInches;
+        public double yawDegrees;
+        public double pitchDegrees;
+        public double rollDegrees;
+        public double horizontalFovDegrees;
+        public double verticalFovDegrees;
+        public int imageWidthPixels;
+        public int imageHeightPixels;
+        /// <summary>How far away the camera can still read a tag.</summary>
+        public double maxRangeInches;
+        /// <summary>The names of the fields above that are guesses, not measurements (e.g. "horizontalFovDegrees").</summary>
+        public List<string> placeholders = new List<string>();
     }
 
     /// <summary>A robot position on the FTC field: inches from the center, heading counter-clockwise from +x.</summary>

@@ -49,6 +49,12 @@ namespace PviHarness.Replay
         // The A key / Visuals switch: draw the AprilTag sight lines and the "Tags in view" card (remembered, on by default).
         private bool showAprilTags = true;
         private const string AprilTagsPreferenceKey = "HarnessReplay.aprilTags";
+        // The C key / Visuals switch: the small "what the webcam sees" picture (remembered, on by default).
+        private CameraPictureView cameraPicture;
+        private bool showCameraPicture;
+        private int cameraIndex;
+        private List<CameraMount> cameraMounts = new List<CameraMount>();
+        private const string CameraPicturePreferenceKey = "HarnessReplay.webcamPicture";
         private string shownFile;
         private List<string> recordingsNewestFirst = new List<string>();
 
@@ -60,6 +66,13 @@ namespace PviHarness.Replay
         // The O key: the ball obstacles drawn over the field (null when hidden).
         private Transform obstacleRoot;
         private bool showObstacles;
+
+        // How the robot looks: the plain box, or a robot's 3D model (Harness/robots/<id>). Remembered.
+        private const string RobotPreferenceKey = "HarnessReplay.robot";
+        private readonly List<RobotProfile> robots = new List<RobotProfile>();
+        private readonly Dictionary<string, GameObject> robotModels = new Dictionary<string, GameObject>();
+        private string robotId = RobotProfile.BoxId;
+        private float robotLengthInches = 18f, robotWidthInches = 18f;
 
         // The setting around the arena (SettingBuilder) and the one drawn now.
         private const string SettingPreferenceKey = "HarnessReplay.setting";
@@ -107,6 +120,11 @@ namespace PviHarness.Replay
         public List<LiveSession.OpModeChoice> LiveChoices { get; private set; }
         /// <summary>Why the live choices couldn't be listed (usually: the harness side isn't running), or null.</summary>
         public string LiveUnavailable { get; private set; }
+        /// <summary>
+        /// Why the running harness side can't offer OpModes (its "error" reply to "hello", e.g. a
+        /// harness.properties from another copy), or null. Shown instead of an empty list.
+        /// </summary>
+        public string LiveProblem { get; private set; }
         /// <summary>True once the live run has been saved.</summary>
         public bool LiveSaved { get; private set; }
         /// <summary>Where the Live mode button is: off, starting the harness side, running, or failed.</summary>
@@ -128,6 +146,54 @@ namespace PviHarness.Replay
                 ShowPlayhead();
             }
         }
+        /// <summary>Whether the webcam picture is shown (C key, Visuals).</summary>
+        public bool ShowCameraPicture => showCameraPicture;
+        /// <summary>The webcams in the shown recording (empty for older recordings or a robot without one).</summary>
+        public List<CameraMount> CameraMounts => cameraMounts;
+        /// <summary>The webcam whose picture is shown, or null.</summary>
+        public CameraMount ShownCamera => showCameraPicture && cameraIndex < cameraMounts.Count ? cameraMounts[cameraIndex] : null;
+        /// <summary>Which webcam is shown (0 is the first).</summary>
+        public int CameraIndex => cameraIndex;
+        /// <summary>The webcam picture's texture, or null before it was first drawn.</summary>
+        public Texture CameraPictureTexture => cameraPicture?.Texture;
+
+        /// <summary>Shows or hides the webcam picture (Visuals screen), and remembers it.</summary>
+        public void SetShowCameraPicture(bool show)
+        {
+            showCameraPicture = show;
+            cameraIndex = 0;
+            PlayerPrefs.SetInt(CameraPicturePreferenceKey, show ? 1 : 0);
+            if (timeline != null)
+            {
+                ShowPlayhead();
+            }
+        }
+
+        /// <summary>The C key: shows the webcam picture, then each next webcam, then hides it.</summary>
+        public void NextCameraPicture()
+        {
+            if (showCameraPicture && cameraIndex + 1 < cameraMounts.Count)
+            {
+                cameraIndex++;
+                if (timeline != null)
+                {
+                    ShowPlayhead();
+                }
+                return;
+            }
+            SetShowCameraPicture(!showCameraPicture);
+        }
+
+        /// <summary>The AprilTags of the field drawn now (empty for the plain field).</summary>
+        public IReadOnlyList<FieldTagData> FieldTags => fields.Find(f => f.id == fieldId)?.aprilTags ?? new List<FieldTagData>();
+
+        /// <summary>How big tag <paramref name="id"/> is, from the field drawn now, or <see cref="CameraPictureView.DefaultTagSizeInches"/>.</summary>
+        public double TagSizeInches(int id)
+        {
+            FieldTagData tag = fields.Find(f => f.id == fieldId)?.aprilTags.Find(t => t.id == id);
+            return tag != null && tag.sizeInches > 0 ? tag.sizeInches : CameraPictureView.DefaultTagSizeInches;
+        }
+
         /// <summary>The season field files that can be picked (Harness/fields), by id.</summary>
         public List<FieldLayoutData> Fields => fields;
         /// <summary>The arena drawn now: a field file's id, or <see cref="FieldLayouts.PlainFieldId"/>.</summary>
@@ -136,6 +202,52 @@ namespace PviHarness.Replay
         public string SettingId => settingId;
         /// <summary>The setting drawn now, by name ("Competition hall").</summary>
         public string SettingName => SettingBuilder.Find(settingId).name;
+        /// <summary>The robots that have a model to draw (Harness/robots with the model in Resources).</summary>
+        public List<RobotProfile> Robots => robots;
+        /// <summary>How the robot is drawn now: a robot's id, or <see cref="RobotProfile.BoxId"/>.</summary>
+        public string RobotId => robotId;
+        /// <summary>How the robot is drawn now, by name ("Box" or the robot's name).</summary>
+        public string RobotName => robots.Find(r => r.Id == robotId)?.Name ?? "Box";
+
+        /// <summary>Picks how the robot is drawn on the Visuals screen: a robot's id, or the box. Remembered.</summary>
+        public void SelectRobot(string id)
+        {
+            ShowRobot(id);
+            PlayerPrefs.SetString(RobotPreferenceKey, robotId);
+            if (timeline != null)
+            {
+                ShowPlayhead();
+            }
+        }
+
+        /// <summary>Draws the robot as the chosen model (or the box when the id has no model) at the recording's size.</summary>
+        private void ShowRobot(string id)
+        {
+            RobotProfile profile = robots.Find(r => r.Id == id);
+            robotId = profile?.Id ?? RobotProfile.BoxId;
+            FieldBuilder.RebuildRobot(transform, scene, robotLengthInches, robotWidthInches,
+                profile, profile == null ? null : robotModels[profile.Id]);
+            orbit.followTarget = scene.robot;
+        }
+
+        /// <summary>Reads Harness/robots and keeps each robot whose model is in Resources.</summary>
+        private void LoadRobots()
+        {
+            var problems = new List<string>();
+            foreach (RobotProfile robot in RobotProfile.LoadAll(RobotProfile.ResolveFolder(Application.dataPath, Application.isEditor), problems))
+            {
+                GameObject model = Resources.Load<GameObject>(robot.Model);
+                if (model == null)
+                {
+                    problems.Add(robot.Id + ": no model at Resources/" + robot.Model + "; drawing the box instead.");
+                    continue;
+                }
+                robots.Add(robot);
+                robotModels[robot.Id] = model;
+            }
+            problems.ForEach(p => Debug.LogWarning("[HarnessReplay] " + p));
+        }
+
         /// <summary>The season field drawn now: its name ("BIOBUZZ 2026-2027"), or "Plain field".</summary>
         public string FieldName
         {
@@ -172,9 +284,18 @@ namespace PviHarness.Replay
             ShowSetting(SettingBuilder.SettingFromCommandLine(Environment.GetCommandLineArgs())
                 ?? PlayerPrefs.GetString(SettingPreferenceKey, SettingBuilder.MissionControlId));
 
+            // "-robot <id|box>" on the command line, else the robot picked last time, else the first model.
+            LoadRobots();
+            ShowRobot(RobotProfile.RobotFromCommandLine(Environment.GetCommandLineArgs())
+                ?? PlayerPrefs.GetString(RobotPreferenceKey, robots.Count > 0 ? robots[0].Id : RobotProfile.BoxId));
+
             unityPhysicsChosen = PlayerPrefs.GetInt(PhysicsPreferenceKey, 0) == 1;
             showAprilTags = PlayerPrefs.GetInt(AprilTagsPreferenceKey, 1) == 1;
             tagSights = new AprilTagSightView(transform);
+            cameraPicture = new CameraPictureView(transform);
+            // "-webcam" on the command line shows the webcam picture for this run (not remembered).
+            showCameraPicture = PlayerPrefs.GetInt(CameraPicturePreferenceKey, 1) == 1
+                || Array.Exists(Environment.GetCommandLineArgs(), arg => string.Equals(arg, "-webcam", StringComparison.OrdinalIgnoreCase));
             launcher = new HarnessLauncher(
                 HarnessLauncher.ResolveHarnessFolder(Environment.GetCommandLineArgs(), Application.dataPath, Application.isEditor), bridgePort);
 
@@ -279,10 +400,9 @@ namespace PviHarness.Replay
             }
             ErrorMessage = null;
             DriveModelData model = recording.header.driveModel;
-            float length = model != null && model.length != null ? (float)model.length.value : 18f;
-            float width = model != null && model.width != null ? (float)model.width.value : 18f;
-            FieldBuilder.RebuildRobot(transform, scene, length, width);
-            orbit.followTarget = scene.robot;
+            robotLengthInches = model != null && model.length != null ? (float)model.length.value : 18f;
+            robotWidthInches = model != null && model.width != null ? (float)model.width.value : 18f;
+            ShowRobot(robotId);
             if (recording.header.field != null)
             {
                 ShowField(FieldLayouts.Pick(recording.header.field, fieldId, fields.ConvertAll(f => f.id)));
@@ -291,6 +411,8 @@ namespace PviHarness.Replay
             pieceView?.Destroy();
             pieceView = null;
             pieceTrack = new GamePieceTrack(recording);
+            cameraMounts = (recording.header.cameras ??= new List<CameraData>()).ConvertAll(CameraMount.From);
+            cameraIndex = 0;
             if (pieceTrack.Start.Count > 0)
             {
                 pieceView = new GamePieceView(transform, pieceTrack.Start);
@@ -390,6 +512,7 @@ namespace PviHarness.Replay
             {
                 LiveChoices = live.OpModes;
                 LiveUnavailable = null;
+                LiveProblem = null;
                 return;
             }
             try
@@ -399,10 +522,21 @@ namespace PviHarness.Replay
                     probe.Hello();
                     LiveChoices = probe.OpModes;
                     LiveUnavailable = null;
+                    LiveProblem = null;
                 }
             }
-            catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException || e is BridgeErrorException)
+            catch (BridgeErrorException e)
             {
+                // The harness side runs but can't offer OpModes: say why instead of showing none.
+                LiveChoices = null;
+                LiveUnavailable = null;
+                LiveProblem = HudText.LiveProblemText(e.Message);
+                ErrorMessage = "Live mode: " + e.Message;
+                Debug.LogWarning("[HarnessReplay] " + LiveProblem);
+            }
+            catch (Exception e) when (e is IOException || e is System.Net.Sockets.SocketException)
+            {
+                LiveProblem = null;
                 LiveChoices = null;
                 LiveUnavailable = LiveModeState == HarnessLauncher.LaunchState.Starting
                     ? "Live mode is starting the harness side (the first time takes up to a minute)..."
@@ -642,8 +776,17 @@ namespace PviHarness.Replay
                 scene.robot.SetPositionAndRotation(position, rotation);
             }
             FieldBuilder.ShowPowers(scene, timeline.Current);
+            scene.model?.Spin(timeline.Current, timeline.Current?.sinceInitSeconds ?? double.NaN);
             pieceView?.Show(pieceTrack.At(timeline.Index));
-            tagSights?.Show(timeline.Current, pose, showAprilTags);
+            tagSights?.Show(timeline.Current, pose, showAprilTags, recording.header.cameras, FieldTags);
+            if (ShownCamera != null && pose != null)
+            {
+                cameraPicture?.Show(scene.robot, ShownCamera, replayCamera);
+            }
+            else
+            {
+                cameraPicture?.Hide();
+            }
             if (timeline.Index != trailShownIndex || timeline.Index >= trailCountUpTo.Count - 1)
             {
                 int count = trailCountUpTo[Math.Min(timeline.Index, trailCountUpTo.Count - 1)];
@@ -760,6 +903,9 @@ namespace PviHarness.Replay
                     break;
                 case KeyCode.A:
                     SetShowAprilTags(!showAprilTags);
+                    break;
+                case KeyCode.C:
+                    NextCameraPicture();
                     break;
                 default:
                     // While a live run is going, the timeline always follows the newest moment.

@@ -29,6 +29,8 @@ class OpModeCatalogTest {
     /** The test-only sample OpModes. */
     private static final String SAMPLES = "pvi.harness.runtime.catalogsample";
     private static final String TEAM_CODE_OPMODES = TEAM_CODE + ".opmodes.";
+    /** Test-only samples for an OpMode that can't load (kept apart so other checks don't see them). */
+    private static final String BROKEN_SAMPLES = "pvi.harness.runtime.catalogbroken";
 
     /**
      * WHAT: Every annotated OpMode in TeamCode is found, with the name, group and period written
@@ -174,6 +176,70 @@ class OpModeCatalogTest {
                 () -> OpModeCatalog.find(List.of("org.firstinspires.ftc.teamcod")));
 
         assertTrue(error.getMessage().contains("\"org.firstinspires.ftc.teamcod\""), error.getMessage());
+    }
+
+    /**
+     * WHAT: An OpMode that can't be loaded on this computer (here: a class it is built on is
+     * missing) isn't silently dropped: the scan lists it under "left out", with the reason, and the
+     * OpModes next to it are still found.
+     *
+     * <p>WHY: On another laptop, a missing library once looked like "my autonomous isn't listed"
+     * with no explanation (T16). Now the reason is there to show.</p>
+     */
+    @Test
+    void anOpModeThatCantLoadIsReportedNotDropped() {
+        OpModeCatalog.Scan scan = OpModeCatalog.scan(List.of(BROKEN_SAMPLES), new HidingLoader());
+
+        assertEquals(List.of("Working TeleOp"), scan.opModes().stream().map(OpModeCatalog.Entry::name).toList());
+        assertEquals(List.of(BROKEN_SAMPLES + ".BrokenAuto"),
+                scan.leftOut().stream().map(OpModeCatalog.LeftOut::className).toList(),
+                "the autonomous that couldn't load should be reported (its helper class isn't)");
+        assertTrue(scan.leftOut().get(0).reason().contains("NeededHelper"), scan.leftOut().get(0).reason());
+    }
+
+    /** WHAT: With every class there, the same package has both OpModes and nothing left out. */
+    @Test
+    void withEveryClassThereNothingIsLeftOut() {
+        OpModeCatalog.Scan scan = OpModeCatalog.scan(List.of(BROKEN_SAMPLES));
+
+        assertEquals(List.of("Broken Auto", "Working TeleOp"),
+                scan.opModes().stream().map(OpModeCatalog.Entry::name).toList());
+        assertEquals(List.of(), scan.leftOut());
+    }
+
+    /**
+     * Loads the {@code catalogbroken} samples itself, as if {@code NeededHelper} were missing (a
+     * library not on this laptop); everything else comes from the normal class loader.
+     */
+    private static final class HidingLoader extends ClassLoader {
+        HidingLoader() {
+            super(OpModeCatalogTest.class.getClassLoader());
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (name.equals(BROKEN_SAMPLES + ".NeededHelper")) {
+                throw new ClassNotFoundException(name);
+            }
+            if (!name.startsWith(BROKEN_SAMPLES + ".")) {
+                return super.loadClass(name, resolve);
+            }
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded != null) {
+                    return loaded;
+                }
+                try (java.io.InputStream in = getParent().getResourceAsStream(name.replace('.', '/') + ".class")) {
+                    if (in == null) {
+                        throw new ClassNotFoundException(name);
+                    }
+                    byte[] bytes = in.readAllBytes();
+                    return defineClass(name, bytes, 0, bytes.length);
+                } catch (java.io.IOException e) {
+                    throw new ClassNotFoundException(name, e);
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------------------------------------

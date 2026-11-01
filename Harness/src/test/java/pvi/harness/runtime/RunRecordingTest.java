@@ -158,7 +158,8 @@ class RunRecordingTest {
     void headerDescribesTheRunTheRobotAndItsModel() {
         RunRecording.Header header = recordTeamAAutonomous().header();
 
-        assertEquals(4, header.version());
+        assertEquals(5, header.version());
+        assertEquals(HarnessConfig.load().field(), header.field(), "the field it ran on, from harness.properties");
         assertEquals("inches", header.distanceUnit());
         assertEquals("radians", header.angleUnit());
         assertEquals("seconds", header.timeUnit());
@@ -261,9 +262,9 @@ class RunRecordingTest {
         assertEquals(List.of("header", "gamepad1Rumbles", "gamepad2Rumbles", "events", "loops"), List.copyOf(json.keySet()));
         Map<String, Object> header = (Map<String, Object>) json.get("header");
         assertEquals(List.of("version", "distanceUnit", "angleUnit", "timeUnit", "robotConfig", "opMode",
-                "period", "loopPeriodSeconds", "startPose", "driveModel", "pieces"), List.copyOf(header.keySet()));
+                "period", "loopPeriodSeconds", "startPose", "driveModel", "pieces", "cameras", "field"), List.copyOf(header.keySet()));
         assertEquals("AUTONOMOUS", header.get("period"));
-        assertEquals(4.0, header.get("version"));
+        assertEquals(5.0, header.get("version"));
         assertEquals("radians", header.get("angleUnit"));
         assertEquals(List.of("xInches", "yInches", "headingRadians"),
                 List.copyOf(((Map<String, Object>) header.get("startPose")).keySet()));

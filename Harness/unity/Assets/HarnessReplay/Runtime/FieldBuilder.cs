@@ -45,6 +45,8 @@ namespace PviHarness.Replay
             /// <summary>Front-left, front-right, rear-left, rear-right.</summary>
             public Renderer[] wheels;
             public Renderer intake;
+            /// <summary>The robot's 3D model, when one is drawn instead of the box (null for the box).</summary>
+            public RobotModelView model;
             /// <summary>The scene's sun, which each setting colors and aims (<see cref="SettingBuilder"/>).</summary>
             public Light sun;
             /// <summary>The plain dark floor and low walls, hidden while a CAD field (with its own tiles and walls) is shown.</summary>
@@ -97,14 +99,50 @@ namespace PviHarness.Replay
             return built;
         }
 
-        /// <summary>Remakes the robot at a new size (for example when another recording is opened).</summary>
-        public static void RebuildRobot(Transform parent, Built built, float lengthInches, float widthInches)
+        /// <summary>
+        /// Remakes the robot at a new size (for example when another recording is opened), as the box,
+        /// or as a robot's 3D model at its true size when <paramref name="profile"/> and
+        /// <paramref name="model"/> are given (the heading arrow stays, above the model).
+        /// </summary>
+        public static void RebuildRobot(Transform parent, Built built, float lengthInches, float widthInches,
+            RobotProfile profile = null, GameObject model = null)
         {
             if (built.robot != null)
             {
                 Object.Destroy(built.robot.gameObject);
             }
             AddRobot(parent, built, lengthInches, widthInches);
+            built.model = null;
+            if (profile != null && model != null)
+            {
+                ShowModel(built, profile, model);
+            }
+        }
+
+        /// <summary>
+        /// Draws the model in place of the box: the box's body, outline, wheels and intake are hidden,
+        /// and the heading arrow is lifted just above the model so it still shows from above.
+        /// </summary>
+        private static void ShowModel(Built built, RobotProfile profile, GameObject model)
+        {
+            Transform robot = built.robot;
+            built.model = RobotModelView.Attach(robot, profile, model);
+            float modelTop = RobotModelView.WorldBounds(built.model.Holder).max.y - robot.position.y;
+            foreach (Transform part in robot)
+            {
+                if (part == built.model.Holder)
+                {
+                    continue;
+                }
+                if (part.name.StartsWith("Heading arrow", System.StringComparison.Ordinal))
+                {
+                    part.localPosition = new Vector3(part.localPosition.x, modelTop + 0.012f, part.localPosition.z);
+                }
+                else
+                {
+                    part.gameObject.SetActive(false);
+                }
+            }
         }
 
         /// <summary>The bright color the ball obstacles are drawn in, so they stand out from the CAD.</summary>
@@ -286,7 +324,7 @@ namespace PviHarness.Replay
             return Color.Lerp(stopped, power > 0 ? HudTheme.Accent : HudTheme.Amber, 0.35f + 0.65f * amount);
         }
 
-        private static double MotorPower(LoopData loop, string name)
+        internal static double MotorPower(LoopData loop, string name)
         {
             foreach (MotorData motor in loop.motors)
             {

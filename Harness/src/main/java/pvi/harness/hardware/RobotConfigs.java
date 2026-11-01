@@ -53,7 +53,12 @@ public final class RobotConfigs {
         config.analogInputs().forEach(hardwareMap::addAnalogInput);
         config.otos().forEach(hardwareMap::addOtos);
         config.limelights().forEach(hardwareMap::addLimelight);
-        config.webcams().forEach(hardwareMap::addWebcam);
+        for (CameraSetup camera : config.cameras()) {
+            FakeWebcam webcam = hardwareMap.addWebcam(camera);
+            if (CameraSetup.FIELD_TAGS.equals(camera.aprilTags())) {
+                webcam.seeFieldTags(config.field());   // the field's tags that are in view
+            }
+        }
         for (HarnessConfig.DeadWheel pod : config.deadWheels()) {
             hardwareMap.addDeadWheel(pod.parallel()
                     ? FakeDeadWheel.parallel(pod.port(), pod.offsetInches())

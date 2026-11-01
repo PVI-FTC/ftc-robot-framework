@@ -72,6 +72,26 @@ public final class OpModeCatalog {
         }
     }
 
+    /**
+     * A class marked {@code @TeleOp} or {@code @Autonomous} that couldn't be loaded on this
+     * computer (for example because a library it needs is missing), so it can't be offered. It is
+     * reported, never quietly dropped: a team would otherwise wonder where its OpMode went.
+     *
+     * @param className full class name
+     * @param reason    why it couldn't be loaded (the Java error)
+     */
+    public record LeftOut(String className, String reason) {
+    }
+
+    /**
+     * What a search found: the OpModes that can run, and the OpModes that had to be left out.
+     *
+     * @param opModes every enabled OpMode, sorted by Driver Station name
+     * @param leftOut every annotated OpMode class that couldn't be loaded, by class name
+     */
+    public record Scan(List<Entry> opModes, List<LeftOut> leftOut) {
+    }
+
     /** Only static methods here; nothing to create. */
     private OpModeCatalog() {
     }
@@ -93,7 +113,24 @@ public final class OpModeCatalog {
      *                                  (usually a spelling mistake in the package name)
      */
     public static List<Entry> find(List<String> packages) {
-        ClassLoader loader = OpModeCatalog.class.getClassLoader();
+        Scan scan = scan(packages);
+        for (LeftOut l : scan.leftOut()) {
+            System.err.println("Harness: " + l.className() + " is marked as an OpMode but couldn't be loaded, so it"
+                    + " is left out of the OpMode list: " + l.reason());
+        }
+        return scan.opModes();
+    }
+
+    /**
+     * Like {@link #find(List)}, but also says which annotated OpModes couldn't be loaded
+     * ({@link Scan#leftOut()}), so a menu can show them instead of a warning in the output.
+     */
+    public static Scan scan(List<String> packages) {
+        return scan(packages, OpModeCatalog.class.getClassLoader());
+    }
+
+    /** {@link #scan(List)} with a chosen class loader (tests use one that hides a class). */
+    static Scan scan(List<String> packages, ClassLoader loader) {
         // Class names in name order, so the result never depends on the order files are listed in.
         TreeSet<String> classNames = new TreeSet<>();
         for (String packageName : packages) {
@@ -106,24 +143,33 @@ public final class OpModeCatalog {
         }
 
         List<Entry> entries = new ArrayList<>();
+        List<LeftOut> leftOut = new ArrayList<>();
         for (String className : classNames) {
-            Entry entry = entryFor(className, loader);
+            Entry entry = entryFor(className, loader, leftOut);
             if (entry != null) {
                 entries.add(entry);
             }
         }
         entries.sort(Comparator.comparing(Entry::name).thenComparing(Entry::className));
-        return Collections.unmodifiableList(entries);
+        return new Scan(Collections.unmodifiableList(entries), Collections.unmodifiableList(leftOut));
     }
 
-    /** The OpMode entry for one class, or null if it isn't an enabled, annotated OpMode. */
-    private static Entry entryFor(String className, ClassLoader loader) {
+    /**
+     * The OpMode entry for one class, or null if it isn't an enabled, annotated OpMode. A class
+     * that can't be loaded is skipped, but if its class file is marked as an OpMode it goes into
+     * {@code leftOut}.
+     */
+    private static Entry entryFor(String className, ClassLoader loader, List<LeftOut> leftOut) {
         Class<?> type;
         try {
             // false = don't run the class's static code; reading annotations doesn't need it.
             type = Class.forName(className, false, loader);
         } catch (ClassNotFoundException | LinkageError e) {
-            // A helper class that can't load on a laptop. OpModes always load (tests run them).
+            // Usually a helper class that can't load on a laptop, which is fine to skip. An OpMode
+            // that can't load is reported instead.
+            if (markedAsOpMode(className, loader)) {
+                leftOut.add(new LeftOut(className, e.toString()));
+            }
             return null;
         }
         TeleOp teleOp = type.getAnnotation(TeleOp.class);
@@ -145,6 +191,24 @@ public final class OpModeCatalog {
         }
         return new Entry(className, nameOr(autonomous.name(), simpleName), autonomous.group(),
                 MatchPeriod.AUTONOMOUS, autonomous.preselectTeleOp());
+    }
+
+    /**
+     * True if the class file mentions {@code @TeleOp} or {@code @Autonomous}. Used only for a class
+     * that can't be loaded: its annotations can't be read the normal way, but their names are
+     * written in the class file as plain text.
+     */
+    private static boolean markedAsOpMode(String className, ClassLoader loader) {
+        try (java.io.InputStream in = loader.getResourceAsStream(className.replace('.', '/') + ".class")) {
+            if (in == null) {
+                return false;
+            }
+            String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1);
+            return text.contains("L" + TeleOp.class.getName().replace('.', '/') + ";")
+                    || text.contains("L" + Autonomous.class.getName().replace('.', '/') + ";");
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     /** The annotation's name, or the class's simple name when the annotation leaves it empty. */

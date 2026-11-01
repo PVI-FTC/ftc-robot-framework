@@ -12,7 +12,6 @@ import pvi.harness.ds.GamepadScript;
 import pvi.harness.ds.GamepadSource;
 import pvi.harness.agent.SimTime;
 import pvi.harness.hardware.FakeHardwareMap;
-import pvi.harness.hardware.FakeWebcam;
 import pvi.harness.hardware.SimulatedSensor;
 import pvi.harness.hardware.SimulatedSensors;
 import pvi.harness.physics.DriveModel;
@@ -389,8 +388,6 @@ public class OpModeRunner {
         double sinceStart = clock.hasStarted() ? clock.sinceStart() : -1.0;
         driver1.deliver(clock.sinceInit(), sinceStart);
         driver2.deliver(clock.sinceInit(), sinceStart);
-        // Scripted AprilTag cameras follow simulated time.
-        FakeWebcam.stepAll(hardwareMap, clock.sinceInit(), sinceStart);
         // So do the other simulated sensors (IMU, distance, touch, color...; see SensorScript).
         SimulatedSensors.stepAll(hardwareMap, new SimulatedSensor.Step(
                 positionEstimator == null ? null : positionEstimator.pose(), clock.sinceInit(), sinceStart,

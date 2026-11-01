@@ -73,7 +73,8 @@ The folder comes with checks and tests written for **Team 2's** robot. Do two th
    GamepadSourceTest.java            HarnessSmokeTest.java
    RunnerAndMenuTest.java            SimulatedTimeTest.java
    TeamAAutoOpModeTest.java          TeamATeleOpScriptTest.java
-   hardware/AprilTagVisionTest.java  hardware/SensorsTest.java
+   hardware/AprilTagVisionTest.java  hardware/AutomaticAprilTagsTest.java
+   hardware/SensorsTest.java
    physics/BatteryTest.java          physics/FieldObstacleRecordingsTest.java
    physics/MecanumKinematicsTest.java
    physics/PedroRouteTest.java       physics/PositionReportTest.java
@@ -107,6 +108,7 @@ match **your** robot configuration (the names your code passes to `hardwareMap.g
 | `hardware.otherMotors` | Every other motor, comma-separated: `intake, arm, lift`. (Team 2's file has `intake`; replace it.) |
 | `hardware.servos` | Every servo, comma-separated: `claw, wrist`. |
 | `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams` | The names of those devices on your robot, comma-separated. Leave a line empty if you have none. |
+| `webcam.<name>.*` | One block per webcam in `devices.webcams`: where it sits (forward, left, up from the robot's center on the floor, the angles, 0, 0, 0 = level and looking forward), its field of view and picture size. Copy Team 2's block and change the numbers; mark guesses `placeholder`. `webcam.<name>.aprilTags=field` makes it see the field's tags from where the robot is; `script` sees only what a test scripts. |
 | `devices.deadWheels` | Odometry pods plugged into motor encoder ports, if you have them (the file shows the format). |
 | `drive.forwardSpeedInchesPerSecond` and the other numbers | Your robot's measured speeds, if you have them (for example from your Pedro tuners). Otherwise you may keep Team 2's numbers to start with, **but change `measured` to `placeholder`** on each of those lines: they were measured on Team 2's robot, not yours. |
 | `viewer.defaultTeleOp` | The TeleOp the viewer drives when it opens: your TeleOp's Driver Station name, or leave it empty for the first TeleOp by name. (Team 2's file says `TeamATeleOp`.) |

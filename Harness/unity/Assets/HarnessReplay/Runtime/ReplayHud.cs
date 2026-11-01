@@ -97,6 +97,7 @@ namespace PviHarness.Replay
             if (recording != null)
             {
                 DrawFieldTexts(layout, recording, timeline);
+                DrawCameraPicture(layout, replay, recording.loops[timeline.Index], recording, timeline.PoseAtPlayhead());
                 DrawCards(layout.cards, recording, timeline.Index, replay.ShowAprilTags);
                 DrawGamepads(layout.gamepads, recording.loops[timeline.Index]);
                 DrawControls(layout.controls, recording, timeline, replay);
@@ -291,21 +292,21 @@ namespace PviHarness.Replay
         // ---- Visuals screen -------------------------------------------------------------------------
 
         /// <summary>
-        /// The Visuals screen, over the field: pick the arena (the plain field or a season field file)
-        /// and the setting around it (<see cref="SettingBuilder.All"/>). Choices apply at once and are
-        /// remembered. Clicking outside it, Done, V or Esc closes it.
+        /// The Visuals screen, over the field: pick the arena (the plain field or a season field file),
+        /// the setting around it (<see cref="SettingBuilder.All"/>) and how the robot looks (the box or
+        /// a robot's 3D model from Harness/robots). Choices apply at once and are remembered. Clicking outside it, Done, V or Esc closes it.
         /// </summary>
         private void DrawVisuals(Layout layout, ReplayController replay)
         {
             Rect area = layout.fieldPanel;
             HudTheme.Fill(area, new Color(HudTheme.Background.r, HudTheme.Background.g, HudTheme.Background.b, 0.72f));
-            float width = Mathf.Min(780, area.width - 40), height = Mathf.Min(500, area.height - 40);
+            float width = Mathf.Min(780, area.width - 40), height = Mathf.Min(580, area.height - 40);
             var panel = new Rect(area.x + (area.width - width) / 2f, area.y + (area.height - height) / 2f, width, height);
             HudTheme.Fill(panel, HudTheme.Panel);
             HudTheme.Hairline(panel, HudTheme.Line);
             HudTheme.Fill(new Rect(panel.x + 20, panel.y + 18, 3, 24), HudTheme.Accent);
             HudTheme.Label("Visuals", panel.x + 32, panel.y + 35, 14, HudTheme.Text);
-            HudTheme.DrawText("Pick the arena and what surrounds it. Turn the view with T (3D), right-drag and scroll.",
+            HudTheme.DrawText("Pick the arena, what surrounds it and the robot. Turn the view with T (3D), right-drag and scroll.",
                 panel.x + 32, panel.y + 58, HudTheme.Style("normal", 12), HudTheme.Muted);
 
             // Arena: the plain field, then each season field file.
@@ -341,12 +342,35 @@ namespace PviHarness.Replay
                     replay.SelectSetting(setting.id);
                 }
             }
+            y += ((SettingBuilder.All.Count + 1) / 2) * 78 + 6;
+
+            // Robot: the plain box (the recording's size), then each robot's 3D model (its true size).
+            HudTheme.Label("Robot", x, y + 12, 10, HudTheme.Muted);
+            y += 22;
+            var looks = new List<(string id, string name, string detail)> { (RobotProfile.BoxId, "Box", "The recording's robot size") };
+            foreach (RobotProfile robot in replay.Robots)
+            {
+                looks.Add((robot.Id, robot.Name, "3D model, true size"));
+            }
+            for (int i = 0; i < looks.Count; i++)
+            {
+                var card = new Rect(x + (i % 3) * (cardWidth + gap), y + (i / 3) * 64, cardWidth, 54);
+                if (ChoiceCard(card, looks[i].name, looks[i].detail, looks[i].id == replay.RobotId))
+                {
+                    replay.SelectRobot(looks[i].id);
+                }
+            }
 
             // What the webcams saw: on or off (the A key does the same).
             var tagsSwitch = new Rect(panel.x + 24, panel.yMax - 20 - 28, 260, 28);
             if (FlatButton(tagsSwitch, "AprilTag sight lines: " + (replay.ShowAprilTags ? "On" : "Off") + "  (A)"))
             {
                 replay.SetShowAprilTags(!replay.ShowAprilTags);
+            }
+            var pictureSwitch = new Rect(tagsSwitch.xMax + 12, tagsSwitch.y, 230, 28);
+            if (FlatButton(pictureSwitch, "Webcam picture: " + (replay.ShowCameraPicture ? "On" : "Off") + "  (C)"))
+            {
+                replay.SetShowCameraPicture(!replay.ShowCameraPicture);
             }
 
             var done = new Rect(panel.xMax - 24 - 110, panel.yMax - 20 - 28, 110, 28);
@@ -403,6 +427,13 @@ namespace PviHarness.Replay
             for (int i = 0; i < liveRows; i++)
             {
                 var row = new Rect(0, i * rowHeight, rowWidth, rowHeight);
+                if (liveChoices == null && replay.LiveProblem != null)
+                {
+                    // The harness side runs but can't offer OpModes: show why (the error box has the full text).
+                    HudTheme.Fill(row, HudTheme.Panel);
+                    HudTheme.DrawText(HudTheme.Ellipsize(replay.LiveProblem, text, rowWidth - 16), row.x + 8, row.y + 17, text, HudTheme.Amber);
+                    continue;
+                }
                 if (liveChoices == null)
                 {
                     // Not running yet: this row is a button that switches Live mode on.
@@ -484,6 +515,114 @@ namespace PviHarness.Replay
             DriveModelData model = recording.header.driveModel;
             HudTheme.Label(HudTheme.Ellipsize(HudText.Legend(model).ToUpperInvariant(), HudTheme.Style("normal", 12), f.width),
                 f.x + 2, f.yMax + 20, 12, HudText.SizeIsPlaceholder(model) ? HudTheme.Amber : HudTheme.Muted);
+        }
+
+        // ---- Webcam picture --------------------------------------------------------------------------
+
+        /// <summary>
+        /// The C key's small picture in the field's bottom-right corner: what the shown webcam sees, from
+        /// its mount, with a box and id on each tag the harness says it detected in this loop (only tags
+        /// on the shown field; see <see cref="AprilTagSightView.Target"/>). Says so when the recording
+        /// has no webcam setup (older recordings, or a robot without a webcam).
+        /// </summary>
+        private static void DrawCameraPicture(Layout layout, ReplayController replay, LoopData loop, RunRecordingData recording, PoseData pose)
+        {
+            if (!replay.ShowCameraPicture)
+            {
+                return;
+            }
+            Rect f = layout.field;
+            const float margin = 12, titleHeight = 22;
+            CameraMount mount = replay.ShownCamera;
+            float width = Mathf.Min(360, f.width * 0.34f);
+            if (mount == null)
+            {
+                var note = new Rect(f.xMax - margin - width, f.yMax - margin - 44, width, 44);
+                HudTheme.Fill(note, HudTheme.Panel);
+                HudTheme.Hairline(note, HudTheme.Line);
+                HudTheme.Label("WEBCAM", note.x + 10, note.y + 17, 10, HudTheme.Muted);
+                HudTheme.Label(HudTheme.Ellipsize(HudText.NoCameraText(recording.header.version) + "  (C hides)", HudTheme.Style("normal", 11), width - 20),
+                    note.x + 10, note.y + 35, 11, HudTheme.Faint);
+                return;
+            }
+            float height = width / mount.Aspect;
+            var picture = new Rect(f.xMax - margin - width, f.yMax - margin - height, width, height);
+            var title = new Rect(picture.x, picture.y - titleHeight, width, titleHeight);
+            HudTheme.Fill(title, HudTheme.Panel);
+            string text = "WEBCAM · " + mount.Name + (replay.CameraMounts.Count > 1 ? "  " + (replay.CameraIndex + 1) + "/" + replay.CameraMounts.Count : "")
+                + " · " + mount.WidthPixels + "×" + mount.HeightPixels + (mount.LensKnown ? "" : " · FOV NOT MEASURED")
+                + (mount.MountMeasured ? "" : " · MOUNT NOT MEASURED");
+            HudTheme.Label(HudTheme.Ellipsize(text.ToUpperInvariant(), HudTheme.Style("normal", 10), width - 16), title.x + 8, title.y + 15, 10,
+                mount.LensKnown && mount.MountMeasured ? HudTheme.Muted : HudTheme.Amber);
+            if (replay.CameraPictureTexture != null)
+            {
+                GUI.DrawTexture(picture, replay.CameraPictureTexture, ScaleMode.StretchToFill, false);
+            }
+            else
+            {
+                HudTheme.Fill(picture, HudTheme.Background);
+            }
+            HudTheme.Hairline(picture, HudTheme.Line);
+
+            // A box and id on each tag this webcam detected in this loop that is on the shown field:
+            // where it was measured (cyan), or on the real tag when measured elsewhere (amber).
+            var notOnField = new List<int>();
+            GUI.BeginGroup(picture);
+            var inside = new Rect(0, 0, picture.width, picture.height);
+            foreach (AprilTagSeenData tag in loop.aprilTags)
+            {
+                if (tag.camera != mount.Name || pose == null)
+                {
+                    continue;
+                }
+                AprilTagSightView.TargetKind kind = AprilTagSightView.Target(pose, tag, mount, replay.FieldTags, out Vector3 spot);
+                if (kind == AprilTagSightView.TargetKind.NotOnField)
+                {
+                    notOnField.Add(tag.id);
+                }
+                AprilTagSeenData shown = kind == AprilTagSightView.TargetKind.MeasuredElsewhere ? mount.SeenFrom(pose, spot, tag.id) : tag;
+                if (!CameraPictureView.TagBox(mount, shown, replay.TagSizeInches(tag.id), inside, out Rect box))
+                {
+                    continue;
+                }
+                Color color = kind == AprilTagSightView.TargetKind.OnTag ? HudTheme.Accent : HudTheme.Amber;
+                if (kind == AprilTagSightView.TargetKind.NotOnField)
+                {
+                    DashedBox(box, color);
+                }
+                else
+                {
+                    HudTheme.Hairline(box, color);
+                    HudTheme.Hairline(new Rect(box.x + 1, box.y + 1, box.width - 2, box.height - 2), color);
+                }
+                HudTheme.Label(AprilTagSightView.LabelText(tag.id, kind), box.x, box.y - 3, 11, color);
+            }
+            GUI.EndGroup();
+            string note2 = HudText.NotOnFieldText(notOnField, replay.FieldName);
+            if (note2 != null)
+            {
+                var strip = new Rect(picture.x, picture.yMax - 20, picture.width, 20);
+                HudTheme.Fill(strip, new Color(HudTheme.Panel.r, HudTheme.Panel.g, HudTheme.Panel.b, 0.85f));
+                HudTheme.Label(HudTheme.Ellipsize(note2, HudTheme.Style("normal", 10), picture.width - 16), strip.x + 8, strip.y + 14, 10, HudTheme.Amber);
+            }
+        }
+
+        /// <summary>A box outline drawn as short dashes, for a detection that isn't a tag on the shown field.</summary>
+        private static void DashedBox(Rect r, Color color)
+        {
+            const float dash = 4, gap = 3;
+            for (float x = r.x; x < r.xMax; x += dash + gap)
+            {
+                float w = Mathf.Min(dash, r.xMax - x);
+                HudTheme.Fill(new Rect(x, r.y, w, 2), color);
+                HudTheme.Fill(new Rect(x, r.yMax - 2, w, 2), color);
+            }
+            for (float y = r.y; y < r.yMax; y += dash + gap)
+            {
+                float h = Mathf.Min(dash, r.yMax - y);
+                HudTheme.Fill(new Rect(r.x, y, 2, h), color);
+                HudTheme.Fill(new Rect(r.xMax - 2, y, 2, h), color);
+            }
         }
 
         private const float ViewButtonWidth = 74, ViewButtonGap = 4;

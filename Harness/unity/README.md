@@ -43,7 +43,8 @@ The field starts in a straight-down view that looks like the Swing field; T swit
 | T | Switch between top-down (the default, FTC +y up the screen, like the Swing viewer) and angled 3D |
 | 1–7 (or the View buttons above the field) | Preset viewpoints, with a smooth move: 1 Audience (behind the audience wall), 2 Red drive team, 3 Blue drive team (eye height, from each alliance area), 4 Top-down, 5 Corner (high, from the red/audience corner), 6 HIVE close-up (low, looking up at the cells and their AprilTags), 7 Robot chase (behind the robot, turning with it). Turning or zooming afterwards starts from that view |
 | F | Follow the robot |
-| A | Show or hide **what the webcams saw** (on by default, remembered; also on the Visuals screen): for a recording with AprilTag detections (format version 3+ `aprilTags`), a thin cyan line from the robot to each tag in view at that moment, with its id, and a **Tags in view** card worded exactly like the Swing viewer's (id, range, bearing, camera). Where the webcam sits on the robot isn't in the recording or `harness.properties`, so the lines start at the middle of the robot's top, facing its front, and end where the camera measured the tag (its ftcPose). Detections are scripted in tests, so a tag is drawn where the camera reported it, not at its place in the field file |
+| A | Show or hide **what the webcams saw** (on by default, remembered; also on the Visuals screen): for a recording with AprilTag detections (format version 3+ `aprilTags`), a thin cyan line from the robot to each tag in view at that moment, with its id, and a **Tags in view** card worded exactly like the Swing viewer's (id, range, bearing, camera). The lines start at the webcam's lens when the recording has its camera setup (version 5 header `cameras`, from `harness.properties`), otherwise at the middle of the robot's top, facing its front. Solid cyan: the camera measured a tag of the shown field, within 4 in of it (automatic `field` tags always are). Solid amber: measured somewhere else, so the line goes to the real tag. **Dashed amber, labelled "22 · not on this field"**: an id the shown field doesn't have (scripted tags such as DECODE ids on BIOBUZZ, or any tag on the plain field), drawn to where it was measured, so nobody takes it for a bug. Detections are scripted in tests, so a tag is drawn where the camera reported it, not at its place in the field file |
+| C | Show the **webcam picture**: a small window in the field's bottom-right corner with what the webcam would see, rendered from its mount (position, yaw/pitch/roll) with its picture size and field of view, all from the recording's camera setup (version 5 header `cameras`, which the harness takes from `harness.properties`). Each AprilTag the harness says that webcam detected in this loop gets a cyan box with its id, as big as a tag of the field file's size looks at that distance, so you can see whether the detections match what the camera would really see. With several webcams, C steps to the next one, then hides the picture. On by default, remembered; also on the Visuals screen. Boxes follow the same colors as the sight lines (dashed amber, labelled, for ids not on the shown field), and a strip under the picture lists those ids. A field of view or mount listed in the setup's `placeholders` turns the title amber with FOV NOT MEASURED or MOUNT NOT MEASURED; with no field of view at all, the FTC SDK's Logitech C920 calibration (about 54° wide) is used. A recording without camera setups says why: made before format 5 (no camera data), or no webcam on this robot. Works in replay and Live mode. Code: `CameraMount.cs` (the mount and lens math), `CameraPictureView.cs` (the camera and tag boxes); tests in `CameraPictureTests` |
 | O | Show or hide the **ball obstacles** in magenta: the shapes the harness's balls bounce off (`pieceObstacles` in the field file: the HIVE frame's lips and feet, the FLOWER wall brackets and heads). Drawing only |
 | Right-drag, scroll (over the field) | Turn the camera (switches to 3D), zoom |
 
@@ -112,10 +113,10 @@ title then ends in "Unity physics".
 The code is `UnityRobotPhysics.cs` (invisible PhysX colliders and a Rigidbody robot, stepped one
 20 ms loop at a time) and `DriveLaw.cs`. The tests are in `UnityRobotPhysicsTests`.
 
-## Visuals: arena and setting
+## Visuals: arena, setting and robot
 
 The **Visuals** button (right of the Replay chooser) or **V** opens a screen over the field with
-two choices. Both apply at once, are remembered, and V, Esc, **Done** or a click outside closes it.
+three choices. All apply at once, are remembered, and V, Esc, **Done** or a click outside closes it.
 
 - **Arena:** the plain tiled field, or a season field (below).
 - **Setting**, the place around the arena:
@@ -126,6 +127,19 @@ two choices. Both apply at once, are remembered, and V, Esc, **Done** or a click
     packed stands, goal posts, stars and the Moon.
   - **Moon base:** a landing pad on grey moon dust, with craters, rocks, habitat domes joined by
     tubes, an antenna dish, a rover, and Earth in a black sky.
+- **Robot**, how the robot looks:
+  - **Box:** the plain robot box at the recording's size (from `harness.properties`), with its
+    wheels lit by motor power.
+  - **goBILDA Starter Bot:** the goBILDA FTC Starter Bot (2026-2027) 3D model at its **true size**
+    (16.8 × 17.8 in), never stretched to the recording's box. Its wheels spin with the motor power
+    (the front and middle wheels with each side's front motor, the rear wheels with the rear
+    motor), and the white heading arrow stays, just above the model, so the top-down view still
+    shows which way it faces. It's only the picture: physics and the harness still use the box.
+
+  Robots come from `Harness/robots/<id>/robot.properties` (see `robots/README.md`), with the model
+  in `Assets/HarnessReplay/Resources/Robots/<id>/`. The first robot with a model is the default.
+  The code is `RobotProfile.cs` (reads the file) and `RobotModelView.cs` (places the model and spins
+  its wheels); `RobotModelTests` checks it with a stand-in model and with the real one.
 
 The settings show best in the 3D view: press **T**, right-drag to turn, and scroll out (the zoom now
 goes far enough to see the whole place). In the top-down view you see the ground around the field.
@@ -159,7 +173,7 @@ the trail and Unity's physics are never affected. That's checked in `SettingBuil
   there.
 - **Import settings:** in `Editor/SettingArtImport.cs`. The top-down view keeps its plain dark background.
 
-Start-up options (handy for demos): `-at 5.4` (open the replay at that many seconds), `-obstacles` (start with the O drawing on), `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-view 3d`,
+Start-up options (handy for demos): `-at 5.4` (open the replay at that many seconds), `-obstacles` (start with the O drawing on), `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-robot gobilda-starter-bot` (or `-robot box`; not remembered), `-webcam` (show the webcam picture for that run), `-view 3d`,
 `-zoom 3` (times the normal distance), `-yaw 30` (degrees). To check that a view draws smoothly,
 `-fpslog <file>` (with optional `-fpsseconds 10`) waits 5 s, measures the frame rate, writes the
 average, slowest-frame and 1%-low fps (plus the graphics card) to that file and closes the app

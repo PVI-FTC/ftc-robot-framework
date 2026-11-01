@@ -183,5 +183,39 @@ namespace PviHarness.Replay
         {
             return recording != null && recording.loops.Exists(l => l.aprilTags.Count > 0);
         }
+
+        /// <summary>
+        /// What the webcam picture says when the recording has no camera setup: recordings before
+        /// format version 5 (2026-11-01) never have one; a newer one without means no webcam.
+        /// </summary>
+        public static string NoCameraText(int recordingVersion)
+        {
+            return recordingVersion < 5
+                ? "No camera data: recorded before camera setups (format " + recordingVersion + ", needs 5)"
+                : "No webcam on this robot in this recording";
+        }
+
+        /// <summary>
+        /// The note under the webcam picture for detected tags that aren't on the shown field (drawn
+        /// dashed where the camera measured them), or null when there are none.
+        /// </summary>
+        public static string NotOnFieldText(List<int> ids, string fieldName)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                return null;
+            }
+            return "Not on " + fieldName + " (dashed): tag " + string.Join(", ", ids) + ", scripted or another season's";
+        }
+
+        /// <summary>
+        /// The Live row's text when the harness side answers "hello" with an error (for example a
+        /// harness.properties from another copy): the reason on one line.
+        /// </summary>
+        public static string LiveProblemText(string harnessMessage)
+        {
+            string oneLine = Regex.Replace(harnessMessage ?? "", @"\s*\n\s*", " ").Trim();
+            return "Live mode can't list OpModes: " + (oneLine.Length > 0 ? oneLine : "the harness gave no reason");
+        }
     }
 }

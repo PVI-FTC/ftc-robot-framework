@@ -13,6 +13,7 @@ import java.util.Map;
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.Button;
 import pvi.harness.ds.TelemetryFrame;
+import pvi.harness.hardware.CameraSetup;
 import pvi.harness.hardware.FakeDcMotorEx;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.FakeServo;
@@ -211,7 +212,24 @@ public final class RunRecorder {
                 runner.loopPeriodSeconds(),
                 estimator == null ? null : estimator.start(),
                 estimator == null ? null : RunRecording.DriveModelValues.of(estimator.model()),
-                estimator == null ? List.of() : estimator.pieces().initial());
+                estimator == null ? List.of() : estimator.pieces().initial(),
+                camerasAsRun(),
+                HarnessConfig.load().field());
+    }
+
+    /**
+     * Each webcam's setup, with the mode it really had (a test may script a webcam that the
+     * settings file sets to field tags, or the other way round). The header is made when the
+     * recording is, so this is the mode at the end of the run.
+     */
+    private List<CameraSetup> camerasAsRun() {
+        List<CameraSetup> cameras = new ArrayList<>();
+        for (CameraSetup setup : runner.hardwareMap().cameraSetups()) {
+            FakeWebcam webcam = runner.hardwareMap().webcam(setup.name());
+            cameras.add(setup.withAprilTags(webcam != null && webcam.seesFieldTags()
+                    ? CameraSetup.FIELD_TAGS : CameraSetup.SCRIPTED_TAGS));
+        }
+        return cameras;
     }
 
     /** The noted events plus every time the robot ran into a field wall or element, in time order. */

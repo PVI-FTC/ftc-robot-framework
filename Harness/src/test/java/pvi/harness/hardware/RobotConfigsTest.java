@@ -100,8 +100,20 @@ class RobotConfigsTest {
                 .replace("devices.analogInputs=\n", "devices.analogInputs=pot\n")
                 .replace("devices.otos=\n", "devices.otos=otos\n")
                 .replace("devices.limelights=\n", "devices.limelights=limelight\n")
-                .replaceAll("(?m)^devices\\.webcams=.*$", "devices.webcams=camera")
+                .replaceAll("(?m)^webcam\\..*\n", "")
+                .replaceAll("(?m)^devices\\.webcams=.*$", "devices.webcams=camera\n" + cameraKeys("camera"))
                 .replace("devices.deadWheels=\n", "devices.deadWheels=leftOdo:parallel:7.0\n");
+    }
+
+    /** A webcam's {@code webcam.<name>.<fact>} lines: 5 in forward, 10 in up, a plain 640 x 480 view. */
+    private static String cameraKeys(String name) {
+        String[] values = {"5", "0", "10", "0", "0", "0", "60", "45", "640", "480", "100", "60"};
+        StringBuilder keys = new StringBuilder();
+        for (int i = 0; i < values.length; i++) {
+            keys.append("webcam.").append(name).append('.').append(CameraSetup.FACT_NAMES.get(i))
+                    .append('=').append(values[i]).append(" | placeholder | test camera\n");
+        }
+        return keys.append("webcam.").append(name).append(".aprilTags=script").toString();
     }
 
     /**

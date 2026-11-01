@@ -83,8 +83,14 @@ public final class BridgeSession {
     private LiveGamepads liveGamepads;
     /** Unity's physics when the run was loaded with "physics": "unity"; null for the harness's own. */
     private RemotePhysics remotePhysics;
-    /** Reads the drive wheels for each frame's driveCommand, the same way the position estimate does. */
-    private final WheelReader wheels = WheelReader.fromConfig(HarnessConfig.load());
+    /**
+     * Reads the drive wheels for each frame's driveCommand, the same way the position estimate does.
+     * Made on "load", not when the session starts, so a broken harness.properties becomes an
+     * "error" reply Unity can show instead of a session that never answers.
+     */
+    private WheelReader wheels;
+    /** Every OpMode Unity can run ({@link BridgeOpModes#all()}), asked for on each "hello". */
+    private final Supplier<List<BridgeOpModes.Entry>> opModeList;
 
     /** A session that reads real controllers (Jamepad) when a run asks for them. */
     public BridgeSession() {
@@ -93,7 +99,13 @@ public final class BridgeSession {
 
     /** A session with its own controller reader, e.g. a fake one in tests. */
     BridgeSession(Supplier<ControllerPoller> controllerFactory) {
+        this(controllerFactory, BridgeOpModes::all);
+    }
+
+    /** A session with its own controller reader and OpMode list (tests use a list that fails like a broken harness.properties). */
+    BridgeSession(Supplier<ControllerPoller> controllerFactory, Supplier<List<BridgeOpModes.Entry>> opModeList) {
         this.controllerFactory = controllerFactory;
+        this.opModeList = opModeList;
     }
 
     /** Lets go of the controllers. The server calls this when the client disconnects. */
@@ -145,7 +157,10 @@ public final class BridgeSession {
                 default -> error("Unknown message type \"" + type + "\". Known: hello, load, init, step, play, stop, save, bye.");
             };
         } catch (IllegalArgumentException e) {
-            // A field with the wrong type, e.g. a gamepad written wrongly.
+            // A field with the wrong type, e.g. a gamepad written wrongly, or problems in harness.properties.
+            return error(e.getMessage());
+        } catch (IllegalStateException e) {
+            // harness.properties is missing or can't be read.
             return error(e.getMessage());
         }
     }
@@ -159,9 +174,15 @@ public final class BridgeSession {
             return error("This harness speaks bridge version " + BridgeProtocol.VERSION + ", but the client sent "
                     + (version == null ? "no version" : "version " + jsonValue(version)) + ".");
         }
+        List<BridgeOpModes.Entry> entries;
+        try {
+            entries = opModeList.get();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Usually harness.properties: an old or mixed copy, or a typo. Unity shows this text.
+            return error("The harness can't list its OpModes: " + e.getMessage());
+        }
         phase = Phase.READY;
         StringBuilder opModes = new StringBuilder("[");
-        List<BridgeOpModes.Entry> entries = BridgeOpModes.all();
         for (int i = 0; i < entries.size(); i++) {
             BridgeOpModes.Entry e = entries.get(i);
             opModes.append(i == 0 ? "" : ", ").append("{")
@@ -221,7 +242,7 @@ public final class BridgeSession {
             }
             // Same robot, same start; only the backend that moves it is Unity's.
             remotePhysics = new RemotePhysics(builtIn.start());
-            runner.usePositionEstimator(new PoseEstimator(builtIn.model(), wheels, builtIn.start(), remotePhysics));
+            runner.usePositionEstimator(new PoseEstimator(builtIn.model(), wheels(), builtIn.start(), remotePhysics));
         }
         recorder = RunRecorder.attachTo(runner);
         sentRumbles1 = 0;
@@ -391,6 +412,14 @@ public final class BridgeSession {
                 (String) contact, (String) obstacles));
     }
 
+    /** The wheel reader, read from harness.properties the first time it's needed. */
+    private WheelReader wheels() {
+        if (wheels == null) {
+            wheels = WheelReader.fromConfig(HarnessConfig.load());
+        }
+        return wheels;
+    }
+
     private static double number(Map<String, Object> object, String name) {
         Object value = object.get(name);
         if (!(value instanceof Double)) {
@@ -407,12 +436,12 @@ public final class BridgeSession {
         if (runner.positionEstimator() == null) {
             return "null";
         }
-        WheelPushes p = wheels.read(runner.hardwareMap());
+        WheelPushes p = wheels().read(runner.hardwareMap());
         return "{" + field("frontLeft", RunRecordingJson.number(p.frontLeft()))
                 + ", " + field("frontRight", RunRecordingJson.number(p.frontRight()))
                 + ", " + field("rearLeft", RunRecordingJson.number(p.rearLeft()))
                 + ", " + field("rearRight", RunRecordingJson.number(p.rearRight()))
-                + ", " + field("braking", Boolean.toString(wheels.isBraking(runner.hardwareMap()))) + "}";
+                + ", " + field("braking", Boolean.toString(wheels().isBraking(runner.hardwareMap()))) + "}";
     }
 
     /**

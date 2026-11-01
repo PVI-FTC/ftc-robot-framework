@@ -79,15 +79,15 @@ namespace PviHarness.Replay.Tests
 
         /// <summary>
         /// WHAT: An unknown format version is refused, saying which versions this project reads.
-        /// WHY: Reading a newer layout as if it were version 4 would show wrong values silently.
+        /// WHY: Reading a newer layout as if it were version 5 would show wrong values silently.
         /// </summary>
         [Test]
         public void UnknownVersionIsRefusedClearly()
         {
-            var error = Assert.Throws<RecordingFormatException>(() => RecordingLoader.Parse(MinimalJson(5, "null"), "future.json"));
+            var error = Assert.Throws<RecordingFormatException>(() => RecordingLoader.Parse(MinimalJson(6, "null"), "future.json"));
 
-            StringAssert.Contains("future.json is format version 5", error.Message);
-            StringAssert.Contains("versions 1, 2, 3, 4", error.Message);
+            StringAssert.Contains("future.json is format version 6", error.Message);
+            StringAssert.Contains("versions 1, 2, 3, 4, 5", error.Message);
         }
 
         /// <summary>

@@ -14,6 +14,7 @@ import java.util.TreeSet;
 
 import com.qualcomm.robotcore.hardware.DcMotorSimple.Direction;
 
+import pvi.harness.hardware.CameraSetup;
 import pvi.harness.physics.Dynamics;
 import pvi.harness.physics.ModelValue;
 
@@ -35,7 +36,7 @@ public final class HarnessConfig {
     /** The file name, in the Harness folder. */
     public static final String FILE_NAME = "harness.properties";
     /** The layout of the file this harness reads. Goes up whenever keys change (README.md). */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     /**
      * One dead-wheel odometry pod from {@code devices.deadWheels}.
@@ -95,6 +96,7 @@ public final class HarnessConfig {
     private final List<String> otos;
     private final List<String> limelights;
     private final List<String> webcams;
+    private final List<CameraSetup> cameras;
     private final List<DeadWheel> deadWheels;
     private final ModelValue forwardSpeed;
     private final ModelValue strafeSpeed;
@@ -147,7 +149,7 @@ public final class HarnessConfig {
         List<String> problems = new ArrayList<>();
         HarnessConfig config = new HarnessConfig(properties, problems);
         for (String key : new TreeSet<>(properties.stringPropertyNames())) {
-            if (!KNOWN_KEYS.contains(key)) {
+            if (!KNOWN_KEYS.contains(key) && !config.isWebcamKey(key)) {
                 problems.add(key + ": not a harness setting (check the spelling against README.md)");
             }
         }
@@ -189,6 +191,7 @@ public final class HarnessConfig {
         otos = values.list("devices.otos");
         limelights = values.list("devices.limelights");
         webcams = values.list("devices.webcams");
+        cameras = values.cameras(webcams);
         deadWheels = values.deadWheels("devices.deadWheels");
         forwardSpeed = values.fact("drive.forwardSpeedInchesPerSecond", ModelValue.INCHES_PER_SECOND);
         strafeSpeed = values.fact("drive.strafeSpeedInchesPerSecond", ModelValue.INCHES_PER_SECOND);
@@ -303,6 +306,29 @@ public final class HarnessConfig {
     /** Names of its USB webcams ({@code devices.webcams}). May be empty. */
     public List<String> webcams() {
         return webcams;
+    }
+
+    /**
+     * Each webcam's mount and view ({@code webcam.<name>.<fact>}), in the order of
+     * {@code devices.webcams}. Every listed webcam has one.
+     */
+    public List<CameraSetup> cameras() {
+        return cameras;
+    }
+
+    /** True for a {@code webcam.<name>.<fact>} key of a webcam in {@code devices.webcams}. */
+    private boolean isWebcamKey(String key) {
+        for (String name : webcams) {
+            for (String fact : CameraSetup.FACT_NAMES) {
+                if (key.equals("webcam." + name + "." + fact)) {
+                    return true;
+                }
+            }
+            if (key.equals("webcam." + name + ".aprilTags")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Its dead-wheel odometry pods ({@code devices.deadWheels}). May be empty. */
@@ -481,8 +507,41 @@ public final class HarnessConfig {
             return "true".equals(value);
         }
 
-        /** {@code number | measured or placeholder | source}, as a {@link ModelValue}. */
+        /** Each webcam's {@code webcam.<name>.<fact>} keys, as camera setups. */
+        List<CameraSetup> cameras(List<String> names) {
+            List<CameraSetup> setups = new ArrayList<>();
+            for (String name : names) {
+                List<ModelValue> facts = new ArrayList<>();
+                for (String fact : CameraSetup.FACT_NAMES) {
+                    facts.add(number("webcam." + name + "." + fact, CameraSetup.unitOf(fact)));
+                }
+                String aprilTags = text("webcam." + name + ".aprilTags");
+                if (facts.contains(null) || aprilTags == null) {
+                    continue;   // the missing or wrong key is already in problems
+                }
+                try {
+                    setups.add(new CameraSetup(name, facts.get(0), facts.get(1), facts.get(2), facts.get(3),
+                            facts.get(4), facts.get(5), facts.get(6), facts.get(7), facts.get(8), facts.get(9),
+                            facts.get(10), facts.get(11), aprilTags));
+                } catch (IllegalArgumentException e) {
+                    problems.add("webcam." + name + ": " + e.getMessage());
+                }
+            }
+            return List.copyOf(setups);
+        }
+
+        /** {@code number | measured or placeholder | source}, as a {@link ModelValue}; the number must be above zero. */
         ModelValue fact(String key, String unit) {
+            ModelValue fact = number(key, unit);
+            if (fact != null && !(fact.value() > 0)) {
+                problems.add(key + ": must be a number above zero, got " + fact.value());
+                return null;
+            }
+            return fact;
+        }
+
+        /** {@code number | measured or placeholder | source}, as a {@link ModelValue}; any number, zero or below too. */
+        ModelValue number(String key, String unit) {
             String value = text(key);
             if (value == null) {
                 return null;
@@ -500,8 +559,8 @@ public final class HarnessConfig {
                 problems.add(key + ": \"" + parts[0].trim() + "\" is not a number");
                 return null;
             }
-            if (!(number > 0) || Double.isInfinite(number)) {
-                problems.add(key + ": must be a number above zero, got " + parts[0].trim());
+            if (Double.isNaN(number) || Double.isInfinite(number)) {
+                problems.add(key + ": must be a real number, got " + parts[0].trim());
                 return null;
             }
             String kind = parts[1].trim();

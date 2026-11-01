@@ -23,7 +23,7 @@ namespace PviHarness.Replay
     public static class RecordingLoader
     {
         /// <summary>The format versions this project can read.</summary>
-        public static readonly int[] SupportedVersions = { 1, 2, 3, 4 };
+        public static readonly int[] SupportedVersions = { 1, 2, 3, 4, 5 };
 
         /// <summary>
         /// Where the recordings are: usually Harness/build/recordings, found from wherever this
@@ -126,6 +126,9 @@ namespace PviHarness.Replay
             data.gamepad2Rumbles ??= new List<RumbleData>();
             data.events ??= new List<EventData>();
             data.header.pieces ??= new List<PieceData>();
+            data.header.cameras ??= new List<CameraData>();
+            data.header.cameras.RemoveAll(c => c == null);
+            data.header.cameras.ForEach(c => c.placeholders ??= new List<string>());
             for (int i = 0; i < data.loops.Count; i++)
             {
                 LoopData loop = data.loops[i];

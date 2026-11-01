@@ -22,6 +22,8 @@ public class FakeHardwareMap extends HardwareMap {
      * the SDK allows one name to hold more than one device type.
      */
     private final Map<String, List<HardwareDevice>> devicesByName = new LinkedHashMap<>();
+    /** Each webcam's mount and view, by configuration name, in the order they were added. */
+    private final Map<String, CameraSetup> cameraSetups = new LinkedHashMap<>();
     /** A short name for this configuration, e.g. "teamA", shown in run recordings. */
     private String configName = "custom";
     /** Port number for the next motor added (display only). */
@@ -188,6 +190,23 @@ public class FakeHardwareMap extends HardwareMap {
         FakeWebcam webcam = new FakeWebcam(configName);
         addDevice(configName, webcam);
         return webcam;
+    }
+
+    /**
+     * Adds a fake webcam with its mount and view ({@code webcam.<name>.<fact>} in
+     * harness.properties), or gives an existing webcam of that name this setup. Returns the webcam.
+     */
+    public FakeWebcam addWebcam(CameraSetup setup) {
+        if (setup == null) {
+            throw new IllegalArgumentException("A camera setup is needed; use addWebcam(name) for a webcam without one.");
+        }
+        cameraSetups.put(setup.name(), setup);
+        return addWebcam(setup.name()).setup(setup);
+    }
+
+    /** Every webcam's mount and view that was given, in the order the webcams were added. */
+    public List<CameraSetup> cameraSetups() {
+        return List.copyOf(cameraSetups.values());
     }
 
     /** Returns a previously added fake webcam, or null. */

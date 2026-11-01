@@ -10,6 +10,11 @@ namespace PviHarness.Replay.Tests
     {
         private const string Webcam = "logitechVisionWebcam";
 
+        private static FieldTagData FieldTag(int id, double x, double y, double z)
+        {
+            return new FieldTagData { id = id, xInches = x, yInches = y, zInches = z, facing = new FieldVectorData(), sizeInches = 4 };
+        }
+
         private static AprilTagSeenData Tag(int id, double right, double forward, double up = 0)
         {
             return new AprilTagSeenData { camera = Webcam, id = id, rightInches = right, forwardInches = forward, upInches = up };
@@ -57,19 +62,26 @@ namespace PviHarness.Replay.Tests
                 var loop = new LoopData();
                 loop.aprilTags.Add(Tag(22, 2, 30));
                 loop.aprilTags.Add(Tag(34, -6, 40));
+                loop.aprilTags.Add(Tag(99, 0, 20)); // not on the field: dashed and labelled
                 var robot = new PoseData();
+                // Both tags are on the field, where the camera put them.
+                double height = AprilTagSightView.CameraHeightInches;
+                var fieldTags = new List<FieldTagData> { FieldTag(22, 30, -2, height), FieldTag(34, 40, 6, height) };
 
-                view.Show(loop, robot, true);
+                view.Show(loop, robot, true, null, fieldTags);
                 List<Transform> shown = Active(view);
-                Assert.AreEqual(2, shown.Count);
+                Assert.AreEqual(3, shown.Count);
+                Assert.AreEqual("99 · not on this field", shown[2].Find("Label").GetComponent<TextMesh>().text);
+                Assert.AreEqual("Dashed sight line", shown[2].GetComponent<LineRenderer>().sharedMaterial.name, "tag 99 is drawn dashed");
+                Assert.AreNotEqual("Dashed sight line", shown[0].GetComponent<LineRenderer>().sharedMaterial.name);
                 Assert.AreEqual("34", shown[1].Find("Label").GetComponent<TextMesh>().text);
                 Vector3 expected = FtcToUnity.Position(30, -2, FtcToUnity.Meters(AprilTagSightView.CameraHeightInches));
                 Assert.Less(Vector3.Distance(expected, shown[0].GetComponent<LineRenderer>().GetPosition(1)), 1e-4f,
                     "the line ends where the camera put tag 22");
 
-                view.Show(loop, robot, false);
+                view.Show(loop, robot, false, null, fieldTags);
                 Assert.AreEqual(0, Active(view).Count, "switched off");
-                view.Show(loop, null, true);
+                view.Show(loop, null, true, null, fieldTags);
                 Assert.AreEqual(0, Active(view).Count, "no pose");
             }
             finally

@@ -248,9 +248,9 @@ The recorder only watches, so a test passes or fails the same with or without it
 always saves exactly the same bytes. A 30 s autonomous is about 0.8 MB. `RunRecordingTest.java`
 has examples.
 
-**Run recording format, version 4.** (Version 2 added `events`, version 3 added each loop's
-`aprilTags`, version 4 added the game `pieces` in the header and each loop. Older files, without
-them, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
+**Run recording format, version 5.** (Version 2 added `events`, version 3 added each loop's
+`aprilTags`, version 4 added the game `pieces` in the header and each loop, version 5 added the
+header's `cameras` and `field`. Older files, without them, still load.) UTF-8 JSON, lines end in `\n`. Numbers are rounded to 6
 decimal places and written with a dot, without trailing zeros (`0.2`, `1`, `-3.141593`). Field
 names match the `RunRecording` record components. Devices are arrays of `{name, ...}` objects, not
 name-to-value maps, because some readers (Unity's JsonUtility) can't read maps. Distances are in
@@ -281,6 +281,19 @@ Top level:
 | `startPose` | pose or `null` | — | Where the position estimate started; `null` if position wasn't tracked (robot without the four drive motors). |
 | `driveModel` | drive model or `null` | — | Robot speeds and size used for the estimate; `null` if not tracked. |
 | `pieces` | array of piece | — | Every game piece at INIT, in a fixed order (version 4). Empty if position wasn't tracked. |
+| `field` | string | — | The field the run was on, `field=` in `harness.properties` (e.g. `"biobuzz-2026"`), so Unity and the viewer show that field and its tags (version 5). |
+| `cameras` | array of camera | — | Each webcam's mount and view, from `webcam.<name>.<fact>` in `harness.properties`, in the order of `devices.webcams` (version 5). Empty if the robot has no webcam. |
+
+camera (version 5): `name` (string, the webcam's configuration name), then plain numbers:
+`forwardInches`, `leftInches`, `upInches` (in, from the robot's center on the floor, robot frame:
+forward, left, up), `yawDegrees`, `pitchDegrees`, `rollDegrees` (deg; all 0 = level, looking
+forward; yaw + turns left, pitch + tilts up, roll + turns the picture clockwise seen from behind,
+applied in that order about the camera's own axes), `horizontalFovDegrees`, `verticalFovDegrees`
+(deg, edge to edge), `imageWidthPixels`, `imageHeightPixels` (px), `maxRangeInches` (in, farthest
+tag it reads), `maxViewAngleDegrees` (deg, how far a tag may be turned away); `aprilTags` (string,
+`"field"` or `"script"`, where the tags it saw came from: the webcam's real mode at the end of
+the run, so `"script"` when a test scripted a webcam the settings file sets to `field`); and `placeholders` (array of strings: the names of those numbers that are guesses,
+e.g. `["horizontalFovDegrees", "verticalFovDegrees", "maxRangeInches"]`).
 
 drive model: `name` (string, e.g. `"Team A"`) and five model values: `forward` (in/s), `strafe`
 (in/s), `turn` (deg/s), `length` (in), `width` (in). Each model value is:
@@ -380,7 +393,8 @@ double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harn
 - **Run: ...** ready-made scenarios (`Scenarios.java`). With `pvi.extras=true` they are PVI's
   hand-made ones (`src/pviViewer/java/.../PviScenarios.java`): Team A autonomous, a TeleOp demo
   drive with both gamepads, a turn in place, a miswired front-left motor, and the rumble demo
-  match. In any other repo there is one per OpMode the harness finds (`OpModeCatalog`): each
+  match, followed by a 30 s run of every other autonomous in TeamCode (for example "Team A Pedro
+  Paths"), so a new autonomous shows up by itself. In any other repo there is one per OpMode the harness finds (`OpModeCatalog`): each
   autonomous runs for 30 s, each TeleOp stands still for 3 s (`smokeTest.skipOpModes` are left
   out). Picking one runs the real, unchanged OpMode in the harness right there (simulated time, so even
   a whole match takes about a second), saves it as `build\recordings\viewer-<name>.json`, and
@@ -615,9 +629,7 @@ Where the numbers come from:
   CAD itself when it is in the project (`unity/README.md`, "The official field CAD").
 - **DECODE parts:** not added yet (needs the DECODE manual or CAD); only its tags are in the file.
 
-An optional `"field": "<id>"` in a run recording's header would make Unity open that field. Unity
-already reads it, but the harness doesn't write it yet (that change needs the recording format
-version to go up).
+The `"field": "<id>"` in a run recording's header (version 5) makes Unity open that field.
 
 ### Live connection to Unity (Stages U2 and U3)
 
@@ -668,7 +680,7 @@ Unity sends:
 
 | `type` | Other fields | Allowed when | Reply |
 |---|---|---|---|
-| `hello` | `version` (whole number, must be `5`); `client` (string, optional) | first | `welcome`, or `error` and the connection closes |
+| `hello` | `version` (whole number, must be `5`); `client` (string, optional) | first | `welcome`; or `error` and the connection closes (wrong version); or `error` saying why the harness can't list its OpModes (e.g. `"The harness can't list its OpModes: Problems in harness.properties: ..."`), with the connection kept open |
 | `load` | `opMode` (string, an `id` from `welcome`); `input` (string, optional: `"controllers"` = the harness reads the game controllers, as Unity does; `"messages"` = each `step`/`play` carries the gamepads; default `"messages"`); `physics` (string, optional: `"harness"` = the harness's own physics moves the robot, the default; `"unity"` = Unity's physics does, see `physicsState`) | after `hello`; again any time to start over | `loaded` |
 | `init` | — | after `load` | `frame` (stage `INIT`) |
 | `step` | `gamepad1`, `gamepad2` (gamepad, optional: missing means "same as before"; only with `"input": "messages"`, refused with `"controllers"`); `physicsState` (object, **required with `"physics": "unity"`, refused otherwise**: where Unity's physics put the robot after running the last frame's `driveCommand` for one loop period: `xInches`, `yInches` (numbers, field frame), `headingRadians` (number, counter-clockwise from +x), `forwardInchesPerSecond`, `leftInchesPerSecond`, `counterClockwiseRadiansPerSecond` (numbers, the robot's own frame), `wallContact` (string: `"+x"`, `"-x"`, `"+y"`, `"-y"`, two joined like `"+x/-y"`, or `""`), `obstacleContact` (string, optional: the field elements the robot is pressed against, named as the harness names them, `"HIVE frame"` or `"<which> FLOWER"` such as `"far FLOWER"`, joined by `/`, or `""`; it becomes a "Robot hit the ..." event)) | after `init` (runs init_loop) or `play` (runs loop) | `frame` |
@@ -714,9 +726,10 @@ the robot profile (`HarnessConfig.load()`). It's a plain Java `.properties` file
 lines, `#` starts a comment, and a line ending in `\` carries on the next line. Paths are relative
 to the `Harness` folder.
 
-**Format version:** `config.version=3` (version 2, 2026-10-27, added the robot name, drive
+**Format version:** `config.version=4` (version 2, 2026-10-27, added the robot name, drive
 directions, speeds, coasting, other motors, OpMode packages and `pvi.extras`; version 3 added
-`viewer.defaultTeleOp` and the `devices.*` lists).
+`viewer.defaultTeleOp` and the `devices.*` lists; version 4, 2026-11-01, added the
+`webcam.<name>.<fact>` camera setups).
 This number goes up whenever keys are added, renamed or removed. Both the build and
 `HarnessConfig` refuse a file with a different version and say which one they expect.
 
@@ -726,7 +739,7 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 
 | Key | Type | Meaning | PVI's value |
 |---|---|---|---|
-| `config.version` | integer | Layout of this file (see above) | `3` |
+| `config.version` | integer | Layout of this file (see above) | `4` |
 | `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../TeamCode/src/main/java` |
 | `teamCode.opModePackages` | package list, comma-separated (at least one) | Java packages searched for `@TeleOp` / `@Autonomous` OpModes (RP8) | `org.firstinspires.ftc.teamcode` |
 | `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../build.dependencies.gradle` |
@@ -735,6 +748,7 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 | `pinpoint` | text | The Pinpoint's name in the robot configuration | `pinpoint` |
 | `robot.name` | text | The robot's name in reports, recordings and the viewer | `Team A` |
 | `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams` | name lists, comma-separated (each may be empty) | More devices on the fake robot (RP7, TestBot's fakes: `FakeImu`, `FakeCRServo`, `FakeDistanceSensor`, `FakeTouchSensor`, `FakeColorSensor`), named as in the robot configuration | all empty (Team A's TeamCode uses none yet) |
+| `webcam.<name>.forwardInches`, `.leftInches`, `.upInches`, `.yawDegrees`, `.pitchDegrees`, `.rollDegrees`, `.horizontalFovDegrees`, `.verticalFovDegrees`, `.imageWidthPixels`, `.imageHeightPixels`, `.maxRangeInches`, `.maxViewAngleDegrees`, and `.aprilTags` | facts (any number for the mount; field of view between 0 and 180; whole-number picture size; range above 0; view angle above 0, at most 90); `aprilTags` is `field` or `script` | Required for **each** webcam in `devices.webcams` (`CameraSetup`; keys for a webcam that isn't listed are refused). The mount is from the robot's center on the floor: forward, left (negative: right) and up. Angles 0, 0, 0 mean level and looking straight forward; yaw + turns the lens left, pitch + tilts it up, roll + turns the picture clockwise as seen from behind, applied in that order about the camera's own axes. Field of view edge to edge, picture size, the farthest distance a tag is still read, and how far a tag may be turned away and still be read. `aprilTags=field`: the webcam sees the field's tags that are in view (TestBot's T14); `script`: only a test's `AprilTagScript`. They go into each run recording's header (`cameras`) for Unity and the viewer | `logitechVisionWebcam`: forward 4.875, left -6.875, up 19, angles 0, 0, 0, 640 × 480 (all measured from `TeamAAprilTagVisionRobot`; PVI's `TeamACameraMatchesTeamCodeTest` checks them); field of view 65.9 × 51.8 degrees (placeholder: Logitech's 78 degree C920 diagonal split for 4:3) range 120 in and view angle 60 degrees (placeholders); `aprilTags=field` (the user wants tags to appear by themselves; tests that need a script choose it) |
 | `devices.deadWheels` | `name:parallel:inches` or `name:perpendicular:inches`, comma-separated (may be empty) | Dead-wheel odometry pods (TestBot's `FakeDeadWheel`): the motor port its encoder is plugged into, which way it rolls, and how far left (parallel) or forward (perpendicular) of the center it is | empty |
 | `hardware.servos` | name list, comma-separated (may be empty) | The fake robot's servos (`FakeServo`), named as in the robot configuration | empty |
 | `hardware.otherMotors` | name list, comma-separated (may be empty) | The fake robot's other motors (not the drive) | `intake` |
@@ -801,6 +815,12 @@ none, as the SDK does), `group`, `period` (`TELEOP` or `AUTONOMOUS`) and `presel
 (empty for a TeleOp). The list is sorted by name, so it's the same every run. Classes are loaded
 without running their `static` code. A package with no compiled classes (usually a typo) fails
 with a message naming it. `LinearOpMode`s are listed too, and the runner runs them (next section).
+
+An OpMode that **can't be loaded** on this computer (for example a library it needs is missing)
+is never dropped quietly. `OpModeCatalog.scan(packages)` returns a `Scan` with the `opModes` and
+a `leftOut` list (`className`, `reason`) for every class marked `@TeleOp`/`@Autonomous` that
+couldn't load, so a menu can show it. `find` and `fromConfig` print a `Harness: ... is left out of
+the OpMode list: <reason>` warning for each one.
 
 ### LinearOpModes (`runOpMode()`)
 
@@ -1086,9 +1106,51 @@ A run recording saves the tags in each picture (`aprilTags`, below), and the vie
 panel shows a **Tags in view** card (id, range, bearing, camera) when you replay a run that saw
 any tag.
 
-Not modelled yet: where the tags are from the robot's position on the field (you script what
-the camera sees, not where the robot is), tags hidden behind things, blur, tag clusters, and the
-phone's built-in cameras.
+Not modelled in scripted mode: where the tags are from the robot's position (for that, use
+automatic mode below). Not modelled at all: tags hidden behind things, blur, tag clusters, and
+the phone's built-in cameras.
+
+### Vision: automatic AprilTags (the field's own tags)
+
+In **automatic mode** nobody scripts the camera. Each picture, the webcam works out which of
+the field's tags it can see, from where the robot really is (the physics), where the camera sits
+on the robot, and the tags in the season's field file (`fields/<id>.json`). Drive to face a
+tag and it appears; turn away and it's lost. Robot code gets the same SDK detections as in
+scripted mode, so localisation can be tested against the robot's true position.
+
+```java
+FakeHardwareMap hw = RobotConfigs.teamA();
+hw.addWebcam("logitechVisionWebcam")
+        .seeFieldTags(FieldAprilTags.forField("biobuzz-2026"),
+                CameraView.lookingForward(6.875, 4.875, 19));   // right, forward, up, as setCameraPose
+// or, with the webcam.<name>.* lines from harness.properties:  .seeFieldTags("biobuzz-2026")
+```
+
+| Setting | Where |
+|---|---|
+| Scripted or automatic for one test | `.script(...)` or `.seeFieldTags(...)` (the last call wins) |
+| The default for live and viewer runs | `webcam.<name>.aprilTags=field` or `script` in `harness.properties` (Team 2's webcam: `field`) |
+| Mount, field of view, range, view angle | `webcam.<name>.*` lines (`CameraView.from(setup)`), or a `CameraView` in a test |
+
+A tag is in the picture only if **all** of these hold (`CameraView`):
+
+1. it is no farther than `maxRangeInches` from the lens (default 120 in, placeholder);
+2. it faces the camera: the angle between the way the printed side faces and the direction back
+   to the lens is at most `maxViewAngleDegrees` (default **60 degrees**, placeholder: detection
+   gets unreliable past about 60 to 70 degrees). A tag seen from behind or edge-on isn't read;
+3. all four of its corners are in front of the lens and inside the horizontal and vertical field
+   of view (default 70.4 × 43.3 degrees in code, 65.9 × 51.8 in Team 2's settings, placeholders).
+
+**Honest limits:** there is **no occlusion at all**. A tag behind the robot's own body, a field
+element or a game piece is still seen. No blur, lighting or noise either. Tags marked
+`"moves": true` in the field file (all of BIOBUZZ's HIVE tags) are treated as **fixed** where
+the file puts them. With the robot not tracked (no drive motors), the camera sees nothing.
+
+**Tag library:** the SDK only gives `ftcPose` and `robotPose` for tags in the library the robot
+code chose. Team 2's code uses `AprilTagGameDatabase.getDecodeTagLibrary()`, so BIOBUZZ's tags
+30 to 45 come through **with their id but no pose** (the same as on the real robot). The
+field-position check in `AutomaticAprilTagsTest` therefore uses DECODE's tag 20 from
+`fields/disabled/decode-2025.json`.
 
 ---
 
@@ -1168,7 +1230,8 @@ src/agent/java/pvi/harness/agent/
   SimTime       the clock those rewritten calls read
 src/main/java/pvi/harness/
   hardware/   FakeHardwareMap, FakeDcMotorEx, FakeServo, RobotConfigs,
-              FakeWebcam, AprilTagScript, SeenAprilTag (scripted AprilTags)
+              FakeWebcam, AprilTagScript, SeenAprilTag (scripted AprilTags),
+              CameraView, FieldAprilTags (automatic AprilTags from the field file)
   ds/         Driver Station side: FakeTelemetry, GamepadScript, GamepadDriver, rumble records
   runtime/    OpModeRunner, SimClock, RunResult, MatchPeriod, RunRecorder / RunRecording / RunRecordingJson,
               JsonReader (small JSON reader, no library), HarnessConfig (reads harness.properties)

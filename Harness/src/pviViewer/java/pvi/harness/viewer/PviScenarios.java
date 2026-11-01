@@ -4,13 +4,16 @@ import org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAAutoOpMode;
 import org.firstinspires.ftc.teamcode.opmodes.teleop.RumbleDemoTeleOp;
 import org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.Button;
 import pvi.harness.ds.GamepadScript;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.RobotConfigs;
+import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.MatchPeriod;
 import pvi.harness.runtime.OpModeRunner;
 
@@ -19,7 +22,9 @@ import pvi.harness.runtime.OpModeRunner;
  * Team A's real OpModes with scripted drives. {@link Scenarios#all()} offers these when they are
  * built, and generic ones from the robot code's OpModes otherwise (manager decision D11).
  *
- * <p>To add one, write a method like {@link #teleOpDemoDrive()} and add it to {@link #all()}.</p>
+ * <p>To add one, write a method like {@link #teleOpDemoDrive()} and add it to {@link #all()}.
+ * Every other autonomous in TeamCode gets the generic 30 s scenario after these, so a new
+ * autonomous shows up by itself (W21).</p>
  */
 public final class PviScenarios {
 
@@ -27,10 +32,15 @@ public final class PviScenarios {
     private PviScenarios() {
     }
 
-    /** Every PVI scenario, in the order the dropdown lists them. */
+    /**
+     * Every PVI scenario, in the order the dropdown lists them: the hand-made ones, then the
+     * generic 30 s run of each autonomous they don't already cover.
+     */
     public static List<Scenarios.Scenario> all() {
-        return List.of(teamAAutonomous(), teleOpDemoDrive(), teleOpTurnInPlace(), teleOpMiswiredFrontLeft(),
-                rumbleDemoMatch());
+        List<Scenarios.Scenario> scenarios = new ArrayList<>(List.of(teamAAutonomous(), teleOpDemoDrive(),
+                teleOpTurnInPlace(), teleOpMiswiredFrontLeft(), rumbleDemoMatch()));
+        scenarios.addAll(Scenarios.autonomousFromCatalog(HarnessConfig.load(), Set.of(TeamAAutoOpMode.class.getName())));
+        return scenarios;
     }
 
     /** Team A's autonomous: drive forward, run the intake, wait. */

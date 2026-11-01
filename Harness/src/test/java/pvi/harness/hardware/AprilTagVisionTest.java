@@ -297,8 +297,12 @@ class AprilTagVisionTest {
     }
 
     /**
-     * WHAT: A vision run with AprilTags in view is saved as {@code build/recordings/apriltag-vision.json},
-     * for the viewer and the Unity replay to show what the camera saw.
+     * WHAT: A scripted vision run with AprilTags in view is saved as
+     * {@code build/recordings/scripted-apriltag-vision.json}, with the tags in it.
+     *
+     * <p>The tags are DECODE's (20, 24) placed relative to the camera, not on the BIOBUZZ field,
+     * so the name starts with "scripted-": it checks saving, and isn't one to watch in Unity
+     * (that's {@code vision-field-demo.json}, from {@code TagsInViewCardTest}).</p>
      *
      * <p>HOW: Tag 20 is in view 0.5-2.0 s after PLAY, tag 24 joins at 1.0 s, both are lost at
      * 2.5 s; the run lasts 3 s. The test checks the saved file has the tags.</p>
@@ -314,7 +318,7 @@ class AprilTagVisionTest {
         runner.init().start();
         runner.loopUntil(3.0);
 
-        java.nio.file.Path saved = recorder.save("apriltag-vision");
+        java.nio.file.Path saved = recorder.save("scripted-apriltag-vision");
 
         String json = java.nio.file.Files.readString(saved);
         assertTrue(json.contains("\"aprilTags\""), "the recording should hold the tags in view");
@@ -368,7 +372,8 @@ class AprilTagVisionTest {
         String versionTwo = RunRecordingJson.format(recordTag22())
                 .replace("\"version\": " + RunRecording.VERSION + ",", "\"version\": 2,")
                 .replaceAll(", \"aprilTags\": \\[[^\\]]*\\]", "");
-        assertTrue(!versionTwo.contains("aprilTags"), "the test should have removed every aprilTags field");
+        // (The cameras list's "aprilTags": "script" setting is a different field and may stay.)
+        assertTrue(!versionTwo.contains("\"aprilTags\": ["), "the test should have removed every aprilTags list");
 
         RunRecording old = RunRecordingJson.parse(versionTwo);
 

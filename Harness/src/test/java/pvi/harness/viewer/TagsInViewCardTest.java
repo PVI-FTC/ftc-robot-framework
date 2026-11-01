@@ -41,39 +41,51 @@ class TagsInViewCardTest {
     }
 
     /**
-     * WHAT: A vision run for the Unity replay is saved as {@code build/recordings/vision-tag-22.json}:
-     * tag 22 in view 0.5-1.5 s after PLAY, tag 20 joining at 1.0 s, with the robot turning slowly
-     * meanwhile, so the sight lines Unity draws from the robot visibly move.
+     * WHAT: The demo for the Unity replay, {@code build/recordings/vision-field-demo.json}: Team 2's
+     * vision OpMode with the webcam seeing the BIOBUZZ field's own tags (the settings file's
+     * {@code aprilTags=field}, no script), while the robot turns slowly left in front of the HIVE.
+     * The blue AUDIENCE tags (38 to 41) come into view one after another and leave again, and the
+     * red tags (their backs to the robot) never appear.
      *
-     * <p>HOW: The vision OpMode doesn't drive, so the test powers the drive motors itself after
-     * each loop (left back, right forward). The tags are placed relative to the camera, not on the
-     * field (where AprilTags stand on the field isn't modelled yet).</p>
+     * <p>HOW: The robot starts 50 in short of the HIVE's blue AUDIENCE side, turned 50 degrees
+     * to the right. The vision OpMode doesn't drive, so the test powers the drive motors after each
+     * loop (left back, right forward) until the robot has turned past 75 degrees to the left.
+     * Team 2's code uses the DECODE tag library, so robot code gets these tags with an id but no
+     * pose; the recording still has where each tag was from the camera.</p>
      */
     @Test
-    void aTurningVisionRunIsSavedForUnity() throws java.io.IOException {
+    void aFieldTagsVisionRunIsSavedForUnity() throws java.io.IOException {
         FakeHardwareMap hw = RobotConfigs.teamA();
-        hw.addWebcam(WEBCAM).script(new AprilTagScript()
-                .at(0.5).see(SeenAprilTag.at(22, 2.0, 30.0, 5.0))
-                .at(1.0).see(SeenAprilTag.at(20, -10.0, 40.0, 5.0))
-                .at(1.5).lose(22)
-                .at(2.0).loseAll());
+        assertTrue(hw.webcam(WEBCAM).seesFieldTags(), "harness.properties should give the webcam aprilTags=field");
         OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(), hw);
+        pvi.harness.physics.PoseEstimator.attachTo(runner, pvi.harness.physics.DriveModels.teamA(),
+                pvi.harness.physics.WheelReader.teamA(), pvi.harness.physics.Pose.inches(-45, 3, -50));
         pvi.harness.hardware.ConfigDrive drive = new pvi.harness.hardware.ConfigDrive(hw);
         runner.everyLoop(r -> {
-            boolean turning = r.clock().hasStarted() && r.clock().sinceStart() >= 0.5 && r.clock().sinceStart() < 2.0;
-            drive.power(turning ? -0.2 : 0.0, turning ? 0.2 : 0.0);
+            boolean turning = r.clock().hasStarted() && r.clock().sinceStart() >= 0.5
+                    && r.positionEstimator().pose().headingDegrees() < 75;
+            drive.power(turning ? -0.25 : 0.0, turning ? 0.25 : 0.0);
         });
         RunRecorder recorder = RunRecorder.attachTo(runner);
         runner.init().start();
-        runner.loopUntil(2.5);
+        runner.loopUntil(8.0);
 
-        java.nio.file.Path saved = recorder.save("vision-tag-22");
+        recorder.save("vision-field-demo");
 
         RunRecording recording = recorder.recording();
-        double startHeading = recording.loops().get(0).pose().headingRadians();
-        double endHeading = recording.loops().get(recording.loops().size() - 1).pose().headingRadians();
-        assertTrue(Math.abs(endHeading - startHeading) > Math.toRadians(10), "the robot should have turned");
-        assertTrue(java.nio.file.Files.readString(saved).contains("\"id\": 22"), "tag 22 should be in the recording");
+        List<Integer> idsInOrder = new java.util.ArrayList<>();
+        for (RunRecording.LoopRecord loop : recording.loops()) {
+            for (RunRecording.AprilTagState tag : loop.aprilTags()) {
+                if (!idsInOrder.contains(tag.id())) {
+                    idsInOrder.add(tag.id());
+                }
+            }
+        }
+        assertTrue(recording.loops().get(0).aprilTags().isEmpty(), "turned away at the start, no tag is in view");
+        assertTrue(recording.loops().get(recording.loops().size() - 1).aprilTags().isEmpty(),
+                "turned past the tags at the end, none is in view");
+        assertEquals(List.of(38, 39, 40, 41), idsInOrder, "the blue AUDIENCE tags, nearest first, and no others");
+        assertEquals("field", recording.header().cameras().get(0).aprilTags(), "the header says the tags came from the field");
     }
 
     /** The first loop at or after this many seconds after PLAY. */

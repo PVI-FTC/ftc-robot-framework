@@ -14,6 +14,7 @@ import java.util.Map;
 
 import pvi.harness.ds.Button;
 import pvi.harness.ds.RumbleRecord;
+import pvi.harness.hardware.CameraSetup;
 import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.ModelValue;
 import pvi.harness.physics.Pose;
@@ -133,7 +134,10 @@ public final class RunRecordingJson {
                 readPose(h.get("startPose"), "header.startPose"),
                 readDriveModel(h.get("driveModel"), "header.driveModel"),
                 // Versions 1 to 3 have no game pieces.
-                version >= 4 ? readPieces(h.get("pieces"), "header.pieces") : List.of());
+                version >= 4 ? readPieces(h.get("pieces"), "header.pieces") : List.of(),
+                // Versions 1 to 4 have no cameras.
+                version >= 5 ? readCameras(h.get("cameras"), "header.cameras") : List.of(),
+                optionalText(h.get("field"), "header.field"));
 
         List<RunRecording.LoopRecord> loops = new ArrayList<>();
         List<Object> loopItems = array(top.get("loops"), "loops");
@@ -204,6 +208,35 @@ public final class RunRecordingJson {
                 readGamepad(loop.get("gamepad1"), where + ".gamepad1"),
                 readGamepad(loop.get("gamepad2"), where + ".gamepad2"),
                 aprilTags, pieces);
+    }
+
+    /** Read back from a file, a camera fact keeps only its number and whether it was measured. */
+    private static final String CAMERA_SOURCE = "read from a run recording";
+
+    private static List<CameraSetup> readCameras(Object value, String where) {
+        List<CameraSetup> cameras = new ArrayList<>();
+        List<Object> items = array(value, where);
+        for (int i = 0; i < items.size(); i++) {
+            String at = where + "[" + i + "]";
+            Map<String, Object> c = object(items.get(i), at);
+            List<String> placeholders = texts(c.get("placeholders"), at + ".placeholders");
+            List<ModelValue> facts = new ArrayList<>();
+            for (String fact : CameraSetup.FACT_NAMES) {
+                double number = decimal(c.get(fact), at + "." + fact);
+                String unit = CameraSetup.unitOf(fact);
+                facts.add(placeholders.contains(fact) ? ModelValue.placeholder(number, unit, CAMERA_SOURCE)
+                        : ModelValue.measured(number, unit, CAMERA_SOURCE));
+            }
+            try {
+                cameras.add(new CameraSetup(text(c.get("name"), at + ".name"), facts.get(0), facts.get(1),
+                        facts.get(2), facts.get(3), facts.get(4), facts.get(5), facts.get(6), facts.get(7),
+                        facts.get(8), facts.get(9), facts.get(10), facts.get(11),
+                        text(c.get("aprilTags"), at + ".aprilTags")));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Bad run recording: " + at + ": " + e.getMessage());
+            }
+        }
+        return cameras;
     }
 
     private static List<GamePiece> readPieces(Object value, String where) {
@@ -410,7 +443,9 @@ public final class RunRecordingJson {
                 + field("loopPeriodSeconds", number(h.loopPeriodSeconds())) + ", "
                 + field("startPose", pose(h.startPose())) + ", "
                 + field("driveModel", driveModel(h.driveModel())) + ", "
-                + field("pieces", pieces(h.pieces()))
+                + field("pieces", pieces(h.pieces())) + ", "
+                + field("cameras", cameras(h.cameras())) + ", "
+                + field("field", h.field() == null ? "null" : string(h.field()))
                 + "}";
     }
 
@@ -531,6 +566,19 @@ public final class RunRecordingJson {
                 + field("aprilTags", aprilTags.toString()) + ", "
                 + field("pieces", pieces(loop.pieces()))
                 + "}";
+    }
+
+    /** Each camera as plain numbers, plus the names of the facts that are guesses. */
+    private static String cameras(List<CameraSetup> cameras) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < cameras.size(); i++) {
+            CameraSetup c = cameras.get(i);
+            json.append(i == 0 ? "" : ", ").append("{").append(field("name", string(c.name())));
+            c.facts().forEach((fact, value) -> json.append(", ").append(field(fact, number(value.value()))));
+            json.append(", ").append(field("aprilTags", string(c.aprilTags())));
+            json.append(", ").append(field("placeholders", strings(c.placeholders()))).append("}");
+        }
+        return json.append("]").toString();
     }
 
     private static String pieces(List<GamePiece> pieces) {

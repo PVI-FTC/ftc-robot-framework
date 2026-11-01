@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ScenariosTest {
 
     /**
-     * WHAT: With the PVI extras built, the dropdown's scenarios are exactly PVI's hand-made five,
-     * in the same order as before D11.
+     * WHAT: With the PVI extras built, the dropdown starts with PVI's hand-made five, in the same
+     * order as before D11.
      */
     @Test
     void pviKeepsItsHandMadeScenarios() {
@@ -32,7 +32,28 @@ class ScenariosTest {
         List<String> ids = Scenarios.all().stream().map(Scenarios.Scenario::id).toList();
 
         assertEquals(List.of("teamA-autonomous", "teamA-teleop-demo-drive", "teamA-teleop-turn",
-                "teamA-teleop-miswired", "rumble-demo-match"), ids);
+                "teamA-teleop-miswired", "rumble-demo-match"), ids.subList(0, 5));
+    }
+
+    /**
+     * WHAT: After them, PVI's dropdown offers every other autonomous in TeamCode (e.g. "Team A
+     * Pedro Paths") as its generic 30 s run, once each; the one the hand-made scenario covers
+     * (TeamAAutoOpMode) isn't offered twice, and no TeleOp is added.
+     *
+     * <p>WHY: W21: "Team A Pedro Paths" was never offered, so a new autonomous must show up by itself.</p>
+     */
+    @Test
+    void pviAlsoOffersEveryOtherAutonomous() {
+        HarnessConfig config = HarnessConfig.load();
+        Assumptions.assumeTrue(config.pviExtras(), "PVI only");
+        List<String> added = Scenarios.all().stream().skip(5).map(Scenarios.Scenario::id).toList();
+
+        List<String> expected = OpModeCatalog.fromConfig(config).stream()
+                .filter(e -> e.period() == MatchPeriod.AUTONOMOUS && !e.simpleName().equals("TeamAAutoOpMode")
+                        && !config.smokeTestSkipOpModes().contains(e.name()))
+                .map(e -> e.simpleName() + "-autonomous").toList();
+        assertEquals(expected, added);
+        assertTrue(added.contains("TeamAPedroPilotAutoOpMode-autonomous"), "Team A Pedro Paths: " + added);
     }
 
     /**

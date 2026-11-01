@@ -2,6 +2,7 @@ package pvi.harness.bridge;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import pvi.harness.physics.DriveModels;
@@ -154,6 +155,74 @@ class BridgeUnityPhysicsTest {
      * Unity's physics, a physicsState under the harness's own, a wrong "physics" value, a
      * non-number in physicsState.
      */
+    /**
+     * WHAT: A POLLEN the robot pushes keeps rolling after the robot stops, when Unity's physics
+     * moves the robot. The robot (as Unity reports it) backs up at 50 in/s from the start into the
+     * preloaded POLLEN behind it, then stands still; the ball keeps rolling away for several loops.
+     * WHY: The user saw a pushed POLLEN "stop moving the moment the robot stops pushing it" in Live
+     * mode with Physics: Unity. Unity's pose used to count as soon as it arrived, so the runner saw
+     * no move during the loop and gave the ball no speed.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aPushedBallKeepsRollingAfterTheRobotStops() {
+        Map<String, Object> loaded = loadTeleOp("unity");
+        double halfLength = (Double) ((Map<String, Object>) loaded.get("robotPhysics")).get("lengthInches") / 2;
+        Map<String, Object> ball = pollenBehindTheStart((List<Object>) ((Map<String, Object>) loaded.get("header")).get("pieces"));
+        String id = (String) ball.get("id");
+        double ballX = (Double) ball.get("xInches");
+        send("{\"type\": \"init\"}");
+        send("{\"type\": \"play\", \"physicsState\": " + state(0, 0, 0, 0, "") + "}");
+
+        // Back up along -x until the robot's back edge is 4 in past the ball's center.
+        double x = 0;
+        double seenX = ballX;
+        while (x - halfLength > ballX - 4) {
+            x -= 1;
+            seenX = pieceX(send("{\"type\": \"step\", \"physicsState\": " + state(x, 0, 0, -50, "") + "}"), id, seenX);
+        }
+        String stopped = "{\"type\": \"step\", \"physicsState\": " + state(x, 0, 0, 0, "") + "}";
+        double atStop = pieceX(send(stopped), id, seenX);
+        double later = atStop;
+        for (int i = 0; i < 10; i++) {
+            later = pieceX(send(stopped), id, later);
+        }
+
+        assertTrue(atStop < ballX - 1, "the robot pushed the ball (from x " + ballX + " to " + atStop + ")");
+        assertTrue(atStop - later > 1.0, "the ball rolled on " + (atStop - later) + " in after the robot stopped");
+    }
+
+    /** The preloaded POLLEN right behind the robot's start (the one nearest the middle). */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> pollenBehindTheStart(List<Object> pieces) {
+        Map<String, Object> best = null;
+        for (Object o : pieces) {
+            Map<String, Object> p = (Map<String, Object>) o;
+            double x = (Double) p.get("xInches");
+            double y = (Double) p.get("yInches");
+            if ("pollen".equals(p.get("kind")) && x < 0 && x > -20 && Math.abs(y) < 6
+                    && (best == null || Math.abs(y) < Math.abs((Double) best.get("yInches")))) {
+                best = p;
+            }
+        }
+        if (best == null) {
+            throw new AssertionError("no preloaded POLLEN behind the start in " + pieces);
+        }
+        return best;
+    }
+
+    /** Piece {@code id}'s x in this frame, or {@code previous} if it didn't move (frames only list pieces that moved). */
+    @SuppressWarnings("unchecked")
+    private static double pieceX(Map<String, Object> frame, String id, double previous) {
+        for (Object o : (List<Object>) ((Map<String, Object>) frame.get("loop")).get("pieces")) {
+            Map<String, Object> p = (Map<String, Object>) o;
+            if (id.equals(p.get("id"))) {
+                return (Double) p.get("xInches");
+            }
+        }
+        return previous;
+    }
+
     @Test
     void mixUpsGetClearErrors() {
         loadTeleOp("unity");

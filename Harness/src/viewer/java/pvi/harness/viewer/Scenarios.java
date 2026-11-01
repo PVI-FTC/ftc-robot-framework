@@ -2,6 +2,7 @@ package pvi.harness.viewer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import pvi.harness.hardware.RobotConfigs;
@@ -71,19 +72,39 @@ public final class Scenarios {
     static List<Scenario> fromCatalog(HarnessConfig config) {
         List<Scenario> scenarios = new ArrayList<>();
         for (OpModeCatalog.Entry e : OpModeCatalog.fromConfig(config)) {
-            if (config.smokeTestSkipOpModes().contains(e.name())) {
-                continue;
+            if (!config.smokeTestSkipOpModes().contains(e.name())) {
+                scenarios.add(scenarioFor(e, config));
             }
-            boolean autonomous = e.period() == MatchPeriod.AUTONOMOUS;
-            double seconds = autonomous ? MatchPeriod.AUTONOMOUS.seconds() : TELEOP_IDLE_SECONDS;
-            String title = e.name() + (autonomous ? " (30 s)" : " (standing still, 3 s)");
-            String description = autonomous
-                    ? e.name() + " for a whole autonomous period, on the robot in harness.properties."
-                    : e.name() + ": INIT, PLAY and no gamepad input for a few seconds.";
-            scenarios.add(new Scenario(e.simpleName() + (autonomous ? "-autonomous" : "-idle"), title, description,
-                    () -> record(new OpModeRunner(e.newOpMode(), RobotConfigs.forOpMode(e, config)), seconds)));
         }
         return scenarios;
+    }
+
+    /**
+     * The generic scenario of every autonomous in the robot code whose class isn't in
+     * {@code coveredClassNames}, leaving out {@code smokeTest.skipOpModes}. PVI adds these to its
+     * hand-made scenarios, so a new autonomous shows up in the dropdown by itself (W21).
+     */
+    static List<Scenario> autonomousFromCatalog(HarnessConfig config, Set<String> coveredClassNames) {
+        List<Scenario> scenarios = new ArrayList<>();
+        for (OpModeCatalog.Entry e : OpModeCatalog.fromConfig(config)) {
+            if (e.period() == MatchPeriod.AUTONOMOUS && !coveredClassNames.contains(e.className())
+                    && !config.smokeTestSkipOpModes().contains(e.name())) {
+                scenarios.add(scenarioFor(e, config));
+            }
+        }
+        return scenarios;
+    }
+
+    /** One OpMode's generic scenario: an autonomous runs for 30 s, a TeleOp stands still for a few seconds. */
+    private static Scenario scenarioFor(OpModeCatalog.Entry e, HarnessConfig config) {
+        boolean autonomous = e.period() == MatchPeriod.AUTONOMOUS;
+        double seconds = autonomous ? MatchPeriod.AUTONOMOUS.seconds() : TELEOP_IDLE_SECONDS;
+        String title = e.name() + (autonomous ? " (30 s)" : " (standing still, 3 s)");
+        String description = autonomous
+                ? e.name() + " for a whole autonomous period, on the robot in harness.properties."
+                : e.name() + ": INIT, PLAY and no gamepad input for a few seconds.";
+        return new Scenario(e.simpleName() + (autonomous ? "-autonomous" : "-idle"), title, description,
+                () -> record(new OpModeRunner(e.newOpMode(), RobotConfigs.forOpMode(e, config)), seconds));
     }
 
     /**

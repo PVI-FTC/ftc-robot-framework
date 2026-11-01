@@ -14,10 +14,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import pvi.harness.agent.SimTime;
+import pvi.harness.physics.Pose;
 
 /**
- * A fake USB webcam (for example a Logitech C920) that "sees" the AprilTags an
- * {@link AprilTagScript} says, instead of looking at a real field.
+ * A fake USB webcam (for example a Logitech C920) that "sees" AprilTags in one of two ways:
+ * <ul>
+ *   <li><b>scripted</b> (the default): the tags an {@link AprilTagScript} says, when it says;</li>
+ *   <li><b>automatic</b> ({@link #seeFieldTags}): the field's own tags, worked out each picture
+ *       from where the robot really is, where the camera sits on it and what it can see
+ *       ({@link CameraView}). Driving to face a tag makes it appear; turning away loses it.</li>
+ * </ul>
  *
  * <p>Robot code finds it the normal way, {@code hardwareMap.get(WebcamName.class, name)}, and
  * hands it to the SDK's {@code VisionPortal.Builder}. The harness's own copy of
@@ -35,9 +41,9 @@ import pvi.harness.agent.SimTime;
  *
  * <p>A picture shows the tags that are in view at the moment it is taken, with no delay
  * (a real camera adds a few tens of milliseconds). The runner moves the webcam on before every
- * OpMode call ({@link #stepAll}).</p>
+ * OpMode call, with the other simulated sensors.</p>
  */
-public class FakeWebcam implements WebcamName {
+public class FakeWebcam implements WebcamName, SimulatedSensor {
 
     /** Pictures per second when nobody sets it: what a C920 gives at 640 x 480. */
     public static final double DEFAULT_FRAMES_PER_SECOND = 30.0;
@@ -73,6 +79,13 @@ public class FakeWebcam implements WebcamName {
     private int framesTaken;
     /** The tags in the last picture, as plain data. */
     private List<SeenAprilTag> lastFrameTags = List.of();
+    /** This webcam's mount and lens from the settings file, or null. */
+    private CameraSetup setup;
+    /** Automatic mode: the field's tags and the camera; null in scripted mode. */
+    private List<FieldAprilTags.Tag> fieldTags;
+    private CameraView view;
+    /** Where the robot really is (from the physics), or null if it isn't tracked. */
+    private Pose robot;
 
     /** A webcam under this configuration name. Usually made with {@code hardwareMap.addWebcam(name)}. */
     public FakeWebcam(String deviceName) {
@@ -82,13 +95,65 @@ public class FakeWebcam implements WebcamName {
         this.deviceName = deviceName;
     }
 
-    /** Sets which AprilTags this webcam sees, and when. Replaces any earlier script. */
+    /**
+     * Scripted mode: sets which AprilTags this webcam sees, and when. Replaces any earlier script
+     * and switches off automatic mode.
+     */
     public FakeWebcam script(AprilTagScript script) {
         if (script == null) {
             throw new IllegalArgumentException("script(...) needs an AprilTagScript, not null.");
         }
         this.script = script;
+        this.fieldTags = null;
+        this.view = null;
         return this;
+    }
+
+    /**
+     * Automatic mode: each picture shows whichever of {@code tags} this camera can see from
+     * where the robot really is (see {@link CameraView} for the rules). With the robot not
+     * tracked (no drive motors), it sees nothing.
+     *
+     * <pre>{@code
+     * hw.addWebcam("logitechVisionWebcam")
+     *         .seeFieldTags(FieldAprilTags.forField("biobuzz-2026"), CameraView.lookingForward(6.875, 4.875, 19));
+     * }</pre>
+     */
+    public FakeWebcam seeFieldTags(List<FieldAprilTags.Tag> tags, CameraView camera) {
+        if (tags == null || camera == null) {
+            throw new IllegalArgumentException("seeFieldTags(...) needs the field's tags and a CameraView, not null.");
+        }
+        this.fieldTags = List.copyOf(tags);
+        this.view = camera;
+        return this;
+    }
+
+    /** Where this webcam sits and what it sees, from {@code harness.properties}; null if not set. */
+    public CameraSetup setup() {
+        return setup;
+    }
+
+    /** Remembers this webcam's mount and lens (the settings file's {@code webcam.<name>.*} lines). */
+    public FakeWebcam setup(CameraSetup setup) {
+        this.setup = setup;
+        return this;
+    }
+
+    /**
+     * Automatic mode with this webcam's own setup ({@link #setup(CameraSetup)}) and a season's
+     * field file, for example {@code seeFieldTags("biobuzz-2026")}.
+     */
+    public FakeWebcam seeFieldTags(String fieldId) {
+        if (setup == null) {
+            throw new IllegalStateException("Webcam \"" + deviceName + "\" has no setup yet: add its webcam."
+                    + deviceName + ".* lines to harness.properties, or call seeFieldTags(tags, cameraView).");
+        }
+        return seeFieldTags(FieldAprilTags.forField(fieldId), CameraView.from(setup));
+    }
+
+    /** True in automatic mode (tags worked out from the field), false when scripted. */
+    public boolean seesFieldTags() {
+        return fieldTags != null;
     }
 
     /** How many pictures per second of simulated time this webcam takes (default 30). */
@@ -150,7 +215,9 @@ public class FakeWebcam implements WebcamName {
         while (nextFrameSinceInitSeconds <= sinceInitSeconds + 1e-9) {
             nextFrameSinceInitSeconds += framePeriodSeconds;
         }
-        lastFrameTags = script.tagsInView(sinceInitSeconds, sinceStartSeconds);
+        lastFrameTags = fieldTags != null
+                ? (robot == null ? List.of() : view.tagsInView(robot, fieldTags))
+                : script.tagsInView(sinceInitSeconds, sinceStartSeconds);
         framesTaken++;
         // On the clock robot code reads as System.nanoTime() during a run (see SimTime).
         long frameTimeNanos = SimTime.NANO_BASE + Math.round(sinceInitSeconds * 1e9);
@@ -161,19 +228,13 @@ public class FakeWebcam implements WebcamName {
     }
 
     /**
-     * Moves every fake webcam in a hardware map on to this moment. The runner calls this
-     * before every OpMode call.
-     *
-     * @param sinceInitSeconds  seconds since INIT
-     * @param sinceStartSeconds seconds since PLAY, or a negative number before PLAY
+     * The runner moves every webcam on as a {@link SimulatedSensor} (with the robot's pose), once
+     * per loop before the OpMode runs.
      */
-    public static void stepAll(FakeHardwareMap hardwareMap, double sinceInitSeconds, double sinceStartSeconds) {
-        for (String name : hardwareMap.deviceNames()) {
-            FakeWebcam webcam = hardwareMap.tryGet(FakeWebcam.class, name);
-            if (webcam != null) {
-                webcam.step(sinceInitSeconds, sinceStartSeconds);
-            }
-        }
+    @Override
+    public void step(Step now) {
+        robot = now.robot();
+        step(now.sinceInitSeconds(), now.sinceStartSeconds());
     }
 
     // ---- WebcamName / HardwareDevice: what the SDK asks a webcam -----------------------------

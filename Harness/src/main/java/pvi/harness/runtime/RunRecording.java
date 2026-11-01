@@ -4,6 +4,7 @@ import java.util.List;
 
 import pvi.harness.ds.Button;
 import pvi.harness.ds.RumbleRecord;
+import pvi.harness.hardware.CameraSetup;
 import pvi.harness.physics.DriveModel;
 import pvi.harness.physics.GamePiece;
 import pvi.harness.physics.ModelValue;
@@ -32,10 +33,11 @@ public record RunRecording(Header header, List<LoopRecord> loops,
     /**
      * Format version. Raise it (and update the README) whenever any field changes.
      * Version 2 added {@link #events()}; version 3 added {@link LoopRecord#aprilTags()}; version 4
-     * added the game pieces ({@link Header#pieces()} and {@link LoopRecord#pieces()}). Older files
-     * still load (with no events, no tags, or no pieces).
+     * added the game pieces ({@link Header#pieces()} and {@link LoopRecord#pieces()}); version 5
+     * added the webcams ({@link Header#cameras()}) and the field's id ({@link Header#field()}). Older files still load (with no events, no
+     * tags, no pieces, or no cameras).
      */
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
 
     /** Copies the lists, so the recording can't change after it is made. */
     public RunRecording {
@@ -85,14 +87,36 @@ public record RunRecording(Header header, List<LoopRecord> loops,
      * @param startPose         where the position estimate started, or null if position wasn't tracked
      * @param driveModel        the robot speeds and size used for the estimate, or null if not tracked
      * @param pieces            every game piece at INIT, in a fixed order (empty if position wasn't tracked)
+     * @param cameras           each webcam's mount and view, in the robot's order (empty if it has none)
+     * @param field             the field the run was on ({@code field=} in harness.properties, e.g.
+     *                          "biobuzz-2026"), or null in files older than version 5
      */
     public record Header(int version, String distanceUnit, String angleUnit, String timeUnit,
                          String robotConfig, String opMode, MatchPeriod period, double loopPeriodSeconds,
-                         Pose startPose, DriveModelValues driveModel, List<GamePiece> pieces) {
+                         Pose startPose, DriveModelValues driveModel, List<GamePiece> pieces,
+                         List<CameraSetup> cameras, String field) {
 
-        /** Copies the list, so the header can't change after it is made. */
+        /** Copies the lists, so the header can't change after it is made. */
         public Header {
             pieces = List.copyOf(pieces);
+            cameras = List.copyOf(cameras);
+        }
+
+        /** A header with no cameras and no field. */
+        public Header(int version, String distanceUnit, String angleUnit, String timeUnit,
+                      String robotConfig, String opMode, MatchPeriod period, double loopPeriodSeconds,
+                      Pose startPose, DriveModelValues driveModel, List<GamePiece> pieces) {
+            this(version, distanceUnit, angleUnit, timeUnit, robotConfig, opMode, period, loopPeriodSeconds,
+                    startPose, driveModel, pieces, List.of(), null);
+        }
+
+        /** A header with no field. */
+        public Header(int version, String distanceUnit, String angleUnit, String timeUnit,
+                      String robotConfig, String opMode, MatchPeriod period, double loopPeriodSeconds,
+                      Pose startPose, DriveModelValues driveModel, List<GamePiece> pieces,
+                      List<CameraSetup> cameras) {
+            this(version, distanceUnit, angleUnit, timeUnit, robotConfig, opMode, period, loopPeriodSeconds,
+                    startPose, driveModel, pieces, cameras, null);
         }
 
         /** A header with no game pieces. */

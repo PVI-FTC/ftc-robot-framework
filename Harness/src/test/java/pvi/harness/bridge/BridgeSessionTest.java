@@ -31,6 +31,26 @@ class BridgeSessionTest {
 
     private final BridgeSession session = new BridgeSession();
 
+    /**
+     * WHAT: When the harness can't list its OpModes (here: harness.properties from an older copy),
+     * "hello" answers with an error that says why, and the session keeps answering.
+     * WHY: On a laptop with a mixed USB copy the bridge died before "welcome", so Unity showed no
+     * OpModes and no reason (T16). The error text is what Unity shows the user.
+     */
+    @Test
+    void aBrokenConfigIsReportedOnHello() {
+        BridgeSession broken = new BridgeSession(() -> null, () -> {
+            throw new IllegalArgumentException("Problems in harness.properties:\n  config.version is 3, but this harness reads 4");
+        });
+
+        String reply = broken.handle("{\"type\": \"hello\", \"version\": " + BridgeProtocol.VERSION + "}");
+
+        assertTrue(reply.contains("\"type\": \"error\"") || reply.contains("\"type\":\"error\""), reply);
+        assertTrue(reply.contains("can't list its OpModes"), reply);
+        assertTrue(reply.contains("config.version is 3"), reply);
+        assertTrue(broken.handle("{\"type\": \"load\", \"opMode\": \"x\"}").contains("hello"), "still answering");
+    }
+
     /** Sends one message and returns the parsed reply. */
     @SuppressWarnings("unchecked")
     private Map<String, Object> send(String line) {

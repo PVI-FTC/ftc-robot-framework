@@ -355,3 +355,17 @@ All three bots are idle with empty lists. The details of each decision follow.
   `harness.properties` and the recordings; TestBot makes the fake webcam see field tags
   automatically; UnityBot builds the window.
 - **To change it:** say if you also want a camera view in the Swing viewer.
+
+## Shelved for later: turn a recorded drive into an autonomous (2026-11-01)
+
+- **Idea:** convert a recorded TeleOp drive (from the viewer, Unity, or the real robot with
+  `robot-recorder`) into an autonomous.
+- **Two ways, when you pick it up:**
+  1. **Playback autonomous:** a generated OpMode that replays the recorded stick and button inputs
+     into your TeleOp. Quick, but drifts on a real robot because nothing corrects the path.
+  2. **Recording → Pedro path (suggested):** simplify the driven path into waypoints and curves
+     and write a Pedro path/route that your autonomous follows. Pedro corrects itself with the
+     Pinpoint, the harness can test it, and you can tune it. Intake/outtake actions could become
+     marked steps. For real-robot drives, `robot-recorder` would also need to save the Pinpoint
+     position.
+- **Status:** shelved by you; nothing started.

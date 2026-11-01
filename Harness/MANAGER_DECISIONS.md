@@ -341,3 +341,17 @@ All three bots are idle with empty lists. The details of each decision follow.
   now point at the same work. Local only; nothing pushed. This replaces D1's "keep them separate".
 - **Next (your request):** UnityBot shows the **goBILDA Starter Bot** as the robot in the viewer,
   as the first piece of the robot save-file plan from D7. It waits for your input before starting.
+
+## D16 · Where the camera's point-of-view window goes (2026-11-01)
+
+- **You asked:** tags should appear in the camera automatically, plus a smaller window showing
+  the camera's point of view.
+- **Decided:** the camera-view window goes in the **Unity app**, as a small picture-in-picture
+  window. It renders what the camera would really see, from its real mount position and field of
+  view, with the detected tags outlined. The Swing viewer keeps its "tags in view" card for now.
+- **Why:** Unity already draws the field, robot and tags in 3D, so it can show the actual camera
+  view. The Swing viewer only has a top-down drawing.
+- **Who does what:** WorkerBot adds the camera settings (mount, field of view, range) to
+  `harness.properties` and the recordings; TestBot makes the fake webcam see field tags
+  automatically; UnityBot builds the window.
+- **To change it:** say if you also want a camera view in the Swing viewer.

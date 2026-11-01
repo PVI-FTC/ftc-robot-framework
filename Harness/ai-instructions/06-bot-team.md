@@ -232,6 +232,10 @@ The user keeps an offline copy on a USB stick labelled **USBRANLY** (drive `E:` 
 label, not just the letter). The copy lives in `E:\ftc-robot-framework`. The user allowed the
 manager to write **only that folder on that USB**. It's the one exception to "only `Harness/`".
 
+- **Only sync with all bots idle and the suite green.** The sync copies the working folder, not
+  just commits, so a sync in the middle of a bot's change puts a half-finished harness on the
+  stick (2026-11-01: the laptop's copy had v4 code with a v3 config, and Unity listed no
+  autonomous OpModes).
 - Sync **after a commit, with all bots idle**, using `robocopy /MIR` from
   `C:\Dev\ftc-robot-framework` to `E:\ftc-robot-framework`, excluding rebuildable folders:
   `.gradle`, `build`, `FtcRobotController\build`, `TeamCode\build`, `Harness\.gradle`,

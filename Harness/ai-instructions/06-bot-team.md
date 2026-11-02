@@ -46,7 +46,7 @@ bots' lists and PROGRESS.md in step.
 
 ### Where each bot left off (handover snapshot, 2026-10-27)
 
-**Repository:** branch **`Team2-Testing-Pedro3`** (local only, never pushed; decision D1 in
+**Repository:** branch **`VI_Arena-Harness`** on GitHub (`PVI-FTC/ftc-robot-framework`; renamed from `Team2-Testing-Pedro3` and pushed 2026-11-01; decision D1 in
 [`Harness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md)). `Team2-Testing` is untouched at
 `960534a`. Pedro 3 (`origin/Pedro-3-Implementation`) is merged in (`0f9c602`). The 2026-10-27
 "work alone" round is committed at the end of that branch. **Format versions now:** run recording
@@ -77,7 +77,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 - **Handover (2026-10-30):** "The likely handover would be through GitHub with other teams copying
   the folder into their code." Docs describe it that way (copy `Harness/` from Team 2's branch on
-  GitHub into your own branch). Nothing is pushed until the user says so (rule 6). Checked: no
+  GitHub into your own branch). The branch is `VI_Arena-Harness` (pushed 2026-11-01). Checked: no
   tracked harness file is over 50 MB (largest 46.9 MB); `Harness/` is about 367 MB in git.
 - **Who the harness is for (2026-10-28):** "Most if not all use of this harness will come from
   teams using the PVI repo." The main users are **PVI teams, each on its own branch** of the PVI
@@ -98,7 +98,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
   Their fake robots stay copies of the shared Team A hardware, and change only when TeamCode's
   Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user
   says so.
-- **Never push** (see §4, rule 6).
+- **Pushing** (2026-11-01): the push ban is lifted. The harness is on GitHub as `VI_Arena-Harness`; push only when the user asks (§4, rule 6).
 - **DECODE field switched off** (2026-10-24): `fields/disabled/decode-2025.json`; BIOBUZZ only.
 - **Art is committed** (2026-10-25): the Unity settings art, field CAD and people under
   `unity/Assets/HarnessReplay/Resources/` go into git. Originals in `art-inbox/` and the built
@@ -152,7 +152,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 - AprilTags placed on the field (camera field of view and range; should Java read `fields/*.json`?).
 - Answered 2026-10-25 (see "Decided by the user"): the RP questions, RP6, RP8, crowd frame
   rate, ball facts, intake, HIVE/FLOWER collisions, Step 15.
-- CI (it needs a file outside `Harness/`, which the user adds, and a pushed branch; see rule 6).
+- CI (it needs a file outside `Harness/`, which the user adds; the branch is now on GitHub).
 
 ---
 
@@ -185,11 +185,11 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
    - run the full suite once;
    - check that `git status` shows nothing outside `Harness/`;
    - stage `Harness/` only.
-6. **Never push, and don't suggest pushing.** Pushing to the shared GitHub remote is the user's
-   decision alone. Commit locally only (on `Team2-Testing-Pedro3`; `Team2-Testing` points at the same commit, and
-   the pre-Pedro-3 state is the tag `before-pedro3`). The user plans to hand the
-   harness over **through GitHub later**, with other PVI teams copying the `Harness` folder into
-   their own branches (2026-10-30), but nothing is pushed until the user says so.
+6. **Push only when the user asks.** The harness is on GitHub as branch `VI_Arena-Harness`
+   (`PVI-FTC/ftc-robot-framework`, pushed 2026-11-01; the user lifted the old push ban). Other PVI
+   teams copy the `Harness` folder from it into their own branches. Never push another team's
+   branch, never force-push, and never push tags unless asked. `Team2-Testing` points at the same
+   commit locally, and the pre-Pedro-3 state is the local tag `before-pedro3`.
 7. **Ask the user** for anything that is theirs to decide (robot measurements, new
    dependencies, formats that leave the JVM, anything outside `Harness/`).
 

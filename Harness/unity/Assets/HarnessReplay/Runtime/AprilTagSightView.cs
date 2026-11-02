@@ -31,6 +31,11 @@ namespace PviHarness.Replay
         public static readonly Color LineColor = new Color(HudTheme.Accent.r, HudTheme.Accent.g, HudTheme.Accent.b, 0.75f);
         /// <summary>The color of a line to a tag the camera measured somewhere else: amber.</summary>
         public static readonly Color OffTagColor = new Color(HudTheme.Amber.r, HudTheme.Amber.g, HudTheme.Amber.b, 0.85f);
+        /// <summary>
+        /// The Unity layer the sight lines are drawn on, so the webcam picture (<see cref="CameraPictureView"/>)
+        /// can leave them out: they're a drawing for people, not something the camera would see.
+        /// </summary>
+        public const int Layer = 31;
         /// <summary>How close a measured tag must be to the real one to count as on it (inches).</summary>
         public const double OnTagToleranceInches = 4.0;
 
@@ -210,6 +215,7 @@ namespace PviHarness.Replay
         {
             var sight = new GameObject("Tag").transform;
             sight.SetParent(root, false);
+            sight.gameObject.layer = Layer;
             var line = sight.gameObject.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
             line.positionCount = 2;
@@ -228,6 +234,7 @@ namespace PviHarness.Replay
                 UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
             }
             marker.transform.SetParent(sight, false);
+            marker.layer = Layer;
             marker.transform.localScale = Vector3.one * FtcToUnity.Meters(1.5);
             Renderer renderer = marker.GetComponent<Renderer>();
             renderer.sharedMaterial = material;
@@ -235,6 +242,7 @@ namespace PviHarness.Replay
 
             var label = new GameObject("Label").transform;
             label.SetParent(sight, false);
+            label.gameObject.layer = Layer;
             var text = label.gameObject.AddComponent<TextMesh>();
             text.anchor = TextAnchor.LowerCenter;
             text.characterSize = 0.02f;

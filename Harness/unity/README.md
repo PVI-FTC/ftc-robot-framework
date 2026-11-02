@@ -173,6 +173,10 @@ the trail and Unity's physics are never affected. That's checked in `SettingBuil
   there.
 - **Import settings:** in `Editor/SettingArtImport.cs`. The top-down view keeps its plain dark background.
 
+The webcam picture leaves out the sight lines and their markers (they're on layer 31), so it shows only what the camera itself would see.
+
+**AprilTags** on a season field are drawn with their real 36h11 black-and-white patterns (`AprilTag36h11.cs`, codes from the FTC SDK's AprilTag library), at the field file's place, facing and size, so the 3D view and the webcam picture show the same tags as the real field. The HIVE's tags are drawn where the file puts them at the start of a match.
+
 Start-up options (handy for demos): `-at 5.4` (open the replay at that many seconds), `-obstacles` (start with the O drawing on), `-preset 2` (a viewpoint, 1–7), `-setting moon-base`, `-field biobuzz-2026`, `-robot gobilda-starter-bot` (or `-robot box`; not remembered), `-webcam` (show the webcam picture for that run), `-view 3d`,
 `-zoom 3` (times the normal distance), `-yaw 30` (degrees). To check that a view draws smoothly,
 `-fpslog <file>` (with optional `-fpsseconds 10`) waits 5 s, measures the frame rate, writes the
@@ -258,7 +262,10 @@ and double-click `Harness\buildUnity.bat`, or in the Editor use **Harness → Bu
 It takes a few minutes and needs Unity installed; running the app needs nothing installed.
 `unity-view.bat` offers to build it if it's missing. `buildUnity.bat` looks for Unity in
 `C:\Program Files\Unity\Hub\Editor\6000.3.14f1\`; set `UNITY_EXE` if it is somewhere else. The
-build's log is `Harness/build/unity-build.log`.
+build's log is `Harness/build/unity-build.log`. To build a separate copy while someone has the app
+open (Windows won't let a build replace a running app), add `-buildPath
+"Harness\build\unity-check\HarnessReplay.exe"` to the batch build: it sits two folders under
+`Harness` like `unity\Build`, so it finds the same recordings, fields and robots.
 
 How the app finds the recordings (`RecordingLoader.ResolveFolder`, tested in
 `RecordingFolderTests`), first match wins:

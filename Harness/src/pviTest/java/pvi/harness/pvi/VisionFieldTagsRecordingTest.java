@@ -36,8 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (each motor's power times its {@code drive.*.direction} sign, as {@code WheelReader} reads it).</p>
  */
 class VisionFieldTagsRecordingTest {
-    /** Field center side toward the audience, facing the red SCORING tags (-x), clear of the HIVE frame. */
-    private static final Pose START = Pose.inches(45, 0, 180);
+    /**
+     * Toward the audience, facing the red tags (-x), about 38 in from the raised red AUDIENCE tags
+     * 34-37, which the camera's 18 degree tilt up (C24) brings into view with the lower SCORING
+     * tags 30-33.
+     */
+    private static final Pose START = Pose.inches(55, -12, 180);
     /** Drive power for the slow turn: about 45 degrees a second. */
     private static final double TURN_POWER = 0.25;
 
@@ -95,6 +99,7 @@ class VisionFieldTagsRecordingTest {
 
         assertTrue(turnedDegrees > 340, "turned a full circle counter-clockwise, but turned " + turnedDegrees);
         assertTrue(seen.size() >= 3, "several tags seen: " + seen);
+        assertTrue(seen.containsAll(List.of(34, 35, 36, 37)), "the raised red AUDIENCE tags too: " + seen);
         assertTrue(changes >= 4, "tags came and went (" + changes + " changes in view)");
         assertEquals(1, recording.header().cameras().size(), "the webcam is in the header");
     }

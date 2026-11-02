@@ -272,6 +272,37 @@ namespace PviHarness.Replay.Tests
         }
 
         /// <summary>
+        /// WHAT: The webcam picture leaves out the sight lines and their markers (they're drawn for
+        /// people), so a tag's pattern isn't hidden behind its own marker.
+        /// </summary>
+        [Test]
+        public void TheWebcamPictureLeavesOutTheSightLines()
+        {
+            var parent = new GameObject("test parent");
+            var view = new CameraPictureView(parent.transform);
+            try
+            {
+                var sights = new AprilTagSightView(parent.transform);
+                var loop = new LoopData { aprilTags = new List<AprilTagSeenData> { Tag(7, 0, 40, 0) } };
+                sights.Show(loop, new PoseData(), true, null, new List<FieldTagData>());
+
+                foreach (Transform t in sights.Root.GetComponentsInChildren<Transform>())
+                {
+                    if (t != sights.Root)
+                    {
+                        Assert.AreEqual(AprilTagSightView.Layer, t.gameObject.layer, t.name);
+                    }
+                }
+                Assert.AreEqual(0, view.Camera.cullingMask & (1 << AprilTagSightView.Layer), "the webcam doesn't draw that layer");
+            }
+            finally
+            {
+                view.Destroy();
+                Object.DestroyImmediate(parent);
+            }
+        }
+
+        /// <summary>
         /// WHAT: A version 5 recording's camera setups are read; a recording without them (or with null) has none.
         /// </summary>
         [Test]

@@ -369,3 +369,12 @@ All three bots are idle with empty lists. The details of each decision follow.
      marked steps. For real-robot drives, `robot-recorder` would also need to save the Pinpoint
      position.
 - **Status:** shelved by you; nothing started.
+
+## Your direction: published to GitHub (2026-11-01)
+
+- **You said:** rename the branch to `VI_Arena-Harness` and push it to GitHub, and remove the push
+  ban from the docs.
+- **Done:** the branch `Team2-Testing-Pedro3` was renamed `VI_Arena-Harness` and pushed to
+  `PVI-FTC/ftc-robot-framework`. The bots' rule is now "push only when the user asks" (never
+  another team's branch, no force-push, no tags unless asked). The local tag `before-pedro3` and
+  the local `Team2-Testing` branch were not pushed.

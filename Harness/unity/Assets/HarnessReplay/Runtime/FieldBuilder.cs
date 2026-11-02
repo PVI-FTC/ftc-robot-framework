@@ -184,8 +184,9 @@ namespace PviHarness.Replay
         /// Draws a season's field under a new object and returns it, so it can be removed when another
         /// field is picked. With the official CAD in Resources/Field/&lt;id&gt; (<see cref="CadModels"/>), the
         /// CAD parts are drawn (tiles, perimeter, HIVE, flowers, tape, tags), plus the file's parts
-        /// outside the field (alliance areas); otherwise the file's simple shapes and AprilTags. Tags
-        /// without a known field position are skipped.
+        /// outside the field (alliance areas); otherwise the file's simple shapes. Either way every
+        /// AprilTag with a known field position gets its real 36h11 pattern (<see cref="AddTag"/>);
+        /// the CAD's tags are plain black squares.
         /// </summary>
         public static Transform BuildSeason(Transform parent, FieldLayoutData field)
         {
@@ -218,14 +219,11 @@ namespace PviHarness.Replay
                     AddElement(root, element);
                 }
             }
-            if (cad.Length == 0)
+            foreach (FieldTagData tag in field.aprilTags)
             {
-                foreach (FieldTagData tag in field.aprilTags)
+                if (tag.HasFieldPose && tag.id >= 0 && tag.id < AprilTag36h11.Codes.Length)
                 {
-                    if (tag.HasFieldPose)
-                    {
-                        AddTag(root, tag);
-                    }
+                    AddTag(root, tag, onCad: cad.Length > 0);
                 }
             }
             return root;
@@ -282,18 +280,37 @@ namespace PviHarness.Replay
             }
         }
 
-        /// <summary>An AprilTag: a black square on a white backing, its printed side facing the way the file says.</summary>
-        private static void AddTag(Transform root, FieldTagData tag)
+        /// <summary>
+        /// An AprilTag with its real 36h11 pattern (<see cref="AprilTag36h11"/>: white edge, black
+        /// border and data cells), centered where the file says, its printed side facing the file's
+        /// <c>facing</c> and its top toward the sky, as the SDK's tag frame has it. The black square is
+        /// <c>sizeInches</c> across (the SDK's tag size), so the whole picture with its white edge is
+        /// 10/8 of that. On the CAD field it sits 1 mm in front of the CAD's plain black square; on the
+        /// simple field it gets a white plate behind it. HIVE tags (<c>moves</c>) are drawn where the
+        /// file puts them at the start of a match.
+        /// </summary>
+        public static Transform AddTag(Transform root, FieldTagData tag, bool onCad)
         {
             Vector3 facing = FtcToUnity.Direction(tag.facing.x, tag.facing.y, tag.facing.z).normalized;
             Vector3 up = Mathf.Abs(Vector3.Dot(facing, Vector3.up)) > 0.95f ? Vector3.forward : Vector3.up;
             var holder = new GameObject("AprilTag " + tag.id).transform;
             holder.SetParent(root, false);
-            holder.localPosition = FtcToUnity.Position(tag.xInches.Value, tag.yInches.Value, FtcToUnity.Meters(tag.zInches.Value));
-            holder.localRotation = Quaternion.LookRotation(facing, up);
-            float size = FtcToUnity.Meters(tag.sizeInches);
-            Box(holder, "Backing", Vector3.zero, new Vector3(size * 1.3f, size * 1.3f, 0.002f), Color.white, unlit: true);
-            Box(holder, "Tag", new Vector3(0f, 0f, 0.0015f), new Vector3(size, size, 0.001f), Color.black, unlit: true);
+            holder.localPosition = FtcToUnity.Position(tag.xInches.Value, tag.yInches.Value, FtcToUnity.Meters(tag.zInches.Value))
+                + facing * (onCad ? 0.001f : 0f);
+            // A quad shows its -z side, so -z points out of the printed side; +y is the tag's top.
+            holder.localRotation = Quaternion.LookRotation(-facing, up);
+            float printed = FtcToUnity.Meters(tag.sizeInches) * AprilTag36h11.Cells / 8f;
+            if (!onCad)
+            {
+                Box(holder, "Backing", new Vector3(0f, 0f, 0.0015f), new Vector3(printed * 1.1f, printed * 1.1f, 0.002f), Color.white, unlit: true);
+            }
+            GameObject pattern = Primitive(holder, PrimitiveType.Quad, "Pattern", Vector3.zero, new Vector3(printed, printed, 1f), Color.white, unlit: true);
+            pattern.GetComponent<Renderer>().material = new Material(Shader.Find("Unlit/Texture"))
+            {
+                name = "AprilTag " + tag.id,
+                mainTexture = AprilTag36h11.Texture(tag.id),
+            };
+            return holder;
         }
 
         /// <summary>

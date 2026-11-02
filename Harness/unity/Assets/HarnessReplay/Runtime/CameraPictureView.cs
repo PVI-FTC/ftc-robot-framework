@@ -29,6 +29,8 @@ namespace PviHarness.Replay
             camera.transform.SetParent(parent, false);
             camera.nearClipPlane = 0.02f;
             camera.farClipPlane = 60f;
+            // The sight lines and their markers are for people; the camera wouldn't see them.
+            camera.cullingMask &= ~(1 << AprilTagSightView.Layer);
             camera.enabled = false;
         }
 

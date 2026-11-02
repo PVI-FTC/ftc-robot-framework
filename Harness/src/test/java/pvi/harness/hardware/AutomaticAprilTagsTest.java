@@ -151,24 +151,37 @@ class AutomaticAprilTagsTest {
 
     /**
      * WHAT: The webcam described in {@code harness.properties} (forward/left/up, "0, 0, 0 =
-     * looking forward") sees tag 20 exactly as the SDK-style mount from Team 2's TeamCode does.
+     * looking forward", pitch + = tilted up) sees tag 20 where Team 2's level SDK-style mount
+     * does, turned by the settings' tilt: tilting the lens up by p degrees moves what it sees down
+     * by p degrees, about the lens's own right axis.
      *
      * <p>WHY: The two conventions are converted in one place ({@code CameraView.from}); a sign
-     * or a 90 degree slip there would make every automatic picture wrong.</p>
+     * or a 90 degree slip there would make every automatic picture wrong. The expected numbers
+     * come from the level mount plus plain rotation, not from the same formula, so the check
+     * stays independent whatever pitch the settings file uses (2026-11-01: 18 degrees up, to see
+     * the HIVE's raised tags).</p>
      */
     @Test
     void theSettingsFileWebcamSeesWhatTeamTwosMountSees() {
         CameraSetup setup = pvi.harness.runtime.HarnessConfig.load().cameras().stream()
                 .filter(c -> c.name().equals(WEBCAM)).findFirst().orElseThrow();
+        // Same place on the robot as TeamCode's mount; only a tilt (no yaw or roll) is compared here.
+        assertEquals(MOUNT_RIGHT, -setup.leftInches().value(), 1e-9, "right = -left");
+        assertEquals(MOUNT_FORWARD, setup.forwardInches().value(), 1e-9);
+        assertEquals(MOUNT_UP, setup.upInches().value(), 1e-9);
+        org.junit.jupiter.api.Assumptions.assumeTrue(setup.yawDegrees().value() == 0 && setup.rollDegrees().value() == 0,
+                "this check covers a camera that is only tilted up or down");
+        double tilt = Math.toRadians(setup.pitchDegrees().value());
         Pose robot = inFrontOfTag20(48, 10, 5);
 
         SeenAprilTag fromSettings = CameraView.from(setup).tagsInView(robot, DECODE).get(0);
-        SeenAprilTag fromTeamCode = CAMERA.tagsInView(robot, DECODE).get(0);
+        SeenAprilTag level = CAMERA.tagsInView(robot, DECODE).get(0);
 
-        assertEquals(fromTeamCode.rightInches(), fromSettings.rightInches(), 1e-6);
-        assertEquals(fromTeamCode.forwardInches(), fromSettings.forwardInches(), 1e-6);
-        assertEquals(fromTeamCode.upInches(), fromSettings.upInches(), 1e-6);
-        assertEquals(fromTeamCode.yawDegrees(), fromSettings.yawDegrees(), 1e-4);
+        assertEquals(level.rightInches(), fromSettings.rightInches(), 1e-6, "right");
+        assertEquals(level.forwardInches() * Math.cos(tilt) + level.upInches() * Math.sin(tilt),
+                fromSettings.forwardInches(), 1e-6, "forward");
+        assertEquals(level.upInches() * Math.cos(tilt) - level.forwardInches() * Math.sin(tilt),
+                fromSettings.upInches(), 1e-6, "up");
     }
 
     // ---- With Team 2's real vision OpMode ---------------------------------------------------

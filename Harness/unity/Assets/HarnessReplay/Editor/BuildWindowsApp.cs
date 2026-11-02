@@ -25,19 +25,33 @@ namespace PviHarness.Replay.Editor
         [MenuItem("Harness/Build Windows App")]
         public static void Build()
         {
-            BuildReport report = BuildApp();
+            BuildReport report = BuildApp(ExePath);
             Debug.Log("[HarnessReplay] Build " + report.summary.result + ": " + ExePath);
         }
 
-        /// <summary>For -executeMethod in batch mode: builds, then quits with 0 (succeeded) or 1.</summary>
+        /// <summary>
+        /// For -executeMethod in batch mode: builds, then quits with 0 (succeeded) or 1. "-buildPath
+        /// &lt;exe&gt;" builds a copy somewhere else instead (for checking while someone has the app open);
+        /// put it two folders under Harness (e.g. Harness/build/unity-check/HarnessReplay.exe) so it
+        /// still finds Harness/build/recordings, fields and robots.
+        /// </summary>
         public static void BuildFromCommandLine()
         {
-            BuildReport report = BuildApp();
-            System.Console.WriteLine("[HarnessReplay] Build " + report.summary.result + ": " + ExePath);
+            string path = ExePath;
+            string[] args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-buildPath", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    path = Path.GetFullPath(args[i + 1]);
+                }
+            }
+            BuildReport report = BuildApp(path);
+            System.Console.WriteLine("[HarnessReplay] Build " + report.summary.result + ": " + path);
             EditorApplication.Exit(report.summary.result == BuildResult.Succeeded ? 0 : 1);
         }
 
-        private static BuildReport BuildApp()
+        private static BuildReport BuildApp(string exePath)
         {
             // A normal resizable window (not full screen), sized like the Swing viewer.
             PlayerSettings.productName = "HarnessReplay";
@@ -53,7 +67,7 @@ namespace PviHarness.Replay.Editor
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { Scene },
-                locationPathName = ExePath,
+                locationPathName = exePath,
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None,
             };

@@ -8,7 +8,7 @@ How each robot **looks** in the Unity replay. One folder per robot:
 | anything else | How the model was made (for example `slim_model.py`). |
 
 The model itself lives in Unity, under
-`unity/Assets/HarnessReplay/Resources/Robots/<id>/`, because Unity can only load models from its
+`VI_Arena/src/Assets/VI_Arena/Resources/Robots/<id>/`, because Unity can only load models from its
 own `Assets` folder.
 
 This is only the picture. The robot's size for physics and the harness, and how it drives, still
@@ -23,7 +23,7 @@ Plain `key=value` lines; `#` starts a comment.
 | Key | Meaning |
 |---|---|
 | `name` | Shown on the Visuals screen. |
-| `source` | Where the model came from (also listed in `unity/Assets/HarnessReplay/Art/CREDITS.md`). |
+| `source` | Where the model came from (also listed in `VI_Arena/src/Assets/VI_Arena/Art/CREDITS.md`). |
 | `model` | **Required.** The model's path under `Resources`, without the extension. |
 | `model.metersPerUnit` | Meters per model unit: `0.001` for millimeters, `0.0254` for inches. Default `1`. |
 | `model.forward` | The model's axis that points to the robot's front: `+x`, `-x`, `+y`, `-y`, `+z` or `-z`. Default `+z`. |

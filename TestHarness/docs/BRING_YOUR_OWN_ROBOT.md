@@ -20,32 +20,35 @@ field yet.
 
 ---
 
-## Step 1: Put the `Harness` folder on your branch
+## Step 1: Put the `TestHarness` folder on your branch
 
 The harness lives on **Team 2's harness branch on GitHub** (Team 2 will tell you its name). Copy
-its `Harness` folder into the root of **your own** branch, next to `TeamCode`:
+its `TestHarness` folder into the root of **your own** branch, next to `TeamCode`:
 
 1. Get Team 2's branch onto your computer: on GitHub, pick that branch and use **Code → Download
    ZIP**, or check the branch out in a second folder (for example with GitHub Desktop).
-2. Copy the whole `Harness` folder from it into the root of your branch:
+2. Copy the whole `TestHarness` folder from it into the root of your branch:
 
    ```
    your-branch/
      TeamCode/
      FtcRobotController/
      build.dependencies.gradle
-     Harness/          <- copied from Team 2's branch
+     TestHarness/      <- copied from Team 2's branch
+       th_src/         (the Java test harness: harness.properties, src/, ...)
+       VI_Arena/       (the Unity 3D app)
+       docs/           (this guide and the others)
    ```
 
-3. Commit the `Harness` folder on **your** branch, like any other change.
+3. Commit the `TestHarness` folder on **your** branch, like any other change.
 
 The folder is about **370 MB**, mostly Unity art for the 3D view. Copy it from GitHub (the ZIP or
 a checkout), not from someone's working folder: a working folder also holds big files git ignores
-(Unity's library, art downloads, build output), about 4.5 GB. `Harness/.gitignore` already keeps
+(Unity's library, build output, the built VI Arena app). `TestHarness/.gitignore` already keeps
 the harness's build output and Unity's generated folders out of git, so committing the folder
 doesn't add them.
 
-The harness only **reads** your code. It never changes anything outside `Harness/`, and nothing
+The harness only **reads** your code. It never changes anything outside `TestHarness/`, and nothing
 in it is ever put on your robot. It builds with your branch's own libraries (whatever
 `build.dependencies.gradle` lists), so it works on Pedro 2 and Pedro 3 branches alike.
 
@@ -55,7 +58,7 @@ in it is ever put on your robot. It builds with your branch's own libraries (wha
 
 The folder comes with checks and tests written for **Team 2's** robot. Do two things:
 
-1. In `Harness/harness.properties`, set:
+1. In `TestHarness/th_src/harness.properties`, set:
 
    ```properties
    pvi.extras=false
@@ -64,7 +67,7 @@ The folder comes with checks and tests written for **Team 2's** robot. Do two th
    The extras (`src/pvi*/`) compare the settings with Team 2's own Pedro 3 configuration, so they
    don't fit your robot (and don't compile on a Pedro 2 branch).
 
-2. Delete these test files from `Harness/src/test/java/pvi/harness/`. They test Team 2's robot
+2. Delete these test files from `TestHarness/th_src/src/test/java/pvi/harness/`. They test Team 2's robot
    through the framework's `teamA` classes. Your branch has those classes too, so the tests
    compile, but they check how Team 2's robot behaves, and on another team's branch dozens of
    them fail. Delete these test files:
@@ -96,7 +99,7 @@ The folder comes with checks and tests written for **Team 2's** robot. Do two th
 
 ## Step 3: Describe your robot in `harness.properties`
 
-Open `Harness/harness.properties`. Every line has a comment saying what it is. Change these to
+Open `TestHarness/th_src/harness.properties`. Every line has a comment saying what it is. Change these to
 match **your** robot configuration (the names your code passes to `hardwareMap.get(...)`):
 
 | Setting | What to put |
@@ -134,7 +137,7 @@ The **smoke test** gives every OpMode on your branch one quick run: INIT, half a
 PLAY, 2 seconds of running, STOP. Nobody presses anything. It only checks that nothing crashes.
 
 In Android Studio, open `src/test/java/pvi/harness/EveryOpModeSmokeTest.java` and click the green
-▶. Or in a terminal, from the `Harness` folder:
+▶. Or in a terminal, from the `TestHarness\th_src` folder:
 
 ```powershell
 .\gradlew.bat test --tests "pvi.harness.EveryOpModeSmokeTest"
@@ -203,10 +206,10 @@ you can script and check.
 
 ## Step 6: Record a drive on your real robot
 
-Drive your real robot, and turn the drive into a test. [robot-recorder](robot-recorder/README.md)
+Drive your real robot, and turn the drive into a test. [robot-recorder](../th_src/robot-recorder/README.md)
 has two small robot-code files you copy into your `TeamCode`. Its example wraps Team 2's TeleOp;
 follow its "Record a different TeleOp" part to wrap **yours**. Then copy the saved file to your
-laptop and run `.\gradlew.bat makeTest` in the `Harness` folder.
+laptop and run `.\gradlew.bat makeTest` in the `TestHarness\th_src` folder.
 
 ---
 
@@ -235,8 +238,8 @@ laptop and run `.\gradlew.bat makeTest` in the `Harness` folder.
 The harness also works in any other FTC repository with a `TeamCode` folder. Do the steps above,
 with these differences:
 
-- **Step 1:** copy `Harness` next to your `TeamCode` folder in your own repository.
+- **Step 1:** copy `TestHarness` next to your `TeamCode` folder in your own repository.
 - **Step 2:** the same (`pvi.extras=false` and the same list of test files). Here those tests use
   PVI's `teamA` classes, which your code doesn't have, so they wouldn't even compile.
-- **Step 3:** also check `teamCode.sourceDir` (where your robot code is; `../TeamCode/src/main/java`
+- **Step 3:** also check `teamCode.sourceDir` (where your robot code is; `../../TeamCode/src/main/java`
   for a normal FTC repository) and `teamCode.opModePackages` (the Java package your OpModes are in).

@@ -1,7 +1,7 @@
 # Season field files
 
 One JSON file per FTC season's field, read by the Unity replay (and later by Java, for vision
-and obstacles). The format, `pvi-harness-field` v1, is documented in `Harness/README.md`
+and obstacles). The format, `pvi-harness-field` v1, is documented in `docs/README.md` (`../../docs/README.md` from here)
 under "Season field files".
 
 | File | Field | Season | Built from |

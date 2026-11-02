@@ -125,7 +125,7 @@ public final class HarnessConfig {
     public static HarnessConfig load(Path file) {
         if (!Files.isRegularFile(file)) {
             throw new IllegalStateException("No harness settings file at " + file.toAbsolutePath()
-                    + ". Copy harness.properties into the Harness folder (see README.md).");
+                    + ". Copy harness.properties into the TestHarness/th_src folder (see docs/README.md).");
         }
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             return read(reader, file.toString());
@@ -150,7 +150,7 @@ public final class HarnessConfig {
         HarnessConfig config = new HarnessConfig(properties, problems);
         for (String key : new TreeSet<>(properties.stringPropertyNames())) {
             if (!KNOWN_KEYS.contains(key) && !config.isWebcamKey(key)) {
-                problems.add(key + ": not a harness setting (check the spelling against README.md)");
+                problems.add(key + ": not a harness setting (check the spelling against docs/README.md)");
             }
         }
         if (!problems.isEmpty()) {
@@ -438,7 +438,7 @@ public final class HarnessConfig {
         String text(String key) {
             String value = properties.getProperty(key);
             if (value == null || value.isBlank()) {
-                problems.add(key + ": missing (see README.md for an example)");
+                problems.add(key + ": missing (see docs/README.md for an example)");
                 return null;
             }
             return value.trim();

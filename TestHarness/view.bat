@@ -20,8 +20,8 @@ rem and asks before going on.
 rem ---------------------------------------------------------------------------
 setlocal
 
-rem Run from the folder this file is in (Harness\), wherever it was started from.
-cd /d "%~dp0"
+rem Run from the Java harness folder (th_src\, next to this file), wherever it was started from.
+cd /d "%~dp0th_src"
 
 rem ---- Is this drive a good place to build? ---------------------------------------------
 rem Windows' own PowerShell (Get-Volume) says the drive's type, file system and free space,
@@ -104,9 +104,9 @@ echo Using Java %JAVA_MAJOR% from "%JAVA_EXE%".
 echo Opening the viewer. The first time needs the internet and can take a few minutes while
 echo Gradle downloads the libraries and builds...
 if "%~1"=="" (
-    call "%~dp0gradlew.bat" viewRecording
+    call "%~dp0th_src\gradlew.bat" viewRecording
 ) else (
-    call "%~dp0gradlew.bat" viewRecording "-Pfile=%~f1"
+    call "%~dp0th_src\gradlew.bat" viewRecording "-Pfile=%~f1"
 )
 if errorlevel 1 goto :failed
 exit /b 0

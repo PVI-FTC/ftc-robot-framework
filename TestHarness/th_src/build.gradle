@@ -23,13 +23,13 @@ def harnessSettings = new Properties()
 file('harness.properties').withReader('UTF-8') { harnessSettings.load(it) }
 if (harnessSettings.getProperty('config.version')?.trim() != '4') {
     throw new GradleException("harness.properties: this harness reads config.version 4, the file says "
-            + "${harnessSettings.getProperty('config.version')}. See README.md, \"The config file\".")
+            + "${harnessSettings.getProperty('config.version')}. See docs/README.md, \"The config file\".")
 }
 // One setting by name, with a clear error if it is missing.
 def setting = { String key ->
     String value = harnessSettings.getProperty(key)?.trim()
     if (!value) {
-        throw new GradleException("harness.properties: ${key} is missing. See README.md, \"The config file\".")
+        throw new GradleException("harness.properties: ${key} is missing. See docs/README.md, \"The config file\".")
     }
     value
 }

@@ -1,8 +1,10 @@
 # Art inbox
 
-Drop downloaded models, textures and skies here, **any file names, any sub-folders**. Claude sorts
-them into `unity/Assets/HarnessReplay/Resources/...`, renames them and wires them in. This folder is
-ignored by git, so large downloads here are never committed by accident.
+The art inbox is **`C:\Dev\VI_Arena-art\`**, outside the repository (moved out of `Harness/art-inbox`
+on 2026-11-02, so the 2.4 GB of originals never go to GitHub or the USB stick). Drop downloaded
+models, textures and skies there, **any file names, any sub-folders**. Claude sorts them into
+`VI_Arena/src/Assets/VI_Arena/Resources/...`, renames them and wires them in. Only those sorted,
+slimmed copies are in git.
 
 **Licences:** for each download, also drop a note (e.g. `links.txt`) with the page you got it from.
 Then every file can be credited, and its licence checked (CC0 and public domain are easiest; CC-BY
@@ -70,7 +72,7 @@ Tick things off as you go. **Must** = needed for that part; **nice** = adds deta
 ## 5. People (done 2026-10-25: four Mixamo characters and five animations are in `Resources/People`)
 
 No free CC0 people exist on Poly Haven, ambientCG or NASA, so these come from you. Drop the FBX files
-in `Harness/art-inbox/people/`.
+in `C:\Dev\VI_Arena-art\people\`.
 
 | ✓ | What | Where to get it | Priority |
 |---|---|---|---|

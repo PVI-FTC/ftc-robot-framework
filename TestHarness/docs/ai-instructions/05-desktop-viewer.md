@@ -7,7 +7,7 @@ Unity can't be used, the harness will open **its own window** instead, with:
 - a **telemetry panel** showing what the Driver Station would show, plus match time
 
 The viewer **has not been built yet.** It is position-estimator Steps 11–15 in
-[`Harness/PROGRESS.md`](../PROGRESS.md), with optional extras in Step 16:
+[`TestHarness/docs/PROGRESS.md`](../PROGRESS.md), with optional extras in Step 16:
 
 | Step | What |
 |---|---|
@@ -50,7 +50,7 @@ If the viewer needs something these don't give, add it to the shared snapshot, n
 - telemetry
 
 It is saved as JSON. The window replays it, and the Unity bridge should reuse the same records.
-Document its fields, units and a `version` number in `Harness/README.md`
+Document its fields, units and a `version` number in `TestHarness/docs/README.md`
 ([02](02-unity-readiness.md) §8).
 
 ## 2. Keep the window out of the core
@@ -69,8 +69,8 @@ Document its fields, units and a `version` number in `Harness/README.md`
   display (`java.awt.headless=true`).
 - The window opens only when the user asks for it: `gradlew viewRecording` (or `view.bat`), or
   `viewer.open=true` in `harness.properties`, which opens it after `gradlew test` finishes (Step
-  15, option A, decided by the user 2026-10-27; see `Harness/README.md`). With `viewer.open=false`
-  (the default) and no `viewRecording`, no window may open.
+  15, option A, decided by the user 2026-10-27; see `TestHarness/docs/README.md`). With
+  `viewer.open=false` (the default) and no `viewRecording`, no window may open.
 - A test's pass/fail result must be exactly the same with or without the window.
 
 ## 4. The window never controls simulated time
@@ -107,8 +107,8 @@ show a run:
   the y axis must be flipped there, and nowhere else.
 - Robot size comes from the `DriveModel` (its `ModelValue`s), never hard-coded in the viewer.
   Placeholder values should be visibly marked (for example in a legend).
-- A field background image is optional. If one is added, keep it under `Harness/` (for example
-  `src/viewer/resources/`) and work out its scale from the field size, not from fixed pixel
+- A field background image is optional. If one is added, keep it under `TestHarness/` (for example
+  `th_src/src/viewer/resources/`) and work out its scale from the field size, not from fixed pixel
   numbers.
 - Show distances to people with `DisplayUnit` and `Pose.toString(...)`, so the window, reports and
   test output all match.
@@ -129,7 +129,7 @@ tests that don't need a screen (for example the inches-to-pixels math and the re
 
 ## 9. Live driving and recording tests
 
-Planned as steps D1–D6 in [`Harness/PROGRESS.md`](../PROGRESS.md#drive-and-record-a-test).
+Planned as steps D1–D6 in [`TestHarness/docs/PROGRESS.md`](../PROGRESS.md#drive-and-record-a-test).
 
 - Live input (keyboard, and controllers through **Jamepad**, which the user approved on
   2026-10-18) lives in the viewer. It reaches the robot code only through the core's single
@@ -150,4 +150,4 @@ Planned as steps D1–D6 in [`Harness/PROGRESS.md`](../PROGRESS.md#drive-and-rec
   - the automatic safe checks
   - a clearly marked `// TODO: add your own checks here` spot
 
-  Generate it into `src/test/java/pvi/harness/`, and never overwrite an existing file.
+  Generate it into `th_src/src/test/java/pvi/harness/`, and never overwrite an existing file.

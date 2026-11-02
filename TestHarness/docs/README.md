@@ -3,8 +3,8 @@
 Run your **real, unchanged TeamCode** on a laptop, with fake motors, scripted gamepads and simulated
 time. No robot, Control Hub or Driver Station needed.
 
-The harness is its own project. It reads `../TeamCode/src/main/java` but never changes it, and it is
-not part of the robot build. Nothing here gets deployed to the robot.
+The harness is its own project. It reads the repository's `TeamCode/src/main/java` but never
+changes it, and it is not part of the robot build. Nothing here gets deployed to the robot.
 
 **New here?** Start with [GETTING_STARTED.md](GETTING_STARTED.md): run the tests, drive on
 screen, turn a drive into a test and read a failing test, in five short steps.
@@ -12,6 +12,18 @@ screen, turn a drive into a test and read a failing test, in five short steps.
 **Another PVI team (Team 1, Team 3, …)?** See [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md):
 put this folder on your branch, describe your robot in `harness.properties`, and run the smoke
 test. (It has a short section for repositories outside PVI too.)
+
+**Where things are.** The `TestHarness` folder holds:
+
+| Folder | What |
+|---|---|
+| `TestHarness/th_src/` | the Java test harness: `build.gradle`, `harness.properties`, `src/`, `fields/`, `robots/`, `robot-recorder/`, and `build/` (test output and recordings) |
+| `TestHarness/VI_Arena/` | VI Arena, the Unity 3D app: `src/` is the Unity project, `dist/` the built `VI_Arena.exe` ([its README](../VI_Arena/README.md)) |
+| `TestHarness/docs/` | this guide and the others |
+| `TestHarness/view.bat`, `TestHarness/VI_Arena.bat` | double-click to open the viewer window or VI Arena |
+
+In this guide, a path like `src/test/java/...`, `harness.properties` or `build\recordings` is
+inside `TestHarness/th_src/`, and every `.\gradlew.bat` command runs from `TestHarness\th_src`.
 
 ---
 
@@ -24,7 +36,7 @@ test. (It has a short section for repositories outside PVI too.)
 
 ### Running on another PC
 
-- Copy the whole repository (the `Harness` folder needs `../TeamCode` and
+- Copy the whole repository (the `TestHarness` folder needs `../TeamCode` and
   `../build.dependencies.gradle` next to it; see "The config file" if yours are elsewhere).
 - **Don't run it from a USB stick.** Copy the whole `ftc-robot-framework` folder onto the PC's
   own drive (for example `C:\Dev`) and run it from there. A build writes about half a gigabyte of
@@ -55,7 +67,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 Go to the harness folder:
 
 ```powershell
-cd C:\Dev\ftc-robot-framework\Harness
+cd C:\Dev\ftc-robot-framework\TestHarness\th_src
 ```
 
 Run every test:
@@ -71,12 +83,12 @@ Run one test class:
 ```
 
 Each test prints `PASSED` or `FAILED`. For a readable report, open
-`Harness\build\reports\tests\test\index.html` in a browser.
+`TestHarness\th_src\build\reports\tests\test\index.html` in a browser.
 
 ### From Android Studio
 
-1. **File → Open** and choose the `Harness` folder (not the main repo folder). It opens in its own
-   window and does not affect the robot project.
+1. **File → Open** and choose the `TestHarness\th_src` folder (not the main repo folder). It opens
+   in its own window and does not affect the robot project.
 2. If asked about the Gradle JDK, choose **jbr (bundled)**.
 3. Wait for the sync to finish, then open a file in `src/test/java/pvi/harness/`.
 4. Click the green ▶ next to a test class or a single test.
@@ -210,7 +222,7 @@ Path file = runner.positionEstimator().saveTrackCsv("myAutonomous");
 System.out.println("Track saved to " + file);
 ```
 
-The file goes to `Harness\build\tracks\myAutonomous.csv` and is replaced each time the test runs.
+The file goes to `TestHarness\th_src\build\tracks\myAutonomous.csv` and is replaced each time the test runs.
 Names may use letters, digits, `-`, `_` and `.` only. Nothing is saved unless a test asks.
 `TrackCsvTest.java` has examples.
 
@@ -239,7 +251,7 @@ servo positions, the autonomous step, telemetry, plus rumbles. It is the file th
 OpModeRunner runner = new OpModeRunner(new TeamAAutoOpMode(), RobotConfigs.teamA());
 RunRecorder recorder = RunRecorder.attachTo(runner);
 runner.run(MatchPeriod.AUTONOMOUS).assertNoException();
-Path file = recorder.save("teamAAutonomous");   // Harness\build\recordings\teamAAutonomous.json
+Path file = recorder.save("teamAAutonomous");   // TestHarness\th_src\build\recordings\teamAAutonomous.json
 ```
 
 `recorder.recording()` gives the same data as Java records (`RunRecording`) without saving a file,
@@ -362,13 +374,13 @@ Not recorded yet: a crash's error message (a crashed call adds no loop entry; ch
 The viewer replays runs in a window: a dropdown at the top, the field on the left, a side panel
 on the right, playback controls at the bottom.
 
-**Easiest:** double-click `Harness\view.bat`. It sets Java for you and opens straight into
+**Easiest:** double-click `TestHarness\view.bat`. It sets Java for you and opens straight into
 **Drive: Team A TeleOp**, in INIT and waiting for Enter (pick a replay from the dropdown instead
 any time).
 Drag a recording (`.json`) onto `view.bat` to open that one instead. If something goes wrong, the
 window stays open so you can read the message.
 
-Or from PowerShell in `Harness\` (after the `$env:JAVA_HOME = ...` line from section 2):
+Or from PowerShell in `TestHarness\th_src\` (after the `$env:JAVA_HOME = ...` line from section 2):
 
 ```powershell
 .\gradlew.bat viewRecording                                                   # drive Team A TeleOp
@@ -378,9 +390,9 @@ Or from PowerShell in `Harness\` (after the `$env:JAVA_HOME = ...` line from sec
 With a file, it replays that recording; without one, it starts the Team A drive. Close the window
 to finish.
 
-**From Android Studio:** open the `Harness` folder (not the repository root), pick **View
+**From Android Studio:** open the `TestHarness\th_src` folder (not the repository root), pick **View
 recording** in the run dropdown at the top, and click the green ▶. That shared run configuration
-is stored in `Harness\.run\` and runs `viewRecording`, Java agent included. You can also
+is stored in `TestHarness\th_src\.run\` and runs `viewRecording`, Java agent included. You can also
 double-click **viewRecording** under **Gradle → ftc-harness → Tasks → harness**. (Running
 `RecordingViewer`'s `main` directly also opens the window, but the "Run: ..." scenarios then need
 `-javaagent:build\agent\harness-agent.jar` in the run configuration's VM options.)
@@ -473,7 +485,7 @@ name (it starts as `RecordedTeamATeleOpDrive`) and click OK. A few seconds later
 where the new test went and the command that runs it (**Copy command** puts it on the
 clipboard). It writes exactly the same test as `makeTest` below. The button is off while driving.
 
-Or from the command line: drive with **Record on** (above), then, from `Harness\`:
+Or from the command line: drive with **Record on** (above), then, from `TestHarness\th_src\`:
 
 ```powershell
 .\gradlew.bat makeTest                                                  # the newest drive-*.json
@@ -545,25 +557,27 @@ and stays closed. The tests themselves still never open a window.
 
 To save a still picture instead, use `FieldImage.savePng(recording, FieldImage.LAST_LOOP,
 "myAutonomous")` (a loop index instead of `LAST_LOOP` picks an earlier moment). It goes to
-`Harness\build\field-images\`.
+`TestHarness\th_src\build\field-images\`.
 
 ### Watching a recording in Unity (3D)
 
-The same recordings also replay in 3D in the Unity project in `Harness\unity\` (Stage U1).
-Open that folder in Unity Hub (Unity 6000.3.14f1), open `Assets/HarnessReplay/Replay.unity` and
+The same recordings also replay in 3D in VI Arena, the Unity project in `TestHarness\VI_Arena\src\`
+(Stage U1). Open that folder in Unity Hub (Unity 6000.3.14f1), open `Assets/VI_Arena/Replay.unity` and
 press **Play**: the newest recording in `build\recordings` opens. N / P switch to newer / older
 recordings; the other keys match the viewer window (Space, arrows, Home/End, `[` `]`), plus T for
 top-down and F to follow the robot. Unity only reads the saved files; nothing connects to the
-harness live yet. Details: [`unity/README.md`](unity/README.md).
+harness live yet. Details: [`VI_Arena/README.md`](../VI_Arena/README.md).
 
-**Without the Unity Editor:** double-click `unity-view.bat` (or drop a `.json` on it) to open the
-replay as a Windows app, `unity\Build\HarnessReplay.exe`. Build that app once with
-`buildUnity.bat` (Editor closed, a few minutes, needs Unity installed), and again after changing
-the Unity scripts. `unity-view.bat` offers to build it when it's missing.
+**Without the Unity Editor:** double-click `TestHarness\VI_Arena.bat` (or drop a `.json` on it) to
+open the replay as a Windows app, `VI_Arena\dist\VI_Arena.exe`. Build that app once with
+`VI_Arena\src\buildUnity.bat` (Editor closed, a few minutes, needs Unity installed), and again
+after changing the Unity scripts. `VI_Arena.bat` offers to build it when it's missing. The built
+app isn't in git: to give it to someone without Unity, `VI_Arena\package.bat` zips `dist\` for
+Google Drive or a thumb drive.
 
 ### Season field files (`fields/`)
 
-Each FTC season's field is a JSON file in `Harness\fields\`: `biobuzz-2026.json` (BIOBUZZ,
+Each FTC season's field is a JSON file in `TestHarness\th_src\fields\`: `biobuzz-2026.json` (BIOBUZZ,
 2026–27). DECODE (2025–26) is switched off: its file is in `fields\disabled\`, which Unity doesn't read
 (move it back up to offer it again). Unity draws the chosen one on top of the plain
 tiled field (Unity's **Visuals** screen, or G). The files are plain data with no Unity in them, so harness
@@ -626,7 +640,7 @@ Where the numbers come from:
   gardens, frame base and top bar, flowers and all 16 AprilTag positions (`"cad"`). The rest comes
   from Competition Manual TU06, Section 9, and Figure 10-2 (starting tilt). The frame legs are still
   `approximate`: the CAD's legs also lean inward, which one tilt can't describe. Unity draws the
-  CAD itself when it is in the project (`unity/README.md`, "The official field CAD").
+  CAD itself when it is in the project (`VI_Arena/README.md`, "The official field CAD").
 - **DECODE parts:** not added yet (needs the DECODE manual or CAD); only its tags are in the file.
 
 The `"field": "<id>"` in a run recording's header (version 5) makes Unity open that field.
@@ -636,7 +650,7 @@ The `"field": "<id>"` in a run recording's header (version 5) makes Unity open t
 The harness can run TeamCode **live for Unity**: Unity connects, picks an OpMode and asks for one
 OpMode call at a time; the harness runs it, **reads your game controller** (the same controller
 code as the viewer's live drive), and answers with that moment's robot state, which Unity draws.
-Start the harness side from `Harness\`:
+Start the harness side from `TestHarness\th_src\`:
 
 ```powershell
 .\gradlew.bat unityBridge                    # listens on 127.0.0.1:7465
@@ -645,10 +659,10 @@ Start the harness side from `Harness\`:
 
 **Or skip the command:** Unity's **Live mode** button (or L) runs `gradlew.bat unityBridge` for
 you, hidden, with its output in `build\unity-bridge.log`, and ends it again when switched off or
-when Unity closes (`HarnessLauncher.cs`).
+when Unity closes (`VI_Arena/src/Assets/VI_Arena/Runtime/HarnessLauncher.cs`).
 
 It only accepts connections from this computer, serves one client at a time, and keeps running
-for the next client until you press Ctrl+C. Then, in Unity (`unity/README.md`), open the Replay
+for the next client until you press Ctrl+C. Then, in Unity (`VI_Arena/README.md`), open the Replay
 chooser and pick **Live: Team A Mecanum Drive** (Team A's TeleOp, or another): Enter = PLAY, Esc = STOP, then **Save** keeps
 the run in `build\recordings`. Plug the controller in before choosing; with one controller its
 D-pad also works the operator's face buttons, as in the viewer. A controller that disconnects
@@ -720,11 +734,11 @@ missing name, the same as on a real robot.
 
 ### The config file (`harness.properties`)
 
-`Harness/harness.properties` holds every setting a team changes to use the harness in its own
+`TestHarness/th_src/harness.properties` holds every setting a team changes to use the harness in its own
 FTC repo. `build.gradle` reads the build settings, and `pvi.harness.runtime.HarnessConfig` reads
 the robot profile (`HarnessConfig.load()`). It's a plain Java `.properties` file: `key=value`
 lines, `#` starts a comment, and a line ending in `\` carries on the next line. Paths are relative
-to the `Harness` folder.
+to the `TestHarness/th_src` folder.
 
 **Format version:** `config.version=4` (version 2, 2026-10-27, added the robot name, drive
 directions, speeds, coasting, other motors, OpMode packages and `pvi.extras`; version 3 added
@@ -740,9 +754,9 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 | Key | Type | Meaning | PVI's value |
 |---|---|---|---|
 | `config.version` | integer | Layout of this file (see above) | `4` |
-| `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../TeamCode/src/main/java` |
+| `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../../TeamCode/src/main/java` |
 | `teamCode.opModePackages` | package list, comma-separated (at least one) | Java packages searched for `@TeleOp` / `@Autonomous` OpModes (RP8) | `org.firstinspires.ftc.teamcode` |
-| `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../build.dependencies.gradle` |
+| `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../../build.dependencies.gradle` |
 | `host.skipLibraries` | `group:name` list, comma-separated (may be empty) | Libraries in that list that only work on Android, so the harness leaves them out | `org.firstinspires.ftc:Inspection`, `:Blocks`, `:RobotServer`, `:OnBotJava`, `androidx.appcompat:appcompat` |
 | `drive.frontLeft`, `drive.frontRight`, `drive.rearLeft`, `drive.rearRight` | text | The mecanum drive motors' names in the robot configuration | `frontLeft`, `frontRight`, `rearLeft`, `rearRight` |
 | `pinpoint` | text | The Pinpoint's name in the robot configuration | `pinpoint` |
@@ -1218,7 +1232,7 @@ see Troubleshooting.
 - **The viewer is its own source set** (`src/viewer/java`). It may use the harness core, but the
   core can't even see it, so window code can never leak into the simulation. Tests run with
   `java.awt.headless=true`, so `gradlew test` never opens a window.
-- **TeamCode is compiled straight from `../TeamCode/src/main/java`**, so tests always use the
+- **TeamCode is compiled straight from `../../TeamCode/src/main/java`**, so tests always use the
   current code.
 - The FTC libraries are Android `.aar` files; `build.gradle` unpacks their `classes.jar` so a normal
   PC Java can use them. Android classes come from Robolectric's `android-all` jar.
@@ -1250,8 +1264,6 @@ src/viewer/java/pvi/harness/viewer/
   SaveAsTest        the "Save as test" button's work, without the window (testable)
 src/test/java/pvi/harness/
   the tests
-unity/
-  Unity project: replays recordings in 3D (Stage U1; see unity/README.md)
 src/bridge/java/pvi/harness/bridge/
   BridgeServer      the live Unity connection (gradlew unityBridge): local socket, one client
   BridgeSession     the messages (no socket here, so tests drive it line by line)
@@ -1259,6 +1271,10 @@ src/bridge/java/pvi/harness/bridge/
   BridgeOpModes     the OpModes Unity can run
   BridgeGamepads    Unity's gamepad, through the core's single live-input entry point
 ```
+
+These are all inside `TestHarness/th_src/`. The Unity project is next to it, in
+`TestHarness/VI_Arena/src/` (VI Arena: replays recordings and runs Live mode in 3D; see
+[`VI_Arena/README.md`](../VI_Arena/README.md)).
 
 - **The Java agent.** `build.gradle` packages `src/agent` with Byte Buddy into
   `build/agent/harness-agent.jar` and starts the test JVM with `-javaagent:` pointing at it. As
@@ -1282,6 +1298,6 @@ src/bridge/java/pvi/harness/bridge/
     FTC SDK`). The real ones need Android, a camera and native code. Java picks the harness's
     copies because the harness's classes come first on the class path
     (`AprilTagVisionTest.robotCodeGetsTheHarnessVisionPortal` checks this). Their public
-    methods must match the SDK's `Vision` version in `../build.dependencies.gradle`: check them when the SDK is
+    methods must match the SDK's `Vision` version in the repository's `build.dependencies.gradle`: check them when the SDK is
     upgraded. Everything else in the SDK's vision library (builders, tag libraries, detection
     classes, pose math) is the SDK's own.

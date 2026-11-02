@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * elsewhere the files are meant to be gone.</p>
  */
 class GuideFileListTest {
-    /** The guide, relative to the Harness folder (the tests' working folder). */
-    private static final Path GUIDE = Path.of("BRING_YOUR_OWN_ROBOT.md");
+    /** The guide, relative to th_src (the tests' working folder). */
+    private static final Path GUIDE = Path.of("../docs/BRING_YOUR_OWN_ROBOT.md");
     /** Where the tests are. */
     private static final Path TESTS = Path.of("src/test/java/pvi/harness");
     /** An import of PVI's TeamCode (not the harness's own test samples in TeamCode packages). */

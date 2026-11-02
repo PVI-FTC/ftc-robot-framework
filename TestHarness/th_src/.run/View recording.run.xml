@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <!-- Shared Android Studio run configuration: "View recording" in the run dropdown.
        Runs the harness's viewRecording Gradle task, which opens the viewer window with the Java
-       agent loaded (so the "Run: ..." scenarios work). Open the Harness folder, not the repo root,
+       agent loaded (so the "Run: ..." scenarios work). Open TestHarness/th_src, not the repo root,
        for Android Studio to find it. -->
   <configuration default="false" name="View recording" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>

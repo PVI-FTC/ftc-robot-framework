@@ -2,7 +2,7 @@
 
 The plan is to connect the harness to a **Unity simulator** later: Unity shows the field and robot
 and **replaces the harness's physics backend**, while the harness keeps running the real,
-unchanged TeamCode. This is **Phase 7** in [`Harness/PROGRESS.md`](../PROGRESS.md):
+unchanged TeamCode. This is **Phase 7** in [`TestHarness/docs/PROGRESS.md`](../PROGRESS.md):
 
 - the connection will be a **local socket**
 - Unity plugs in through the `PhysicsBackend` interface (Phase 5 / Step 17)
@@ -21,8 +21,9 @@ added without rewriting the harness.
 3. **U3, physics:** Unity replaces the built-in position estimate behind `PhysicsBackend` (§5):
    wheel powers in, pose (later encoders and Pinpoint) out.
 
-The Unity project lives in **`Harness/unity/`** (decided 2026-10-23). §1 still applies: C# and
-Unity files stay in that folder, and nothing in `src/` may depend on it.
+The Unity project is **VI Arena**, in **`TestHarness/VI_Arena/src/`** (decided 2026-10-23 as
+`Harness/unity/`; moved and renamed 2026-11-02). §1 still applies: C# and Unity files stay in
+`VI_Arena/`, and nothing in `th_src/` may depend on it.
 
 Unity uses C#, so **nothing in Unity can call Java classes directly.** Everything Unity needs has
 to go across a boundary as plain data.
@@ -116,7 +117,7 @@ viewed from above.
 - Do every conversion in **one place**, at the boundary, the same way `DisplayUnit` keeps the
   feet conversion in one place.
 - **Mapping (confirmed by the user on 2026-10-23** after checking the Stage U1 replay; it lives
-  in `unity/Assets/HarnessReplay/Runtime/FtcToUnity.cs`):
+  in `VI_Arena/src/Assets/VI_Arena/Runtime/FtcToUnity.cs`):
 
   | FTC (harness) | Unity |
   |---|---|
@@ -144,5 +145,5 @@ viewed from above.
 The Step 11 JSON run recording and the Phase 7 socket messages both count.
 
 If you add any format that leaves the JVM (JSON, CSV, a message layout), document it in
-`Harness/README.md`: each field, its type and unit, and a `version` number that goes up whenever
-the format changes.
+`TestHarness/docs/README.md`: each field, its type and unit, and a `version` number that goes up
+whenever the format changes.

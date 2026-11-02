@@ -21,9 +21,9 @@ class HarnessConfigTest {
     /** A complete, valid file, so each test can break one line of it. */
     private static final String GOOD = String.join("\n",
             "config.version=" + HarnessConfig.VERSION,
-            "teamCode.sourceDir=../TeamCode/src/main/java",
+            "teamCode.sourceDir=../../TeamCode/src/main/java",
             "teamCode.opModePackages=org.example.robot, org.example.shared",
-            "host.dependenciesFile=../build.dependencies.gradle",
+            "host.dependenciesFile=../../build.dependencies.gradle",
             "host.skipLibraries=org.firstinspires.ftc:Blocks, androidx.appcompat:appcompat",
             "robot.name=Test Bot",
             "drive.frontLeft=fl",
@@ -82,7 +82,7 @@ class HarnessConfigTest {
 
         // Reading cleanly is the check in any repo; the values below are PVI's own robot.
         Assumptions.assumeTrue(config.pviExtras(), "PVI's values; another team's file has its own");
-        assertEquals("../TeamCode/src/main/java", config.teamCodeSourceDir());
+        assertEquals("../../TeamCode/src/main/java", config.teamCodeSourceDir());
         assertEquals(new HarnessConfig.DriveMotorNames("frontLeft", "frontRight", "rearLeft", "rearRight"),
                 config.driveMotors());
         assertEquals("pinpoint", config.pinpointName());

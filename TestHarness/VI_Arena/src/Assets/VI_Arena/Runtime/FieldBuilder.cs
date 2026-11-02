@@ -1,0 +1,565 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace VI_Arena
+{
+    /// <summary>
+    /// Builds the replay scene from code when Play starts: light, the 12 x 12 ft field with its
+    /// 2 ft tiles, low walls, axis labels, the robot (body, outline, front edge, heading arrow,
+    /// four wheels and the intake) and its trail. Nothing is hand-placed in the scene file, so
+    /// every size and color is right here to read and change.
+    ///
+    /// <para>Colors match the Swing viewer's dark "mission control" field (FieldPainter): a dark
+    /// field with faint grid lines, a cyan trail, a dark robot with a light outline, a cyan front
+    /// edge and a white heading arrow. Wheels light cyan when driving forward and amber in
+    /// reverse. All positions come from <see cref="FtcToUnity"/>.</para>
+    /// </summary>
+    public static class FieldBuilder
+    {
+        /// <summary>FTC field tiles are 2 ft (24 in) square: 6 x 6 tiles.</summary>
+        public const float TileInches = 24f;
+        /// <summary>Perimeter wall height. Kept low so the top-down view looks like the Swing field.</summary>
+        public const float WallHeightMeters = 0.10f;
+        /// <summary>Robot body height. Not recorded anywhere, so just a guess for drawing.</summary>
+        public const float RobotHeightMeters = 0.10f;
+        /// <summary>How high above the floor the robot body's bottom sits.</summary>
+        public const float RobotClearanceMeters = 0.02f;
+        /// <summary>Wheel size seen from above, as in the Swing viewer (4 x 1.6 in).</summary>
+        public const float WheelLengthInches = 4f;
+        public const float WheelWidthInches = 1.6f;
+
+        // Colors, the same values as the Swing FieldPainter.
+        public static readonly Color FieldColor = Hex(0x0A0D11);
+        public static readonly Color FootLineColor = Hex(0x12171D);
+        public static readonly Color TileLineColor = Hex(0x1D242C);
+        public static readonly Color BorderColor = Hex(0x3A444F);
+        public static readonly Color RobotFillColor = Hex(0x0E1F2E);
+        public static readonly Color RobotOutlineColor = Hex(0xA9BCCC);
+        public static readonly Color WheelColor = Hex(0x1A2A38);
+
+        /// <summary>The objects the controller moves or recolors during replay.</summary>
+        public sealed class Built
+        {
+            public Transform robot;
+            public LineRenderer trail;
+            /// <summary>Front-left, front-right, rear-left, rear-right.</summary>
+            public Renderer[] wheels;
+            public Renderer intake;
+            /// <summary>The robot's 3D model, when one is drawn instead of the box (null for the box).</summary>
+            public RobotModelView model;
+            /// <summary>The scene's sun, which each setting colors and aims (<see cref="SettingBuilder"/>).</summary>
+            public Light sun;
+            /// <summary>The plain dark floor and low walls, hidden while a CAD field (with its own tiles and walls) is shown.</summary>
+            public readonly List<GameObject> plainField = new List<GameObject>();
+        }
+
+        /// <summary>Where a season's CAD parts live: Resources/Field/&lt;field id&gt; (one model per element).</summary>
+        public static string CadFolder(string fieldId) => "Field/" + fieldId;
+
+        /// <summary>The CAD models for a field (empty if the field has none in Resources, e.g. in a fresh clone).</summary>
+        public static GameObject[] CadModels(string fieldId) => Resources.LoadAll<GameObject>(CadFolder(fieldId));
+
+        /// <summary>The CAD parts whose panels are drawn see-through: the field walls and both HIVEs.</summary>
+        public static readonly string[] SeeThroughParts = { "perimeter", "red-hive", "blue-hive" };
+
+        /// <summary>
+        /// The CAD color of those panels. The CAD export puts each color of a part in its own piece,
+        /// named "&lt;part&gt;-&lt;color&gt;", and the clear panels are the light grey ones.
+        /// </summary>
+        public const string PanelColor = "E6E6E6";
+
+        /// <summary>How much of the panels' color shows (0 = invisible, 1 = solid).</summary>
+        public const float PanelOpacity = 0.11f;
+
+        /// <summary>
+        /// The panels' shader: lit, and always see-through by the color's alpha. WHY not the Standard
+        /// shader's Fade mode: that needs a shader version the app build left out, so the panels showed
+        /// solid in the app while they were clear in the Editor.
+        /// </summary>
+        public const string PanelShader = "Legacy Shaders/Transparent/Specular";
+
+        /// <summary>Shows or hides the plain dark floor and low walls.</summary>
+        public static void ShowPlainField(Built built, bool show)
+        {
+            foreach (GameObject part in built.plainField)
+            {
+                part.SetActive(show);
+            }
+        }
+
+        /// <summary>Creates everything under one parent object and returns the parts that change.</summary>
+        public static Built Build(Transform parent, float robotLengthInches, float robotWidthInches)
+        {
+            Light sun = AddLight(parent);
+            var built = new Built { trail = AddTrail(parent), sun = sun };
+            built.plainField.Add(AddFloor(parent));
+            built.plainField.AddRange(AddWalls(parent));
+            AddAxisLabels(parent);
+            AddRobot(parent, built, robotLengthInches, robotWidthInches);
+            return built;
+        }
+
+        /// <summary>
+        /// Remakes the robot at a new size (for example when another recording is opened), as the box,
+        /// or as a robot's 3D model at its true size when <paramref name="profile"/> and
+        /// <paramref name="model"/> are given (the heading arrow stays, above the model).
+        /// </summary>
+        public static void RebuildRobot(Transform parent, Built built, float lengthInches, float widthInches,
+            RobotProfile profile = null, GameObject model = null)
+        {
+            if (built.robot != null)
+            {
+                Object.Destroy(built.robot.gameObject);
+            }
+            AddRobot(parent, built, lengthInches, widthInches);
+            built.model = null;
+            if (profile != null && model != null)
+            {
+                ShowModel(built, profile, model);
+            }
+        }
+
+        /// <summary>
+        /// Draws the model in place of the box: the box's body, outline, wheels and intake are hidden,
+        /// and the heading arrow is lifted just above the model so it still shows from above.
+        /// </summary>
+        private static void ShowModel(Built built, RobotProfile profile, GameObject model)
+        {
+            Transform robot = built.robot;
+            built.model = RobotModelView.Attach(robot, profile, model);
+            float modelTop = RobotModelView.WorldBounds(built.model.Holder).max.y - robot.position.y;
+            foreach (Transform part in robot)
+            {
+                if (part == built.model.Holder)
+                {
+                    continue;
+                }
+                if (part.name.StartsWith("Heading arrow", System.StringComparison.Ordinal))
+                {
+                    part.localPosition = new Vector3(part.localPosition.x, modelTop + 0.012f, part.localPosition.z);
+                }
+                else
+                {
+                    part.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>The bright color the ball obstacles are drawn in, so they stand out from the CAD.</summary>
+        public static readonly Color ObstacleColor = Hex(0xFF2BD6);
+
+        /// <summary>
+        /// Draws a field's <see cref="FieldLayoutData.pieceObstacles"/> (what the harness's balls bounce
+        /// off) as plain colored boxes and cylinders, for checking them against the CAD (the O key).
+        /// Drawing only: no colliders.
+        /// </summary>
+        public static Transform BuildObstacles(Transform parent, FieldLayoutData field)
+        {
+            var root = new GameObject("Ball obstacles " + field.id).transform;
+            root.SetParent(parent, false);
+            foreach (PieceObstacleData o in field.pieceObstacles)
+            {
+                float height = FtcToUnity.Meters(o.topInches - o.bottomInches);
+                float centerHeight = FtcToUnity.Meters((o.topInches + o.bottomInches) / 2);
+                if (o.shape == "cylinder")
+                {
+                    float across = FtcToUnity.Meters(2 * o.radiusInches);
+                    // Unity's cylinder is 1 across and 2 tall at scale 1.
+                    Primitive(root, PrimitiveType.Cylinder, o.id, FtcToUnity.Position(o.xInches, o.yInches, centerHeight),
+                        new Vector3(across, height / 2f, across), ObstacleColor, unlit: true);
+                }
+                else
+                {
+                    // FTC x is Unity x and FTC y is Unity z, so an axis-aligned box needs no turning.
+                    Primitive(root, PrimitiveType.Cube, o.id,
+                        FtcToUnity.Position((o.minXInches + o.maxXInches) / 2, (o.minYInches + o.maxYInches) / 2, centerHeight),
+                        new Vector3(FtcToUnity.Meters(o.maxXInches - o.minXInches), height,
+                            FtcToUnity.Meters(o.maxYInches - o.minYInches)), ObstacleColor, unlit: true);
+                }
+            }
+            return root;
+        }
+
+        /// <summary>
+        /// Draws a season's field under a new object and returns it, so it can be removed when another
+        /// field is picked. With the official CAD in Resources/Field/&lt;id&gt; (<see cref="CadModels"/>), the
+        /// CAD parts are drawn (tiles, perimeter, HIVE, flowers, tape, tags), plus the file's parts
+        /// outside the field (alliance areas); otherwise the file's simple shapes. Either way every
+        /// AprilTag with a known field position gets its real 36h11 pattern (<see cref="AddTag"/>);
+        /// the CAD's tags are plain black squares.
+        /// </summary>
+        public static Transform BuildSeason(Transform parent, FieldLayoutData field)
+        {
+            var root = new GameObject("Season field " + field.id).transform;
+            root.SetParent(parent, false);
+            GameObject[] cad = CadModels(field.id);
+            if (cad.Length > 0)
+            {
+                // The CAD's points are FTC inches, z up: turn and shrink it into Unity's frame in one step.
+                var model = new GameObject("CAD field").transform;
+                model.SetParent(root, false);
+                model.localRotation = FtcToUnity.FtcModelRotation;
+                model.localScale = Vector3.one * FtcToUnity.MetersPerInch;
+                foreach (GameObject part in cad)
+                {
+                    GameObject copy = Object.Instantiate(part, model, false);
+                    copy.name = part.name;
+                    if (System.Array.IndexOf(SeeThroughParts, part.name) >= 0)
+                    {
+                        MakePanelsSeeThrough(copy.transform);
+                    }
+                }
+            }
+            foreach (FieldElementData element in field.elements)
+            {
+                bool outsideField = System.Math.Abs(element.xInches) > FtcToUnity.FieldHalfWidthInches
+                    || System.Math.Abs(element.yInches) > FtcToUnity.FieldHalfWidthInches;
+                if (cad.Length == 0 || outsideField)
+                {
+                    AddElement(root, element);
+                }
+            }
+            foreach (FieldTagData tag in field.aprilTags)
+            {
+                if (tag.HasFieldPose && tag.id >= 0 && tag.id < AprilTag36h11.Codes.Length)
+                {
+                    AddTag(root, tag, onCad: cad.Length > 0);
+                }
+            }
+            return root;
+        }
+
+        /// <summary>
+        /// Draws a part's panels like clear plastic, so the robot and pieces behind the walls and inside
+        /// the HIVEs stay visible. The frame and colored trim stay solid.
+        /// </summary>
+        private static void MakePanelsSeeThrough(Transform part)
+        {
+            foreach (MeshRenderer renderer in part.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (!renderer.name.EndsWith("-" + PanelColor))
+                {
+                    continue;
+                }
+                var clear = new Material(Shader.Find(PanelShader)) { name = "Clear panel" };
+                Color color = renderer.sharedMaterial.color;
+                color.a = PanelOpacity;
+                clear.color = color;
+                clear.SetFloat("_Shininess", 0.6f); // a small, soft highlight, so the panels still show
+                renderer.sharedMaterial = clear;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        private static void AddElement(Transform root, FieldElementData element)
+        {
+            Color color = FieldLayouts.ParseColor(element.color);
+            Vector3 center = FtcToUnity.Position(element.xInches, element.yInches, FtcToUnity.Meters(element.zInches));
+            GameObject part;
+            if (element.shape == "cylinder")
+            {
+                // Unity's cylinder is 1 across and 2 tall at scale 1.
+                part = Primitive(root, PrimitiveType.Cylinder, element.id, center,
+                    new Vector3(FtcToUnity.Meters(element.diameterInches), FtcToUnity.Meters(element.heightInches) / 2f,
+                        FtcToUnity.Meters(element.diameterInches)), color);
+            }
+            else
+            {
+                // Local +z is the box's length (FTC +x before turning), local x its width.
+                part = Primitive(root, PrimitiveType.Cube, element.id, center,
+                    new Vector3(FtcToUnity.Meters(element.widthInches), FtcToUnity.Meters(element.heightInches),
+                        FtcToUnity.Meters(element.lengthInches)), color);
+                part.transform.localRotation = FtcToUnity.Rotation(element.headingDegrees * Mathf.Deg2Rad, element.tiltDegrees);
+            }
+            if (element.heightInches < 0.5)
+            {
+                // Floor tape and painted areas: flat colors, no shadows, like the field itself.
+                Renderer renderer = part.GetComponent<Renderer>();
+                renderer.material = new Material(Shader.Find("Unlit/Color")) { color = color };
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        /// <summary>
+        /// An AprilTag with its real 36h11 pattern (<see cref="AprilTag36h11"/>: white edge, black
+        /// border and data cells), centered where the file says, its printed side facing the file's
+        /// <c>facing</c> and its top toward the sky, as the SDK's tag frame has it. The black square is
+        /// <c>sizeInches</c> across (the SDK's tag size), so the whole picture with its white edge is
+        /// 10/8 of that. On the CAD field it sits 1 mm in front of the CAD's plain black square; on the
+        /// simple field it gets a white plate behind it. HIVE tags (<c>moves</c>) are drawn where the
+        /// file puts them at the start of a match.
+        /// </summary>
+        public static Transform AddTag(Transform root, FieldTagData tag, bool onCad)
+        {
+            Vector3 facing = FtcToUnity.Direction(tag.facing.x, tag.facing.y, tag.facing.z).normalized;
+            Vector3 up = Mathf.Abs(Vector3.Dot(facing, Vector3.up)) > 0.95f ? Vector3.forward : Vector3.up;
+            var holder = new GameObject("AprilTag " + tag.id).transform;
+            holder.SetParent(root, false);
+            holder.localPosition = FtcToUnity.Position(tag.xInches.Value, tag.yInches.Value, FtcToUnity.Meters(tag.zInches.Value))
+                + facing * (onCad ? 0.001f : 0f);
+            // A quad shows its -z side, so -z points out of the printed side; +y is the tag's top.
+            holder.localRotation = Quaternion.LookRotation(-facing, up);
+            float printed = FtcToUnity.Meters(tag.sizeInches) * AprilTag36h11.Cells / 8f;
+            if (!onCad)
+            {
+                Box(holder, "Backing", new Vector3(0f, 0f, 0.0015f), new Vector3(printed * 1.1f, printed * 1.1f, 0.002f), Color.white, unlit: true);
+            }
+            GameObject pattern = Primitive(holder, PrimitiveType.Quad, "Pattern", Vector3.zero, new Vector3(printed, printed, 1f), Color.white, unlit: true);
+            pattern.GetComponent<Renderer>().material = new Material(Shader.Find("Unlit/Texture"))
+            {
+                name = "AprilTag " + tag.id,
+                mainTexture = AprilTag36h11.Texture(tag.id),
+            };
+            return holder;
+        }
+
+        /// <summary>
+        /// Colors the wheels and intake for one loop's motor powers: cyan forward, amber reverse,
+        /// brighter the harder they push; dark when stopped. Like the Swing robot drawing.
+        /// </summary>
+        public static void ShowPowers(Built built, LoopData loop)
+        {
+            string[] wheelNames = { "frontLeft", "frontRight", "rearLeft", "rearRight" };
+            for (int i = 0; i < built.wheels.Length; i++)
+            {
+                built.wheels[i].material.color = PowerColor(MotorPower(loop, wheelNames[i]), WheelColor);
+            }
+            if (built.intake != null)
+            {
+                built.intake.material.color = PowerColor(MotorPower(loop, "intake"), WheelColor);
+            }
+        }
+
+        /// <summary>Dark when stopped, then toward cyan (forward) or amber (reverse) as the power grows.</summary>
+        public static Color PowerColor(double power, Color stopped)
+        {
+            float amount = Mathf.Clamp01(Mathf.Abs((float)power));
+            if (amount < 0.005f)
+            {
+                return stopped;
+            }
+            return Color.Lerp(stopped, power > 0 ? HudTheme.Accent : HudTheme.Amber, 0.35f + 0.65f * amount);
+        }
+
+        internal static double MotorPower(LoopData loop, string name)
+        {
+            foreach (MotorData motor in loop.motors)
+            {
+                if (motor.name == name)
+                {
+                    return motor.power;
+                }
+            }
+            return 0;
+        }
+
+        // ---- The parts -----------------------------------------------------------------------------
+
+        private static Light AddLight(Transform parent)
+        {
+            var light = new GameObject("Sun").AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 0.9f;
+            light.shadows = LightShadows.Soft;
+            light.shadowStrength = 0.5f;
+            light.transform.SetParent(parent, false);
+            light.transform.rotation = Quaternion.Euler(60f, -30f, 0f);
+            // Plain, even fill light. Unity's default lights the scene from a (blue) sky, which
+            // tints the colors even though no sky is shown.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.55f, 0.57f, 0.60f);
+            RenderSettings.skybox = null;
+            return light;
+        }
+
+        private static GameObject AddFloor(Transform parent)
+        {
+            // The field is unlit, so its colors are exactly the Swing field's in every view.
+            GameObject field = Box(parent, "Field", new Vector3(0f, -0.01f, 0f),
+                new Vector3(FtcToUnity.FieldSizeMeters, 0.02f, FtcToUnity.FieldSizeMeters), Color.white, unlit: true);
+            Renderer renderer = field.GetComponent<Renderer>();
+            renderer.material.mainTexture = TileTexture();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return field;
+        }
+
+        /// <summary>The field's pattern: faint lines every foot, stronger ones every 2 ft tile.</summary>
+        private static Texture2D TileTexture()
+        {
+            const int size = 1152;               // 8 pixels per inch
+            const int pixelsPerFoot = size / 12;
+            var texture = new Texture2D(size, size, TextureFormat.RGB24, true) { name = "Field tiles" };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Color color = FieldColor;
+                    bool tileLine = x % (2 * pixelsPerFoot) < 3 || y % (2 * pixelsPerFoot) < 3;
+                    bool footLine = x % pixelsPerFoot < 2 || y % pixelsPerFoot < 2;
+                    if (tileLine)
+                    {
+                        color = TileLineColor;
+                    }
+                    else if (footLine)
+                    {
+                        color = FootLineColor;
+                    }
+                    pixels[y * size + x] = color;
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.anisoLevel = 8;
+            texture.Apply();
+            return texture;
+        }
+
+        private static GameObject[] AddWalls(Transform parent)
+        {
+            float half = FtcToUnity.FieldSizeMeters / 2f;
+            const float thickness = 0.03f;
+            float length = FtcToUnity.FieldSizeMeters + 2f * thickness;
+            float y = WallHeightMeters / 2f;
+            return new[]
+            {
+                Box(parent, "Wall +x", new Vector3(half + thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor),
+                Box(parent, "Wall -x", new Vector3(-half - thickness / 2f, y, 0f), new Vector3(thickness, WallHeightMeters, length), BorderColor),
+                Box(parent, "Wall +y", new Vector3(0f, y, half + thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor),
+                Box(parent, "Wall -y", new Vector3(0f, y, -half - thickness / 2f), new Vector3(length, WallHeightMeters, thickness), BorderColor),
+            };
+        }
+
+        /// <summary>"+X" and "+Y" labels just outside the field, where the Swing viewer puts them.</summary>
+        private static void AddAxisLabels(Transform parent)
+        {
+            Label(parent, "+X", FtcToUnity.Position(FtcToUnity.FieldHalfWidthInches + 5, 0, 0.02f));
+            Label(parent, "+Y", FtcToUnity.Position(FtcToUnity.FieldHalfWidthInches - 4, FtcToUnity.FieldHalfWidthInches + 5, 0.02f));
+        }
+
+        private static void AddRobot(Transform parent, Built built, float lengthInches, float widthInches)
+        {
+            float length = FtcToUnity.Meters(lengthInches);
+            float width = FtcToUnity.Meters(widthInches);
+            var robot = new GameObject("Robot").transform;
+            robot.SetParent(parent, false);
+            built.robot = robot;
+
+            // The robot's local +z is its front (FtcToUnity.Rotation turns +z to face the heading).
+            float bodyY = RobotClearanceMeters + RobotHeightMeters / 2f;
+            float top = RobotClearanceMeters + RobotHeightMeters;
+            // Flat dark navy like the Swing robot, so it reads the same in the top-down view.
+            Box(robot, "Body", new Vector3(0f, bodyY, 0f), new Vector3(width, RobotHeightMeters, length), RobotFillColor, unlit: true);
+
+            // Light outline around the top, like the Swing robot's outline.
+            const float rim = 0.006f;
+            Box(robot, "Outline left", new Vector3(-width / 2f + rim / 2f, top, 0f), new Vector3(rim, 0.004f, length), RobotOutlineColor, unlit: true);
+            Box(robot, "Outline right", new Vector3(width / 2f - rim / 2f, top, 0f), new Vector3(rim, 0.004f, length), RobotOutlineColor, unlit: true);
+            Box(robot, "Outline back", new Vector3(0f, top, -length / 2f + rim / 2f), new Vector3(width, 0.004f, rim), RobotOutlineColor, unlit: true);
+            Box(robot, "Outline front", new Vector3(0f, top, length / 2f - rim / 2f), new Vector3(width, 0.004f, rim), RobotOutlineColor, unlit: true);
+            // Front edge in cyan, so the front shows even without the arrow.
+            Box(robot, "Front edge", new Vector3(0f, top, length / 2f - 0.008f), new Vector3(width, 0.005f, 0.016f), HudTheme.Accent, unlit: true);
+
+            // Four wheels in the corners, on top so they show from above, and the intake across the front.
+            float wheelForward = FtcToUnity.Meters(lengthInches / 2f - WheelLengthInches / 2f - 1f);
+            float wheelLeft = FtcToUnity.Meters(widthInches / 2f - WheelWidthInches / 2f - 0.6f);
+            Vector3 wheelSize = new Vector3(FtcToUnity.Meters(WheelWidthInches), 0.006f, FtcToUnity.Meters(WheelLengthInches));
+            built.wheels = new[]
+            {
+                // Unity +x is the robot's right, so "left" wheels sit at -x.
+                Box(robot, "Wheel front left", new Vector3(-wheelLeft, top + 0.002f, wheelForward), wheelSize, WheelColor, unlit: true).GetComponent<Renderer>(),
+                Box(robot, "Wheel front right", new Vector3(wheelLeft, top + 0.002f, wheelForward), wheelSize, WheelColor, unlit: true).GetComponent<Renderer>(),
+                Box(robot, "Wheel rear left", new Vector3(-wheelLeft, top + 0.002f, -wheelForward), wheelSize, WheelColor, unlit: true).GetComponent<Renderer>(),
+                Box(robot, "Wheel rear right", new Vector3(wheelLeft, top + 0.002f, -wheelForward), wheelSize, WheelColor, unlit: true).GetComponent<Renderer>(),
+            };
+            built.intake = Box(robot, "Intake", new Vector3(0f, top + 0.002f, length / 2f - FtcToUnity.Meters(2.2f)),
+                new Vector3(width * 0.55f, 0.006f, FtcToUnity.Meters(1.2f)), WheelColor, unlit: true).GetComponent<Renderer>();
+
+            // White heading arrow: a shaft from the center to past the front, and a wedge tip.
+            float arrowY = top + 0.012f;
+            float shaftLength = length / 2f + FtcToUnity.Meters(4f);
+            Box(robot, "Heading arrow", new Vector3(0f, arrowY, shaftLength / 2f), new Vector3(0.012f, 0.004f, shaftLength), HudTheme.Text, unlit: true);
+            GameObject tip = Box(robot, "Heading arrow tip", new Vector3(0f, arrowY, shaftLength + 0.01f),
+                new Vector3(0.06f, 0.004f, 0.06f), HudTheme.Text, unlit: true);
+            tip.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+        }
+
+        private static LineRenderer AddTrail(Transform parent)
+        {
+            var line = new GameObject("Trail").AddComponent<LineRenderer>();
+            line.transform.SetParent(parent, false);
+            line.useWorldSpace = true;
+            line.widthMultiplier = 0.014f;
+            line.numCapVertices = 2;
+            line.material = new Material(Shader.Find("Sprites/Default"));
+            line.startColor = HudTheme.Accent;
+            line.endColor = HudTheme.Accent;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.positionCount = 0;
+            return line;
+        }
+
+        /// <summary>
+        /// A colored box (a scaled cube) without a collider: nothing in Stage U1 collides. Unlit
+        /// boxes show their exact color from any angle (for flat markings); lit ones get shading.
+        /// </summary>
+        private static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 size, Color color, bool unlit = false)
+        {
+            return Primitive(parent, PrimitiveType.Cube, name, localPosition, size, color, unlit);
+        }
+
+        private static GameObject Primitive(Transform parent, PrimitiveType type, string name, Vector3 localPosition, Vector3 size,
+            Color color, bool unlit = false)
+        {
+            GameObject box = GameObject.CreatePrimitive(type);
+            box.name = name;
+            // Destroy only works in Play mode; the Editor tests build fields outside it.
+            if (Application.isPlaying)
+            {
+                Object.Destroy(box.GetComponent<Collider>());
+            }
+            else
+            {
+                Object.DestroyImmediate(box.GetComponent<Collider>());
+            }
+            box.transform.SetParent(parent, false);
+            box.transform.localPosition = localPosition;
+            box.transform.localScale = size;
+            Renderer renderer = box.GetComponent<Renderer>();
+            if (unlit)
+            {
+                renderer.material = new Material(Shader.Find(name == "Field" ? "Unlit/Texture" : "Unlit/Color")) { color = color };
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            else
+            {
+                Material material = renderer.material;
+                material.color = color;
+                // Matte, not shiny: Unity's default material is semi-glossy, which shows bright glare.
+                material.SetFloat("_Glossiness", 0.05f);
+                material.SetFloat("_Metallic", 0f);
+            }
+            return box;
+        }
+
+        private static void Label(Transform parent, string text, Vector3 position)
+        {
+            var label = new GameObject("Label " + text).AddComponent<TextMesh>();
+            label.transform.SetParent(parent, false);
+            label.transform.position = position;
+            label.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // lying flat, readable from above
+            label.text = text;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.GetComponent<MeshRenderer>().material = label.font.material;
+            label.fontSize = 48;
+            label.characterSize = 0.012f;
+            label.anchor = TextAnchor.MiddleLeft;
+            label.color = HudTheme.Muted;
+        }
+
+        private static Color Hex(int rgb)
+        {
+            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+        }
+    }
+}

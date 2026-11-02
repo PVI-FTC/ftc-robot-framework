@@ -1,30 +1,38 @@
-# Harness Unity project
+# VI Arena
 
-A Unity project for watching harness runs in 3D. It is part of the FTC test harness and follows
-the rules in [`../ai-instructions/`](../ai-instructions/README.md), especially
-[02-unity-readiness.md](../ai-instructions/02-unity-readiness.md).
+**VI Arena** is the Unity app for watching harness runs in 3D (it was called "HarnessReplay"
+until 2026-11-02). It is part of the FTC test harness (`TestHarness/`) and follows the rules in
+[`../docs/ai-instructions/`](../docs/ai-instructions/README.md), especially
+[02-unity-readiness.md](../docs/ai-instructions/02-unity-readiness.md).
+
+| Folder | What |
+|---|---|
+| `VI_Arena/src/` | The Unity project (`Assets/VI_Arena`, `Packages`, `ProjectSettings`) and `buildUnity.bat` |
+| `VI_Arena/dist/` | The built app, `VI_Arena.exe` + `VI_Arena_Data/` (local only, never in git) |
+| `VI_Arena/package.bat` | Zips everything in `dist/` to share it |
+| `TestHarness/VI_Arena.bat` | Opens the built app |
 
 **Status:** all three stages work: U1 replays the run recordings the harness saves in
-`Harness/build/recordings/` (the same `.json` files the Swing viewer opens), U2 shows a live run
-over the bridge, and U3 lets Unity be the physics for driving and blocking. See [`../PROGRESS.md`](../PROGRESS.md).
+`th_src/build/recordings/` (the same `.json` files the Swing viewer opens), U2 shows a live run
+over the bridge, and U3 lets Unity be the physics for driving and blocking. See [`../docs/PROGRESS.md`](../docs/PROGRESS.md).
 
 ## Open it
 
 1. Install **Unity 6000.3.14f1** with Unity Hub (it is already installed on the team laptop) and
    sign in to Unity Hub once (the free Personal licence is enough).
-2. In Unity Hub: **Add → Add project from disk**, and pick this `Harness/unity` folder.
+2. In Unity Hub: **Add → Add project from disk**, and pick the `TestHarness/VI_Arena/src` folder.
 3. Open it. The first time, Unity downloads the packages and builds its `Library/` folder, which
    takes a few minutes.
 
 ## Watch a recording
 
-1. Make sure there are recordings: run the harness tests (`.\gradlew.bat test` in `Harness/`), or
+1. Make sure there are recordings: run the harness tests (`.\gradlew.bat test` in `TestHarness/th_src/`), or
    save a run from the Swing viewer.
-2. Open `Assets/HarnessReplay/Replay.unity` and press **Play**. The newest recording opens.
+2. Open `Assets/VI_Arena/Replay.unity` and press **Play**. The newest recording opens.
 
 The window is laid out like the Swing viewer, in the same dark "mission control" style: the
-**FTC HARNESS** header with the mission clock (`T+ 00:02.00`) and stage, the **Replay** chooser
-(click it to pick a recording; **Replays...** opens any file), the field with its caption and
+**VI ARENA** header with the mission clock (`T+ 00:02.00`) and stage, the **Replay** chooser
+(click it to pick a recording; **Open recording...** opens any file), the field with its caption and
 legend, the cards on the right (Vehicle, Position, Auto step, Motors, Driver Station, Events; a long OpMode name is cut with "..." in the Vehicle card, and the full name is in the header line), both
 gamepads with held buttons lit, and the playback bar at the bottom (buttons, Speed, time, slider).
 The field starts in a straight-down view that looks like the Swing field; T switches to an angled
@@ -52,7 +60,7 @@ The slider jumps anywhere in the run; the Speed box picks 0.25x to 4x. The Drive
 shows the screen **as it was at that moment**, like the Swing viewer. The colors and fonts are in
 `HudTheme.cs`; keep them in step with the Swing viewer's `Theme.java`.
 
-To pick a fixed recording instead of the newest, select **Harness Replay** in the scene and set
+To pick a fixed recording instead of the newest, select **Harness Replay** (the ReplayController object) in the scene and set
 **Recording Path** in the Inspector.
 
 ## Drive live (Stage U2)
@@ -60,7 +68,7 @@ To pick a fixed recording instead of the newest, select **Harness Replay** in th
 Watch the real TeamCode run **while you drive**, with your game controller:
 
 1. Plug in the controller (Xbox, PlayStation or Logitech in X mode; USB or Bluetooth).
-2. Open the replay (the Windows app via `unity-view.bat`, or press Play in the Editor) and click
+2. Open the replay (the Windows app via `VI_Arena.bat`, or press Play in the Editor) and click
    **Live mode** (or press **L**), right of the chooser. It starts the harness side for you in the
    background: the lamp goes amber while it starts (a few seconds; up to a minute the first time),
    then green.
@@ -69,7 +77,7 @@ Watch the real TeamCode run **while you drive**, with your game controller:
    drives each gamepad.
 4. **Enter** = PLAY, **Esc** = STOP (or the buttons in the bottom bar). The run also stops by
    itself at the end of the match.
-5. **Save** keeps the run in `build\recordings` (as `unity-live-...json`) to replay later, here or
+5. **Save** keeps the run in `th_src\build\recordings` (as `unity-live-...json`) to replay later, here or
    in the Swing viewer.
 
 The harness reads the controller (the same code as the Swing viewer's live drive); Unity only
@@ -80,7 +88,8 @@ moment shows under Events.
 Clicking **Live mode** again (or closing the app) ends the run and the harness side it started.
 If you started `.\gradlew.bat unityBridge` yourself, Live mode just uses it and leaves it running.
 If it can't start, the button says **Failed** and the message names the reason and the log,
-`Harness/build/unity-bridge.log`. It needs the whole `Harness` folder (it runs `gradlew.bat`) and
+`th_src/build/unity-bridge.log`. It needs the whole `TestHarness` folder (it runs `th_src\gradlew.bat`;
+a copy of the app outside it asks where it is, see below) and
 Java 17 or newer: `JAVA_HOME`, else Android Studio's Java (which it finds by itself), else `java` on
 the PATH. If none of those is a Java 17 or newer, Live mode doesn't try to start and says so: "Live
 mode: Needs Java 17 or newer: install Android Studio or a Java 17+ JDK (adoptium.net) and set
@@ -90,9 +99,9 @@ FAT or exFAT) or a drive with under 1 GB free, where Gradle's build fails part-w
 directory"). It says so in the same words as `view.bat` and asks you to copy the whole
 ftc-robot-framework folder to the PC's own drive. If Windows can't tell what the drive is, it carries on.
 
-**Harness → Live Smoke Test** checks the connection without a controller (needs `unityBridge`
-running). **Harness → Live Mode Smoke Test** does the same, but lets the Live mode launcher start and
-stop the harness side. Both write `Harness/build/unity-live-smoke.txt`.
+**VI Arena → Live Smoke Test** checks the connection without a controller (needs `unityBridge`
+running). **VI Arena → Live Mode Smoke Test** does the same, but lets the Live mode launcher start and
+stop the harness side. Both write `th_src/build/unity-live-smoke.txt`.
 
 ### Unity's physics (Stage U3)
 
@@ -136,8 +145,8 @@ three choices. All apply at once, are remembered, and V, Esc, **Done** or a clic
     motor), and the white heading arrow stays, just above the model, so the top-down view still
     shows which way it faces. It's only the picture: physics and the harness still use the box.
 
-  Robots come from `Harness/robots/<id>/robot.properties` (see `robots/README.md`), with the model
-  in `Assets/HarnessReplay/Resources/Robots/<id>/`. The first robot with a model is the default.
+  Robots come from `th_src/robots/<id>/robot.properties` (see `th_src/robots/README.md`), with the model
+  in `Assets/VI_Arena/Resources/Robots/<id>/`. The first robot with a model is the default.
   The code is `RobotProfile.cs` (reads the file) and `RobotModelView.cs` (places the model and spins
   its wheels); `RobotModelTests` checks it with a stand-in model and with the real one.
 
@@ -148,7 +157,7 @@ the trail and Unity's physics are never affected. That's checked in `SettingBuil
 `SettingBuilder.cs`: every shape, size and color is in plain code, and new settings go in
 `SettingBuilder.All`.
 
-**The settings' art** (added 2026-10-25, all free to use; see `Assets/HarnessReplay/Art/CREDITS.md`):
+**The settings' art** (added 2026-10-25, all free to use; see `Assets/VI_Arena/Art/CREDITS.md`):
 
 | Setting | 360° sky (3D view) | Textured surfaces | Detailed models |
 |---|---|---|---|
@@ -166,8 +175,8 @@ the trail and Unity's physics are never affected. That's checked in `SettingBuil
   - **Drive teams** (hall) stand and play an idle animation, in their alliance's shirt color.
   - Every person gets a random character, shirt, trouser, shoe and hair color, a slightly different height and
     turn, so neighbours never look the same.
-  - To add characters or animations: put the Mixamo FBX files in `Assets/HarnessReplay/PeopleSource/`
-    (git-ignored), the 2K textures in `Resources/People/<chNN>/textures/`, and run **Harness → Build People**
+  - To add characters or animations: put the Mixamo FBX files in `Assets/VI_Arena/PeopleSource/`
+    (git-ignored), the 2K textures in `Resources/People/<chNN>/textures/`, and run **VI Arena → Build People**
     (`Editor/PeopleBuilder.cs`). Without the people files the settings go back to simple capsules.
 - **Without the files** a setting simply keeps its plain shapes. `SettingAssetsTests` checks every file is
   there.
@@ -190,14 +199,14 @@ With BIOBUZZ chosen, the 3D view shows FIRST's official field CAD instead of sim
 foam tiles, the perimeter rails and glass, the HIVE A-frame with both HIVEs and their cells, the
 four FLOWERs, the tape and the AprilTag plates, in the CAD's own colours. It replaces the plain dark
 floor and low walls. Without the CAD files (for example in a fresh clone without them), the
-simple shapes from `Harness/fields/biobuzz-2026.json` are drawn as before.
+simple shapes from `th_src/fields/biobuzz-2026.json` are drawn as before.
 
-- **Files:** `Assets/HarnessReplay/Resources/Field/biobuzz-2026/*.obj` (12 parts, 1.2 M triangles,
+- **Files:** `Assets/VI_Arena/Resources/Field/biobuzz-2026/*.obj` (12 parts, 1.2 M triangles,
   39 MB). The game pieces (POLLEN, red and blue NECTAR) are in `Resources/GamePieces/biobuzz-2026/`;
   they aren't placed on the field yet.
 - **Where they came from:** the user's export of the official CAD (15.2 M triangles). WorkerBot split
   it into parts, slimmed it and turned it into the FTC field frame (inches, z up). How it did that is in
-  `Assets/HarnessReplay/Art/biobuzz-2026-cad-manifest.json`; credits are in `Art/CREDITS.md`.
+  `Assets/VI_Arena/Art/biobuzz-2026-cad-manifest.json`; credits are in `Art/CREDITS.md`.
 - **How it's drawn:** `FieldBuilder.BuildSeason` places every model in `Resources/Field/<field id>`
   with `FtcToUnity.FtcModelRotation` and inch-to-meter scaling. Import settings (calculated normals at
   40°, no compression) are in `Editor/FieldModelImport.cs`.
@@ -222,7 +231,7 @@ POLLEN (2.8 in) and red and blue NECTAR (3.6 in), using the CAD balls in
   always shows exactly the same pushes, and live mode (in either physics mode) shows the harness's
   pieces too.
 - **In the recording:** `header.pieces` lists every piece at INIT; each loop's `pieces` lists only the
-  pieces that changed in that loop (see Harness/README.md, run recording version 4). `GamePieceTrack`
+  pieces that changed in that loop (see docs/README.md, run recording version 4). `GamePieceTrack`
   adds the changes up, so the playhead can jump anywhere; `GamePieceView` draws the balls and rolls the
   ones that move.
 - **An intake later:** a piece's `state` can be `held` (riding on the robot), reserved for when an
@@ -232,8 +241,8 @@ POLLEN (2.8 in) and red and blue NECTAR (3.6 in), using the CAD balls in
 ## Season fields
 
 **G** steps through the arenas without opening the Visuals screen: the plain tiled field
-and each season in `Harness/fields/` (now only BIOBUZZ 2026–2027; DECODE 2025–2026 is switched off in
-`Harness/fields/disabled/`, which isn't read). Unity remembers the
+and each season in `th_src/fields/` (now only BIOBUZZ 2026–2027; DECODE 2025–2026 is switched off in
+`th_src/fields/disabled/`, which isn't read). Unity remembers the
 choice. `-field biobuzz-2026` on the app's command line picks one at start, and a recording whose
 header has `"field"` opens that one. BIOBUZZ shows:
 - the HIVE frame, with both HIVES in their starting tilt
@@ -242,48 +251,73 @@ header has `"field"` opens that one. BIOBUZZ shows:
 - all 16 AprilTags under the cells
 
 The file format and
-where every number came from: `Harness/README.md`, "Season field files". The code is `FieldLayout.cs`
+where every number came from: `docs/README.md`, "Season field files". The code is `FieldLayout.cs`
 (reading and picking) and `FieldBuilder.BuildSeason` (drawing).
 
 ## Open it without the Editor (the Windows app)
 
-The replay also runs as a normal Windows app, `Build/HarnessReplay.exe`, so anyone can watch a
+VI Arena also runs as a normal Windows app, `VI_Arena/dist/VI_Arena.exe`, so anyone can watch a
 recording without opening Unity:
 
-- **Double-click `Harness\unity-view.bat`**: opens the newest recording in `build\recordings`.
-- **Drag a recording (`.json`) onto `unity-view.bat`**: opens that one.
-- Live play works the same as in the Editor: start `.\gradlew.bat unityBridge` first.
-
-The app has everything above except **Replays...** (that file box only exists in the Editor): pick
-recordings from the **Replay** chooser or with N / P instead.
+- **Double-click `TestHarness\VI_Arena.bat`**: opens the newest recording in `th_src\build\recordings`.
+- **Drag a recording (`.json`) onto `VI_Arena.bat`** (or onto `VI_Arena.exe`): opens that one.
+- **Open recording...** (right of the chooser) opens any recording with Windows' file box.
+- Live play works the same as in the Editor: press **Live mode**.
 
 **Building it** (once, and again after any change to the Unity scripts): close the Unity Editor
-and double-click `Harness\buildUnity.bat`, or in the Editor use **Harness → Build Windows App**.
-It takes a few minutes and needs Unity installed; running the app needs nothing installed.
-`unity-view.bat` offers to build it if it's missing. `buildUnity.bat` looks for Unity in
-`C:\Program Files\Unity\Hub\Editor\6000.3.14f1\`; set `UNITY_EXE` if it is somewhere else. The
-build's log is `Harness/build/unity-build.log`. To build a separate copy while someone has the app
-open (Windows won't let a build replace a running app), add `-buildPath
-"Harness\build\unity-check\HarnessReplay.exe"` to the batch build: it sits two folders under
-`Harness` like `unity\Build`, so it finds the same recordings, fields and robots.
+and double-click `VI_Arena\src\buildUnity.bat`, or in the Editor use **VI Arena → Build Windows
+App**. Either one builds into `VI_Arena/dist/`. It takes a few minutes and needs Unity installed;
+running the app needs nothing installed. `VI_Arena.bat` offers to build it if it's missing.
+`buildUnity.bat` looks for Unity in `C:\Program Files\Unity\Hub\Editor\6000.3.14f1\`; set
+`UNITY_EXE` if it is somewhere else. The build's log is `th_src/build/unity-build.log`. To build a
+separate copy while someone has the app open (Windows won't let a build replace a running app), add
+`-buildPath "TestHarness\th_src\build\unity-check\VI_Arena.exe"` to the batch build; anywhere
+inside `TestHarness` finds the same recordings, fields and robots.
 
-How the app finds the recordings (`RecordingLoader.ResolveFolder`, tested in
-`RecordingFolderTests`), first match wins:
+The build also copies the field files (`th_src/fields/*.json`) and robot looks
+(`th_src/robots/*/robot.properties`) into `VI_Arena_Data/harness-files/`, so a copy of the app on
+its own still draws the season field and the robot model.
 
-1. `-recordings <folder>` on the command line (`unity-view.bat` always passes `Harness\build\recordings`).
-2. The folder of a `.json` file on the command line.
-3. Next to the app: `Harness/unity/Build/` → `Harness/build/recordings`. In the Editor:
-   `Harness/unity/Assets` → `Harness/build/recordings`.
-
-`Build/` is about 90 MB and ignored by git; never commit it. The build adds four shaders to
+`dist/` is about 460 MB and ignored by git; never commit it. The build adds four shaders to
 **Project Settings → Graphics → Always Included Shaders**, because the field is built from code and
 a build otherwise leaves them out (the field turns magenta).
 
+### Sharing it (a zip on Google Drive or a thumb drive)
+
+Double-click **`VI_Arena\package.bat`**. It zips **everything** in `dist/` into
+`VI_Arena\VI_Arena-<yyyy-mm-dd>.zip` (ignored by git) and prints its size. It never uploads
+anything: put the zip on Google Drive or a thumb drive yourself. People without Unity unzip it
+anywhere and double-click `VI_Arena.exe`.
+
+### Where the app finds the TestHarness folder
+
+Live mode, the recordings list, the field files and the robot looks all come from the
+**TestHarness** folder (`TestHarnessFolder.cs`, tested in `TestHarnessFolderTests`). First match wins:
+
+1. `-harness <folder>` on the command line (the TestHarness folder or its `th_src`).
+2. The app's own folder and every folder above it: one that is a TestHarness folder (it has
+   `th_src\gradlew.bat`), or has one inside. So `TestHarness\VI_Arena\dist` and the Editor find it,
+   and so does an unzipped copy put **next to** a TestHarness folder.
+3. The folder picked last time (below), if it is still there.
+
+An unzipped copy that finds none still replays: there is no recordings list, so the window says to
+press **Open recording...** or drag a recording onto `VI_Arena.exe`. The field and robot come from
+the app's own copy. Pressing **Live mode** then asks once, with a folder box, **"Where is your
+TestHarness folder?"**. A good answer is remembered for next time and the recordings list starts
+reading its `th_src\build\recordings`. Picking a folder that isn't one says so plainly (it has no
+`th_src\gradlew.bat`). Live mode still needs Java 17 or newer, and says so when it's missing.
+
+How the app finds the recordings (`RecordingLoader.ResolveFolder`), first match wins:
+
+1. `-recordings <folder>` on the command line (`VI_Arena.bat` always passes `th_src\build\recordings`).
+2. The folder of a `.json` file on the command line (a recording dropped on the app).
+3. `th_src/build/recordings` in the TestHarness folder.
+
 ## Tests
 
-**Harness → Run Replay Tests** (or Window → General → Test Runner → EditMode → Run All). The menu
-item also writes a summary to `Harness/build/unity-test-results.txt`. One test checks Team A's
-autonomous against `build/recordings/viewer-teamA-autonomous.json`; it is skipped until the
+**VI Arena → Run Replay Tests** (or Window → General → Test Runner → EditMode → Run All). The menu
+item also writes a summary to `th_src/build/unity-test-results.txt`. One test checks Team A's
+autonomous against `th_src/build/recordings/viewer-teamA-autonomous.json`; it is skipped until the
 harness tests have made that file.
 
 ## What is in it
@@ -298,11 +332,11 @@ harness tests have made that file.
 ## What git keeps
 
 Only `Assets/`, `Packages/manifest.json`, `Packages/packages-lock.json` and `ProjectSettings/`
-are kept. Unity's generated folders (`Library/`, `Temp/`, `Logs/`, `obj/`, `UserSettings/`,
-`Build/`) are ignored in `Harness/.gitignore`; Unity rebuilds them.
+are kept. Unity's generated folders (`Library/`, `Temp/`, `Logs/`, `obj/`, `UserSettings/`)
+and the built app (`VI_Arena/dist/`) are ignored in `TestHarness/.gitignore`; Unity rebuilds them.
 
 ## Units
 
 The harness calculates in FTC units (inches, heading counter-clockwise from +x). All conversion
 to Unity units happens in **one** C# class, never spread through the scripts
-([02-unity-readiness.md](../ai-instructions/02-unity-readiness.md) §6).
+([02-unity-readiness.md](../docs/ai-instructions/02-unity-readiness.md) §6).

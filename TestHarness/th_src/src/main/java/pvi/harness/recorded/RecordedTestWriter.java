@@ -45,10 +45,10 @@ import pvi.harness.runtime.RunResult;
 public final class RecordedTestWriter {
     /** Package the generated tests go in. */
     public static final String PACKAGE = "pvi.harness.recorded";
-    /** Where generated tests are saved, relative to {@code Harness/}. */
+    /** Where generated tests are saved, relative to {@code TestHarness/th_src/}. */
     public static final Path DEFAULT_FOLDER = Path.of("src", "test", "java", "pvi", "harness", "recorded");
-    /** Where TeamCode's sources are, relative to {@code Harness/}; used to find the OpMode's package. */
-    public static final Path TEAMCODE_SOURCES = Path.of("..", "TeamCode", "src", "main", "java");
+    /** Where TeamCode's sources are, relative to {@code TestHarness/th_src/}; used to find the OpMode's package. */
+    public static final Path TEAMCODE_SOURCES = Path.of("..", "..", "TeamCode", "src", "main", "java");
     /** At most this many script lines per method, so very long drives still compile. */
     static final int LINES_PER_METHOD = 300;
 

@@ -1,5 +1,5 @@
 """
-Makes the goBILDA Starter Bot model the Unity replay draws, from the OBJ in Harness/art-inbox.
+Makes the goBILDA Starter Bot model the Unity replay draws, from the OBJ in the art originals (C:\Dev\VI_Arena-art, see VI_Arena/ART_INBOX.md).
 
 The OBJ came from goBILDA's STEP file (3200-2627-0003.step), converted to OBJ by imagetostl.com:
 3.4 million triangles, one object per color. This script
@@ -10,7 +10,7 @@ The OBJ came from goBILDA's STEP file (3200-2627-0003.step), converted to OBJ by
 and writes about 140,000 triangles (about 4 MB). Plain Python 3, no extra packages.
 
 Run from Harness/:
-  python robots/gobilda-starter-bot/slim_model.py art-inbox/GoBuilda_StarterBot.obj unity/Assets/HarnessReplay/Resources/Robots/gobilda-starter-bot/gobilda-starter-bot.obj
+  python th_src/robots/gobilda-starter-bot/slim_model.py C:/Dev/VI_Arena-art/GoBuilda_StarterBot.obj VI_Arena/src/Assets/VI_Arena/Resources/Robots/gobilda-starter-bot/gobilda-starter-bot.obj
 
 The model is in millimeters, z up, and the robot's front (where the mechanism sticks out) is -y.
 The .mtl next to the output holds the colors from the converter's .mtl.

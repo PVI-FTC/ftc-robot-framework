@@ -48,7 +48,7 @@ too. The team needs to redraw them.
   blocked by them, in both the harness physics and Unity's physics.
 - **Unity:** a "needs Java 17+" message in Live mode; the crowd measured at 60 fps (nothing to
   fix); AprilTag sight lines; a HUD fix for long OpMode names.
-- **Your extra request:** [`robot-recorder/`](robot-recorder/README.md) records a real-robot TeleOp
+- **Your extra request:** [`robot-recorder/`](../th_src/robot-recorder/README.md) records a real-robot TeleOp
   drive as a harness recording, for replay or `makeTest`.
 
 **Not checked yet (needs you or the robot)**

@@ -6,12 +6,12 @@ checklist is for the team at the robot: what to measure, how, and exactly which 
 each measurement replaces. Bring a tape measure, a phone stopwatch, the robot on a full field,
 and a laptop with Android Studio.
 
-Every value is one line in `Harness/harness.properties`, written
+Every value is one line in `TestHarness/th_src/harness.properties`, written
 `number | measured or placeholder | where it came from`. To record a measurement, put the number
 in, change `placeholder` to `measured`, and replace the text after the last `|` with who measured
 it, when, and how, for example
 `robot.lengthInches=17.5 | measured | tape measure, bumper to bumper, J. Smith 2026-11-02`. Then
-run `.\gradlew.bat test` from `Harness\`.
+run `.\gradlew.bat test` from `TestHarness\th_src\`.
 
 ## What is already measured (no action needed)
 

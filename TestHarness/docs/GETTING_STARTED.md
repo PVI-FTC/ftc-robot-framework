@@ -22,7 +22,7 @@ everything works.
 
 **From Android Studio (easiest)**
 
-1. **File → Open**, and pick the `Harness` folder (not the whole repository).
+1. **File → Open**, and pick the `TestHarness\th_src` folder (not the whole repository).
 2. Wait for the sync to finish (the bar at the bottom).
 3. Open `src/test/java/pvi/harness/TeamATeleOpScriptTest.java`.
 4. Click the green ▶ next to `class TeamATeleOpScriptTest`.
@@ -34,7 +34,7 @@ harness runs on **simulated time**.
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-cd C:\Dev\ftc-robot-framework\Harness
+cd C:\Dev\ftc-robot-framework\TestHarness\th_src
 .\gradlew.bat test
 ```
 
@@ -44,7 +44,7 @@ More ways to run tests: [README §2](README.md#2-run-the-tests).
 
 ## Step 2: Drive the robot on screen
 
-1. Double-click **`Harness\view.bat`** (or, in Android Studio, pick **View recording** in the
+1. Double-click **`TestHarness\view.bat`** (or, in Android Studio, pick **View recording** in the
    run menu at the top and click ▶).
 2. A window opens with the field and Team A's TeleOp (**Team A Mecanum Drive**, the one
    `viewer.defaultTeleOp` in `harness.properties` names) waiting in INIT.
@@ -114,7 +114,7 @@ lists the common ones.
 | Test a `LinearOpMode` | [README, "LinearOpModes"](README.md#linearopmodes-runopmode) (nothing special: it just runs) |
 | Check every OpMode at once | `EveryOpModeSmokeTest.java` (one quick run of each, plus "does the left stick drive?") |
 | Use the harness on your own team's branch and robot | [BRING_YOUR_OWN_ROBOT.md](BRING_YOUR_OWN_ROBOT.md) |
-| Turn a real-robot drive into a test | [robot-recorder](robot-recorder/README.md) |
+| Turn a real-robot drive into a test | [robot-recorder](../th_src/robot-recorder/README.md) |
 | Know what can't be tested yet | [README §6](README.md#6-what-can-be-tested-yet) |
 | Make the simulated robot match the real one | [CALIBRATION.md](CALIBRATION.md) |
 

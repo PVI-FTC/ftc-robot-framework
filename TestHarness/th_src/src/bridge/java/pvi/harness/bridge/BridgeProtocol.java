@@ -2,7 +2,7 @@ package pvi.harness.bridge;
 
 /**
  * The live connection to Unity (Stage U2), message format version {@value #VERSION}. The full
- * description, with every field, is in Harness/README.md, "Live connection to Unity".
+ * description, with every field, is in TestHarness/docs/README.md, "Live connection to Unity".
  *
  * <p>In short:</p>
  * <ul>

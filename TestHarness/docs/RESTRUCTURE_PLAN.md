@@ -97,6 +97,16 @@ Expected outcome: the same 390 Java tests and about 125 Unity tests pass, in the
   (BC7, BC6H for HDR skies, max 2048 px), smaller skies, LZ4HC build compression and mesh
   compression, built into a scratch folder, with the real size and pictures before and after.
   You pick whether to use it.
+  - **Result (2026-11-02):** A (BC7, compressed meshes, LZ4HC) gave 394 MB / 325 MB zip, no gain;
+    B (crunched textures, people and skies at 1024 px) gave 173 MB / 113 MB zip and looked the
+    same. **You chose to keep today's settings** (462 MB folder, 273 MB zip). The test builds are
+    in `th_src/build/size-test/` (git-ignored) if you change your mind.
+
+## Status
+
+**Done 2026-11-02** (commits `f6dcbfd` move, `f37577e` working layout): the new layout is in
+place, 390 Java tests and 128 Unity tests pass, and the USB copy matches. Still open: the GitHub
+push (below).
 
 ## Open: the GitHub push
 

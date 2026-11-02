@@ -84,9 +84,14 @@ Expected outcome: the same 390 Java tests and about 125 Unity tests pass, in the
   `VI_Arena/VI_Arena-2026-11-02.zip` (git-ignored), from everything in `dist/`, and says how big it
   is. It never uploads anything by itself.
 - **The unzipped app must work on its own:** it's opened from a folder anywhere, with no Unity and
-  no repo. Replay of recordings works from it. Live mode needs the Java harness (`th_src`) and Java
-  17+, so for live play the app must be able to find a `TestHarness` folder; it says plainly when
-  it can't. UnityBot checks this.
+  no repo. UnityBot checks this.
+  - **Live mode (Q10):** needs the Java harness (`th_src`) and Java 17+. The first time Live is
+    picked and the app can't find a `TestHarness` folder (it looks next to itself first), it asks
+    with a folder picker, "Where is your TestHarness folder?", and remembers the answer. It says
+    plainly when the folder or Java is missing.
+  - **Recordings (Q11):** it lists the recordings in `TestHarness/th_src/build/recordings` once it
+    knows the `TestHarness` folder. Otherwise it offers an "Open recording…" file picker, and a
+    recording can be dragged onto `VI_Arena.exe`.
 - **Size test (UnityBot, still worth it for the upload):** today's build is 461 MB (339 MB of it
   mostly uncompressed textures, HDR skies, the moon-base scene and the crowd). Texture compression
   (BC7, BC6H for HDR skies, max 2048 px), smaller skies, LZ4HC build compression and mesh

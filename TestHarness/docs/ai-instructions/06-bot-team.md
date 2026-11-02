@@ -1,11 +1,11 @@
 # 06 · The bot team (manager and workers)
 
 Harness work is done by **several Claude sessions at once**: one **manager** and three **worker
-bots**, all in the same checkout (`C:\Dev\ftc-robot-framework`, branch `Team2-Testing`). This
+bots**, all in the same checkout (`C:\Dev\ftc-robot-framework`, branch `VI_Arena-Harness`). This
 file explains the setup so a new session can **take over as manager** if the current one is
 gone. Everything in [01–05](README.md) still applies to every bot.
 
-**Last updated:** 2026-10-27 (the team finished the task list alone; all bots idle; see §2 "Where each bot left off")
+**Last updated:** 2026-11-02 (folder restructure: `Harness/` became `TestHarness/` with `th_src/`, `VI_Arena/` and `docs/`; see `docs/RESTRUCTURE_PLAN.md`)
 
 ---
 
@@ -16,7 +16,7 @@ gone. Everything in [01–05](README.md) still applies to every bot.
 | **Manager** | Team2-Testing uncommitted changes review | `local_47926d93-3f6e-48e0-a2f5-791693169faf` | Planning, handing out lists, relaying between bots, collecting reports, checking and committing for the user. Writes little code itself. |
 | **WorkerBot** | Harness-WorkerBot | `local_540b1f24-42cb-4255-afe1-c3a64a382e6f` | Simulation and core: `physics/` (PoseEstimator, MomentumPhysics, PhysicsBackend, Dynamics, walls, battery, **game pieces**: GamePiece, PieceModel, GamePieces, BioBuzzPieces), `runtime/` (OpModeRunner, RunRecorder, **run recording format**), `hardware/` fakes (FakePinpoint, FakeDcMotorEx, FakeHardwareMap, FakeVoltageSensor), `recorded/` (DriveChecks, RecordedTestWriter), `CALIBRATION.md`, most of `viewer/` (TelemetryPanel, FieldPainter, FieldPanel, RecordingView) |
 | **TestBot** | Harness-TestBot | `local_6d908ef7-ecfe-407a-8793-508d7beed0a8` | Test coverage: vision (`FakeWebcam`, `AprilTagScript`, `SeenAprilTag`, the harness copies of `VisionPortal` / `AprilTagProcessorImpl`, which must match the SDK Vision version), `PedroRouteTest`, the viewer's **Save as test** (`SaveAsTest`, `viewer/ViewerWindow`), `TagsInViewCardTest`, `GETTING_STARTED.md` |
-| **UnityBot** | Harness-UnityBot | `local_8f174b84-5176-49d1-b477-ceba61d7b36f` | Everything Unity: `Harness/unity/` (replay, live view, Unity physics, Visuals settings, people, camera presets, game-piece drawing), the bridge (`src/bridge/`, **bridge protocol**), `fields/*.json`, `art-inbox/README.md`, `buildUnity.bat`, `unity-view.bat` |
+| **UnityBot** | Harness-UnityBot | `local_8f174b84-5176-49d1-b477-ceba61d7b36f` | Everything Unity: `TestHarness/VI_Arena/src/` (replay, live view, Unity physics, Visuals settings, people, camera presets, game-piece drawing), the bridge (`src/bridge/`, **bridge protocol**), `fields/*.json`, `VI_Arena/ART_INBOX.md`, `buildUnity.bat`, `VI_Arena.bat`, `package.bat` |
 
 The sessions are listed in the Claude desktop app under the sidebar group **"FTC TestBot"**.
 The worker ids above stay the same for the life of each session. If a worker is deleted, start a
@@ -46,8 +46,8 @@ bots' lists and PROGRESS.md in step.
 
 ### Where each bot left off (handover snapshot, 2026-10-27)
 
-**Repository:** branch **`VI_Arena-Harness`** on GitHub (`PVI-FTC/ftc-robot-framework`; renamed from `Team2-Testing-Pedro3` and pushed 2026-11-01; decision D1 in
-[`Harness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md)). `Team2-Testing` is untouched at
+**Repository:** branch **`VI_Arena-Harness`** (local; renamed from `Team2-Testing-Pedro3` on 2026-11-01; its first push was stopped because the art made it too slow, so it is **not on GitHub yet**; decision D1 in
+[`TestHarness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md)). `Team2-Testing` is untouched at
 `960534a`. Pedro 3 (`origin/Pedro-3-Implementation`) is merged in (`0f9c602`). The 2026-10-27
 "work alone" round is committed at the end of that branch. **Format versions now:** run recording
 **v4**, bridge protocol **v5**, field files **v2**, `harness.properties` **v3**.
@@ -60,7 +60,7 @@ finish without them (the manager decided where needed: D1–D14):
 | **WorkerBot** | W6 RP2 (core reads the config; Pedro only in the PVI extras), W7 ball facts (manual sizes; D6), W8 Pedro 3 (no TeamCode change), W9 RP5 + ball-vs-HIVE/FLOWER collisions + Step 15 option A, W10 viewer TeleOps from the catalog (D8) + RP7 keys, W11 robot blocked by HIVE/FLOWERs (D9, D12), W12 smoke-test keys + `Scenarios` generic (D10, D11), W13 drop-in rehearsal (passes with the guide only), W14 stale docs |
 | **TestBot** | T6 RP8 `OpModeCatalog`, T7 RP6 LinearOpMode, T8 RP7 nine hardware fakes + Illegal Path test + RP10 (`BRING_YOUR_OWN_ROBOT.md`, `EveryOpModeSmokeTest`, `MyFirstRobotTest`), T9 guide fixes + drive check (D14), T10 docs consistency pass |
 | **UnityBot** | C12 Live mode "needs Java 17+", C13 crowd 60 fps (D5 not needed), C14 HIVE/FLOWER collision shapes (field v2), C15 bridge OpModes from the catalog (D7) + bounce check, C16 Unity physics uses the same obstacles (bridge v5) + bounce recordings as a test, D13 generic bridge tests, C17 AprilTags in Unity, C18 HUD name fix |
-| **Manager** | `Harness/robot-recorder/` (record a real-robot TeleOp drive as a harness recording; user request) |
+| **Manager** | `TestHarness/robot-recorder/` (record a real-robot TeleOp drive as a harness recording; user request) |
 
 **Waiting on the user** (see "Waiting on the user" below and `MANAGER_DECISIONS.md`): read D12
 (Team A's DECODE-season routes hit the BIOBUZZ HIVE; the team must redraw them), Team A's size
@@ -76,9 +76,9 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 ### Decided by the user
 
 - **Handover (2026-10-30):** "The likely handover would be through GitHub with other teams copying
-  the folder into their code." Docs describe it that way (copy `Harness/` from Team 2's branch on
-  GitHub into your own branch). The branch is `VI_Arena-Harness` (pushed 2026-11-01). Checked: no
-  tracked harness file is over 50 MB (largest 46.9 MB); `Harness/` is about 367 MB in git.
+  the folder into their code." Docs describe it that way (copy `TestHarness/` from Team 2's branch on
+  GitHub into your own branch). The branch will be `VI_Arena-Harness`, pushed code-only (art left out). Checked: no
+  tracked harness file is over 50 MB (largest 46.9 MB); `TestHarness/` is about 367 MB in git.
 - **Who the harness is for (2026-10-28):** "Most if not all use of this harness will come from
   teams using the PVI repo." The main users are **PVI teams, each on its own branch** of the PVI
   repo (Team 1, Team 2, Team 3, ...). Docs and features are written for them first. Teams **outside**
@@ -98,7 +98,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
   Their fake robots stay copies of the shared Team A hardware, and change only when TeamCode's
   Team B/C code changes (WorkerBot's job). Nobody gives them their own configs until the user
   says so.
-- **Pushing** (2026-11-01): the push ban is lifted. The harness is on GitHub as `VI_Arena-Harness`; push only when the user asks (§4, rule 6).
+- **Pushing** (2026-11-01): the push ban is lifted; push only when the user asks (§4, rule 6). `VI_Arena-Harness` isn't on GitHub yet (see `docs/RESTRUCTURE_PLAN.md`).
 - **DECODE field switched off** (2026-10-24): `fields/disabled/decode-2025.json`; BIOBUZZ only.
 - **Art is committed** (2026-10-25): the Unity settings art, field CAD and people under
   `unity/Assets/HarnessReplay/Resources/` go into git. Originals in `art-inbox/` and the built
@@ -141,7 +141,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
   for it.
 - **Work on alone, manager decides** (2026-10-27): the user asked the team to finish the whole
   task list without them. Where a task needs the user's input, the **manager** decides and writes
-  it in [`Harness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md), then commits and updates the
+  it in [`TestHarness/MANAGER_DECISIONS.md`](../MANAGER_DECISIONS.md), then commits and updates the
   USB. Bots send such questions to the manager, not the user.
 
 ### Waiting on the user
@@ -152,7 +152,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 - AprilTags placed on the field (camera field of view and range; should Java read `fields/*.json`?).
 - Answered 2026-10-25 (see "Decided by the user"): the RP questions, RP6, RP8, crowd frame
   rate, ball facts, intake, HIVE/FLOWER collisions, Step 15.
-- CI (it needs a file outside `Harness/`, which the user adds; the branch is now on GitHub).
+- CI (it needs a file outside `TestHarness/`, which the user adds; the branch is now on GitHub).
 
 ---
 
@@ -172,8 +172,8 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ## 4. Rules every bot follows
 
-1. **Only `Harness/`**, for the whole session ([01](01-scope-and-boundaries.md)).
-2. **One `gradlew test` at a time across all bots.** All bots share one `Harness/build/` folder,
+1. **Only `TestHarness/`** (renamed from `Harness/` on 2026-11-02), for the whole session ([01](01-scope-and-boundaries.md)).
+2. **One `gradlew test` at a time across all bots.** All bots share one `TestHarness/th_src/build/` folder,
    so two runs at once give fake `NoClassDefFoundError` and "Could not write XML test results"
    failures. If you see those, wait and rerun; don't "fix" them.
 3. **Coordinate before touching another bot's files** (table in §1). Agree who edits, and in
@@ -183,15 +183,15 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
    - first check that **all bots are idle** (a commit made while a bot is mid-change catches
      its half-done work);
    - run the full suite once;
-   - check that `git status` shows nothing outside `Harness/`;
-   - stage `Harness/` only.
-6. **Push only when the user asks.** The harness is on GitHub as branch `VI_Arena-Harness`
-   (`PVI-FTC/ftc-robot-framework`, pushed 2026-11-01; the user lifted the old push ban). Other PVI
+   - check that `git status` shows nothing outside `TestHarness/`;
+   - stage `TestHarness/` only.
+6. **Push only when the user asks.** The branch is `VI_Arena-Harness`; it goes to
+   `PVI-FTC/ftc-robot-framework` code-only when the user says (the user lifted the old push ban). Other PVI
    teams copy the `Harness` folder from it into their own branches. Never push another team's
    branch, never force-push, and never push tags unless asked. `Team2-Testing` points at the same
    commit locally, and the pre-Pedro-3 state is the local tag `before-pedro3`.
 7. **Ask the user** for anything that is theirs to decide (robot measurements, new
-   dependencies, formats that leave the JVM, anything outside `Harness/`).
+   dependencies, formats that leave the JVM, anything outside `TestHarness/`).
 
 ---
 
@@ -199,8 +199,8 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 If the manager session is gone, a new session can take over:
 
-1. **Read** `Harness/AGENTS.md`, all of `Harness/ai-instructions/` (this file last),
-   `Harness/PROGRESS.md` and the top of `Harness/README.md`.
+1. **Read** `TestHarness/AGENTS.md`, all of `TestHarness/ai-instructions/` (this file last),
+   `TestHarness/PROGRESS.md` and the top of `TestHarness/README.md`.
 2. **Check the repository:**
    - `git log --oneline -5` (the last manager commit was `18be29a`, game pieces, 2026-10-25)
    - `git status --short`: anything uncommitted belongs to a bot that is still working
@@ -218,7 +218,7 @@ To **replace a worker**, start a new session that works in `C:\Dev\ftc-robot-fra
 brief that:
 
 - names it (`Harness-<Role>Bot`) and says it's a Harness session;
-- tells it to read `Harness/AGENTS.md` and `ai-instructions/` first;
+- tells it to read `TestHarness/AGENTS.md` and `ai-instructions/` first;
 - gives its list and the files it owns (§1);
 - lists the other bots' ids and §4's rules.
 
@@ -230,17 +230,18 @@ Then update §1 and tell the other bots the new id.
 
 The user keeps an offline copy on a USB stick labelled **USBRANLY** (drive `E:` so far; check the
 label, not just the letter). The copy lives in `E:\ftc-robot-framework`. The user allowed the
-manager to write **only that folder on that USB**. It's the one exception to "only `Harness/`".
+manager to write **only that folder on that USB**. It's the one exception to "only `TestHarness/`".
 
 - **Only sync with all bots idle and the suite green.** The sync copies the working folder, not
   just commits, so a sync in the middle of a bot's change puts a half-finished harness on the
   stick (2026-11-01: the laptop's copy had v4 code with a v3 config, and Unity listed no
   autonomous OpModes).
 - Sync **after a commit, with all bots idle**, using `robocopy /MIR` from
-  `C:\Dev\ftc-robot-framework` to `E:\ftc-robot-framework`, excluding rebuildable folders:
-  `.gradle`, `build`, `FtcRobotController\build`, `TeamCode\build`, `Harness\.gradle`,
-  `Harness\build`, `Harness\unity\Library`, `Harness\unity\Logs`, `Harness\unity\Temp`. It
-  includes `art-inbox` and `unity\Build`.
+  `C:\Devtc-robot-framework` to `E:tc-robot-framework`, excluding rebuildable folders:
+  `.gradle`, `build`, `FtcRobotControlleruild`, `TeamCodeuild`, `TestHarness	h_src\.gradle`,
+  `TestHarness	h_srcuild`, `TestHarness\VI_Arena\src\Library`, `...\Logs`, `...\Temp`. It
+  includes `TestHarness\VI_Arena\dist` (the built app). The art originals moved out of the repo to
+  `C:\Dev\VI_Arena-art` (2026-11-02) and are **not** synced to the stick (user's choice).
 - Robocopy exit codes 1–3 mean success (files copied / extras removed); 8 or more means failure.
 - Verify afterwards: the same `git log -1` on both sides (use `git -c safe.directory=*` on the
   USB), `git status` clean, `git fsck`.

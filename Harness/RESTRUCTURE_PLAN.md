@@ -30,8 +30,9 @@ ftc-robot-framework/
         ├── README.md                  (today's unity/README.md)
         ├── src/                       ← today's unity/ project (Assets, Packages,
         │                                 ProjectSettings) + buildUnity.bat
-        └── dist/                      ← the built app: VI_Arena.exe + VI_Arena_Data/,
-                                          for people without Unity (see "Open: dist")
+        ├── package.bat                (zips everything in dist/ for Google Drive or a thumb drive)
+        └── dist/                      ← the built app: VI_Arena.exe + VI_Arena_Data/, for people
+                                          without Unity. Local only, never in git (see "dist")
 ```
 
 Outside the repo (Q5, Q6): `C:\Dev\VI_Arena-art\`, today's `Harness/art-inbox` (your original
@@ -55,7 +56,7 @@ downloads, 2.4 GB). Left off the USB stick (Q9).
 | Launchers | `view.bat` and `VI_Arena.bat` at the top of `TestHarness/`; `buildUnity.bat` in `VI_Arena/src/` | WorkerBot (view.bat), UnityBot (the rest) |
 | Docs | moved into `docs/`; every path and link updated (README, guides, the drop-in guide's copy step) | TestBot |
 | Rules | the bots' scope becomes "only `TestHarness/`"; `06-bot-team.md`, `01-scope-and-boundaries.md`, `CLAUDE.md`/`AGENTS.md` | Manager |
-| `.gitignore` | `th_src/build`, `th_src/.gradle`, `VI_Arena/src/Library` (and Temp, Logs, UserSettings), `VI_Arena/dist` (until the "dist" decision) | Manager |
+| `.gitignore` | `th_src/build`, `th_src/.gradle`, `VI_Arena/src/Library` (and Temp, Logs, UserSettings), `VI_Arena/dist`, `VI_Arena/*.zip` | Manager |
 | USB sync | new paths; the art no longer goes on the stick | Manager |
 
 ## Order
@@ -73,19 +74,24 @@ downloads, 2.4 GB). Left off the USB stick (Q9).
 
 Expected outcome: the same 390 Java tests and about 125 Unity tests pass, in the new places.
 
-## Open: dist (decide after the size test)
+## dist: local only, shared as a zip (decided 2026-11-02)
 
-The built app is 461 MB today, 339 MB of it in one file (`resources.assets.resS`, mostly
-uncompressed textures, HDR skies, the moon-base scene and the crowd). That file is over GitHub's
-100 MB limit, so `dist/` can't go into git as it is.
-
-- **Size test (UnityBot, in this plan):** texture compression (BC7, BC6H for HDR skies, max
-  2048 px), smaller skies, LZ4HC build compression and mesh compression, built into a scratch
-  folder. The report gives the real size and pictures before and after. Optional extra:
-  moon-base and crowd as an optional download.
-- **Then you choose:** `dist/` in git (only if every file is under 100 MB and the total is
-  reasonable), a **GitHub Release** with the zipped app (the manager's suggestion), or USB/zip
-  only.
+- **`VI_Arena/dist/` is never committed.** It's git-ignored; builds go there on the PC that
+  builds them.
+- **To share it:** zip the **entire contents** of `dist/` and put the zip on Google Drive or a
+  thumb drive. People without Unity unzip it anywhere and run `VI_Arena.exe`.
+- **A one-click zip script** (UnityBot): `VI_Arena/package.bat` builds a dated zip, e.g.
+  `VI_Arena/VI_Arena-2026-11-02.zip` (git-ignored), from everything in `dist/`, and says how big it
+  is. It never uploads anything by itself.
+- **The unzipped app must work on its own:** it's opened from a folder anywhere, with no Unity and
+  no repo. Replay of recordings works from it. Live mode needs the Java harness (`th_src`) and Java
+  17+, so for live play the app must be able to find a `TestHarness` folder; it says plainly when
+  it can't. UnityBot checks this.
+- **Size test (UnityBot, still worth it for the upload):** today's build is 461 MB (339 MB of it
+  mostly uncompressed textures, HDR skies, the moon-base scene and the crowd). Texture compression
+  (BC7, BC6H for HDR skies, max 2048 px), smaller skies, LZ4HC build compression and mesh
+  compression, built into a scratch folder, with the real size and pictures before and after.
+  You pick whether to use it.
 
 ## Open: the GitHub push
 

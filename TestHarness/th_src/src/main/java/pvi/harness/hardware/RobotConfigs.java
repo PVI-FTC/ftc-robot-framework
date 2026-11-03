@@ -1,7 +1,10 @@
 package pvi.harness.hardware;
 
+import java.util.List;
+
 import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.OpModeCatalog;
+import pvi.harness.runtime.RobotProfile;
 
 /**
  * Ready-made fake robot configurations that match what TeamCode looks up.
@@ -27,7 +30,7 @@ public final class RobotConfigs {
         for (String name : driveMotorNames(config)) {
             hardwareMap.addMotor(name);
         }
-        return hardwareMap.named("driveOnly");
+        return hardwareMap.named("driveOnly").settings(config);
     }
 
     /**
@@ -53,6 +56,7 @@ public final class RobotConfigs {
         config.analogInputs().forEach(hardwareMap::addAnalogInput);
         config.otos().forEach(hardwareMap::addOtos);
         config.limelights().forEach(hardwareMap::addLimelight);
+        config.blinkers().forEach(hardwareMap::addBlinker);
         for (CameraSetup camera : config.cameras()) {
             FakeWebcam webcam = hardwareMap.addWebcam(camera);
             if (CameraSetup.FIELD_TAGS.equals(camera.aprilTags())) {
@@ -79,12 +83,17 @@ public final class RobotConfigs {
     }
 
     /**
-     * The fake robot an OpMode found by {@link OpModeCatalog} runs on (manager decision D7): the
-     * robot in the settings file, except that with {@code pvi.extras=true} an OpMode in the
-     * "Team B" or "Team C" Driver Station group gets {@link #teamB()} or {@link #teamC()}, so
-     * PVI's recordings keep saying which team's robot it was.
+     * The fake robot an OpMode found by {@link OpModeCatalog} runs on (manager decisions D7, D18):
+     * the robot profile that lists it, if one does ({@link RobotProfile}). Otherwise the robot in
+     * the settings file, except that with {@code pvi.extras=true} an OpMode in the "Team B" or
+     * "Team C" Driver Station group gets {@link #teamB()} or {@link #teamC()}, so PVI's recordings
+     * keep saying which team's robot it was.
      */
     public static FakeHardwareMap forOpMode(OpModeCatalog.Entry opMode, HarnessConfig config) {
+        RobotProfile profile = RobotProfile.forOpMode(RobotProfile.all(config), opMode.name(), opMode.simpleName());
+        if (profile != null) {
+            return robot(profile.config()).named(profile.id());
+        }
         if (config.pviExtras()) {
             if ("Team B".equals(opMode.group())) {
                 return robot(config).named("teamB");
@@ -94,6 +103,18 @@ public final class RobotConfigs {
             }
         }
         return robot(config);
+    }
+
+    /** The robot of the profile in {@code robots/<id>/drive.properties}, for tests and replays. */
+    public static FakeHardwareMap profile(String id) {
+        List<RobotProfile> profiles = RobotProfile.all(HarnessConfig.load());
+        for (RobotProfile profile : profiles) {
+            if (profile.id().equals(id)) {
+                return robot(profile.config()).named(id);
+            }
+        }
+        throw new IllegalArgumentException("No robot profile \"" + id + "\" (robots/" + id + "/"
+                + RobotProfile.FILE_NAME + "). Profiles: " + profiles.stream().map(RobotProfile::id).toList());
     }
 
     /** Names of the four drive motors, for loops in tests. */

@@ -36,7 +36,7 @@ public final class HarnessConfig {
     /** The file name, in the Harness folder. */
     public static final String FILE_NAME = "harness.properties";
     /** The layout of the file this harness reads. Goes up whenever keys change (README.md). */
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
 
     /**
      * One dead-wheel odometry pod from {@code devices.deadWheels}.
@@ -67,7 +67,7 @@ public final class HarnessConfig {
             "robot.name", "drive.frontLeft", "drive.frontRight", "drive.rearLeft", "drive.rearRight", "pinpoint",
             "hardware.otherMotors", "hardware.servos", "devices.imu", "devices.crServos", "devices.distanceSensors",
             "devices.touchSensors", "devices.colorSensors", "devices.analogInputs", "devices.otos",
-            "devices.limelights", "devices.webcams", "devices.deadWheels",
+            "devices.limelights", "devices.webcams", "devices.blinkers", "devices.deadWheels",
             "drive.frontLeft.direction", "drive.frontRight.direction", "drive.rearLeft.direction",
             "drive.rearRight.direction",
             "drive.forwardSpeedInchesPerSecond", "drive.strafeSpeedInchesPerSecond",
@@ -77,6 +77,8 @@ public final class HarnessConfig {
             "pvi.extras", "field", "field.robotObstacles", "viewer.open", "viewer.defaultTeleOp",
             "smokeTest.skipOpModes", "smokeTest.notDrivingTeleOps");
 
+    /** The keys as read, so a robot profile can start from them. */
+    private final Properties properties;
     private final String teamCodeSourceDir;
     private final List<String> opModePackages;
     private final String hostDependenciesFile;
@@ -97,6 +99,7 @@ public final class HarnessConfig {
     private final List<String> limelights;
     private final List<String> webcams;
     private final List<CameraSetup> cameras;
+    private final List<String> blinkers;
     private final List<DeadWheel> deadWheels;
     private final ModelValue forwardSpeed;
     private final ModelValue strafeSpeed;
@@ -146,7 +149,11 @@ public final class HarnessConfig {
     private static HarnessConfig read(Reader reader, String name) throws IOException {
         Properties properties = new Properties();
         properties.load(reader);
-        List<String> problems = new ArrayList<>();
+        return check(properties, name, new ArrayList<>());
+    }
+
+    /** Makes the settings from {@code properties}, failing with every problem at once. */
+    private static HarnessConfig check(Properties properties, String name, List<String> problems) {
         HarnessConfig config = new HarnessConfig(properties, problems);
         for (String key : new TreeSet<>(properties.stringPropertyNames())) {
             if (!KNOWN_KEYS.contains(key) && !config.isWebcamKey(key)) {
@@ -159,8 +166,41 @@ public final class HarnessConfig {
         return config;
     }
 
+    /**
+     * These settings with a robot profile's keys applied ({@link RobotProfile}). A profile may only
+     * change the robot: {@code robot.*}, {@code drive.*}, {@code pinpoint}, {@code hardware.*},
+     * {@code devices.*} and {@code webcam.*}. The rest (where the code is, the field, the viewer)
+     * is one setting for the whole harness. A profile that lists its own {@code devices.webcams}
+     * doesn't get this robot's webcam keys.
+     *
+     * @param profile the profile's keys
+     * @param name    used in error messages
+     */
+    HarnessConfig forProfile(Properties profile, String name) {
+        Properties merged = new Properties();
+        merged.putAll(properties);
+        if (profile.getProperty("devices.webcams") != null) {
+            merged.keySet().removeIf(key -> key.toString().startsWith("webcam."));
+        }
+        merged.putAll(profile);
+        List<String> problems = new ArrayList<>();
+        for (String key : new TreeSet<>(profile.stringPropertyNames())) {
+            if (KNOWN_KEYS.contains(key) && !isRobotKey(key)) {
+                problems.add(key + ": a robot profile can't change this; it belongs in " + FILE_NAME);
+            }
+        }
+        return check(merged, name, problems);
+    }
+
+    /** True for a key that describes the robot, which a profile may change. */
+    private static boolean isRobotKey(String key) {
+        return key.equals("pinpoint") || key.startsWith("robot.") || key.startsWith("drive.")
+                || key.startsWith("hardware.") || key.startsWith("devices.");
+    }
+
     /** Reads every value, adding a line to {@code problems} for each one that is wrong. */
     private HarnessConfig(Properties properties, List<String> problems) {
+        this.properties = properties;
         Values values = new Values(properties, problems);
         String version = values.text("config.version");
         if (version != null && !version.equals(Integer.toString(VERSION))) {
@@ -192,6 +232,7 @@ public final class HarnessConfig {
         limelights = values.list("devices.limelights");
         webcams = values.list("devices.webcams");
         cameras = values.cameras(webcams);
+        blinkers = values.list("devices.blinkers");
         deadWheels = values.deadWheels("devices.deadWheels");
         forwardSpeed = values.fact("drive.forwardSpeedInchesPerSecond", ModelValue.INCHES_PER_SECOND);
         strafeSpeed = values.fact("drive.strafeSpeedInchesPerSecond", ModelValue.INCHES_PER_SECOND);
@@ -314,6 +355,11 @@ public final class HarnessConfig {
      */
     public List<CameraSetup> cameras() {
         return cameras;
+    }
+
+    /** Names of its hub status lights ({@code devices.blinkers}). May be empty. */
+    public List<String> blinkers() {
+        return blinkers;
     }
 
     /** True for a {@code webcam.<name>.<fact>} key of a webcam in {@code devices.webcams}. */

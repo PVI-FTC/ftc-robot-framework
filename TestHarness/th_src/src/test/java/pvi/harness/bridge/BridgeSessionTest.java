@@ -203,7 +203,7 @@ class BridgeSessionTest {
     /**
      * WHAT: The run stops by itself (at the end of the 30 s match at the latest), and stepping after
      * that is refused.
-     * HOW: this repo's first autonomous, stepping until the harness says finished. PVI's Team A
+     * HOW: this repo's autonomous, stepping until the harness says finished. PVI's Team A
      * autonomous runs the whole match: PLAY takes the first 20 ms, so 1499 steps reach 30 s (the
      * same count as a normal 30 s test run) and that frame is STOP at 30.00 s. Another team's
      * autonomous may finish sooner (a LinearOpMode that returns), which also ends the run.

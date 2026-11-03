@@ -1,8 +1,12 @@
 package pvi.harness.viewer;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -77,14 +81,40 @@ class ScenariosTest {
         assertEquals(ids.size(), unique.size(), "ids must be unique: " + ids);
     }
 
-    /** WHAT: On PVI, "KimCode TeleopV1" (on smokeTest.skipOpModes) has no scenario. */
+    /** WHAT: An OpMode on smokeTest.skipOpModes has no scenario; the others keep theirs. */
     @Test
-    void pviSkipsKimCodesTeleOp() {
-        Assumptions.assumeTrue(HarnessConfig.load().pviExtras(), "PVI only");
-        List<String> ids = Scenarios.fromCatalog(HarnessConfig.load()).stream().map(Scenarios.Scenario::id).toList();
+    void anOpModeOnTheSkipListHasNoScenario() throws IOException {
+        HarnessConfig config = HarnessConfig.load();
+        List<Scenarios.Scenario> all = Scenarios.fromCatalog(config);
+        Assumptions.assumeFalse(all.isEmpty(), "this repo has no OpModes");
+        OpModeCatalog.Entry skipped = OpModeCatalog.fromConfig(config).get(0);
+        String text = Files.readString(Path.of(HarnessConfig.FILE_NAME)).replace("\r\n", "\n").replaceAll(
+                "(?m)^smokeTest\\.skipOpModes=.*$", Matcher.quoteReplacement("smokeTest.skipOpModes=" + skipped.name()));
 
-        assertTrue(ids.contains("TeamATeleOp-idle"), ids.toString());
-        assertFalse(ids.contains("TeleopV1-idle"), "KimCode TeleopV1 is on smokeTest.skipOpModes: " + ids);
+        List<String> ids = Scenarios.fromCatalog(HarnessConfig.fromText(text, "test settings")).stream()
+                .map(Scenarios.Scenario::id).toList();
+
+        assertEquals(all.size() - 1, ids.size(), ids.toString());
+        assertFalse(ids.stream().anyMatch(id -> id.startsWith(skipped.simpleName() + "-")), skipped.name() + ": " + ids);
+    }
+
+    /**
+     * WHAT: On PVI, KimCode's TeleOp has a scenario next to Team A's, and each runs on its own
+     * robot. It used to be left out, because every OpMode ran on Team A's robot and it crashed.
+     */
+    @Test
+    void pviOffersKimCodesTeleOpOnItsOwnRobot() {
+        Assumptions.assumeTrue(HarnessConfig.load().pviExtras(), "PVI only");
+        List<Scenarios.Scenario> all = Scenarios.fromCatalog(HarnessConfig.load());
+
+        assertEquals("kimcode", robotIn(all, "TeleopV1-idle"));
+        assertEquals("teamA", robotIn(all, "TeamATeleOp-idle"));
+    }
+
+    /** Runs the scenario with this id; the robot its recording says it ran on. */
+    private static String robotIn(List<Scenarios.Scenario> scenarios, String id) {
+        return scenarios.stream().filter(s -> s.id().equals(id)).findFirst().orElseThrow()
+                .run().get().header().robotConfig();
     }
 
     /**

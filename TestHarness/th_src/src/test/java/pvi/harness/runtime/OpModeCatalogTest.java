@@ -41,7 +41,8 @@ class OpModeCatalogTest {
      * <p>WHY: The viewer, the Unity bridge and Save as test can then offer every OpMode, and a
      * name typo in a hand-written list can't hide one. Other OpModes added to TeamCode later
      * are fine: this only checks that these are there. Update the list when one is renamed or
-     * removed (Pedro 3 removed {@code TeamAPedroTuning} and added {@code KimCode/TeleopV1}).</p>
+     * removed (Pedro 3 removed {@code TeamAPedroTuning} and added {@code KimCode/TeleopV1}; the team
+     * later moved TeleopV1 to the top package with no name or group, and added {@code SimpleLeave}).</p>
      */
     @Test
     void findsEveryTeamCodeOpModeWithItsNameGroupAndPeriod() {
@@ -56,8 +57,9 @@ class OpModeCatalogTest {
                 teleOp("testing.TeamAAprilTagVisionTestOpMode", "Team A AprilTag Vision Test", "Testing"),
                 teleOp("testing.TeamACameraCalibrationCaptureOpMode", "Team A Camera Calibration Capture", "Testing"),
                 teleOp("testing.TeamAPedroDiagnostic", "Team A Pedro Diagnostic", "Testing"),
-                new OpModeCatalog.Entry(TEAM_CODE + ".KimCode.TeleopV1", "KimCode TeleopV1", "KimCode",
-                        MatchPeriod.TELEOP, ""),
+                new OpModeCatalog.Entry(TEAM_CODE + ".TeleopV1", "TeleopV1", "", MatchPeriod.TELEOP, ""),
+                new OpModeCatalog.Entry(TEAM_CODE + ".KimCode.SimpleLeave", "SimpleLeave", "KimCode",
+                        MatchPeriod.AUTONOMOUS, ""),
                 autonomous("autonomous.TeamAAutoOpMode", "Team A Autonomous Demo", "Team A"),
                 autonomous("autonomous.TeamAPedroPilotAutoOpMode", "Team A Pedro Paths", "Team A Testing"));
         List<OpModeCatalog.Entry> missing = expected.stream().filter(e -> !found.contains(e)).toList();

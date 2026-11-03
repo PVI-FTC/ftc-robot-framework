@@ -15,6 +15,8 @@ import org.junit.jupiter.api.io.TempDir;
 import pvi.harness.ds.Axis;
 import pvi.harness.ds.Button;
 import pvi.harness.runtime.HarnessConfig;
+import pvi.harness.runtime.MatchPeriod;
+import pvi.harness.runtime.OpModeCatalog;
 import pvi.harness.runtime.RunRecording;
 import pvi.harness.runtime.RunResult;
 
@@ -235,16 +237,24 @@ class LiveDriveTest {
     /**
      * WHAT: An empty {@code viewer.defaultTeleOp} means the first TeleOp by Driver Station name;
      * an unknown name fails with a message listing the TeleOps.
+     *
+     * <p>HOW: Works out the first name here, so renaming an OpMode doesn't break this test.</p>
      */
     @Test
     void anEmptyDefaultMeansTheFirstAndAnUnknownOneFails() throws IOException {
-        Assumptions.assumeTrue(HarnessConfig.load().pviExtras(), "PVI only: knows PVI's first TeleOp by name");
+        List<OpModeCatalog.Entry> teleOps = OpModeCatalog.fromConfig(HarnessConfig.load()).stream()
+                .filter(e -> e.period() == MatchPeriod.TELEOP).toList();
+        Assumptions.assumeFalse(teleOps.isEmpty(), "this repo has no TeleOp");
+        String firstName = teleOps.stream().map(OpModeCatalog.Entry::name).min(String::compareTo).orElseThrow();
+
         List<LiveDrive.Option> byName = LiveDrive.options(withDefaultTeleOp(""));
-        assertEquals("KimCode TeleopV1 (keyboard)", byName.get(0).title(), "first by Driver Station name");
+        assertEquals(firstName + " (keyboard)", byName.get(0).title(), "first by Driver Station name");
 
         IllegalStateException unknown = assertThrows(IllegalStateException.class,
                 () -> LiveDrive.options(withDefaultTeleOp("NoSuchTeleOp")));
-        assertTrue(unknown.getMessage().contains("viewer.defaultTeleOp") && unknown.getMessage().contains("TeamATeleOp"),
-                unknown.getMessage());
+        assertTrue(unknown.getMessage().contains("viewer.defaultTeleOp"), unknown.getMessage());
+        for (OpModeCatalog.Entry e : teleOps) {
+            assertTrue(unknown.getMessage().contains(e.simpleName()), e.simpleName() + " listed: " + unknown.getMessage());
+        }
     }
 }

@@ -1,9 +1,11 @@
 # Robots
 
-How each robot **looks** in the Unity replay. One folder per robot:
+One folder per robot. A folder can say how a robot **looks** in the Unity replay, how it **drives**,
+or both:
 
 | File | What |
 |---|---|
+| `drive.properties` | A robot profile: the fake robot some OpModes run on (see "drive.properties" below). |
 | `robot.properties` | The robot's name, where the model came from, which Unity model to draw, the model's units and axes, its center, and which parts are the drive wheels. |
 | anything else | How the model was made (for example `slim_model.py`). |
 
@@ -11,8 +13,8 @@ The model itself lives in Unity, under
 `VI_Arena/src/Assets/VI_Arena/Resources/Robots/<id>/`, because Unity can only load models from its
 own `Assets` folder.
 
-This is only the picture. The robot's size for physics and the harness, and how it drives, still
-come from `harness.properties`. Pick the look on the Unity replay's **Visuals** screen (V), under
+`robot.properties` is only the picture. The robot's size for physics and the harness, and how it
+drives, come from `harness.properties` or the robot's `drive.properties`. Pick the look on the Unity replay's **Visuals** screen (V), under
 **Robot**: the plain **Box** (the recording's robot size) or a model (its true size). The choice is
 remembered; `-robot <id>` or `-robot box` on the command line picks one for that run only.
 
@@ -35,8 +37,34 @@ If the front or sides come out wrong, change `model.forward` (and `model.up`); n
 needed. Unity's OBJ importer mirrors x into its own axes, but that doesn't change which way is
 front, up or left.
 
+## drive.properties
+
+The robot in `harness.properties` runs every OpMode, except the ones a profile lists. Use a profile
+for an OpMode written for a different robot, for example with other motor names. Nothing else is
+needed: the harness finds it by looking in this folder, and tests, the viewer and Live mode all use
+it. Recordings show the folder's name as the robot.
+
+It has the same keys as `harness.properties`, only the ones that differ, plus:
+
+| Key | Meaning |
+|---|---|
+| `forOpModes` | **Required.** The OpModes that run on this robot, comma-separated: Driver Station name or class name. |
+
+- **A profile may only change the robot:** `robot.*`, `drive.*`, `pinpoint`, `hardware.*`, `devices.*`
+  and `webcam.*`. The field, the viewer and the build settings are one setting for the whole harness.
+- **Webcams:** a profile that lists its own `devices.webcams` doesn't get the main robot's webcam keys.
+- **Numbers it doesn't list come from `harness.properties` as they are, marked measured or not.** So
+  copy any number you borrow into the profile and mark it `placeholder`: a speed measured on one robot
+  isn't measured on another.
+- **It fails early, with one message:** a misspelled key, a key it can't change, no `forOpModes`, or
+  an OpMode two profiles list.
+
+Copying the harness to another team's branch? Delete the profiles that aren't yours. One that lists
+OpModes you don't have does no harm, but it's clutter.
+
 ## Robots here
 
 | Folder | Robot | Model |
 |---|---|---|
+| `kimcode` | KimCode's robot: `drive.properties` only, for TeleopV1 and SimpleLeave. | None; Unity draws whichever look is picked. |
 | `gobilda-starter-bot` | goBILDA FTC Starter Bot (2026-2027) | goBILDA's STEP, converted to OBJ by the user, slimmed from 3.4 million to about 140,000 triangles by `slim_model.py` (screws and nuts dropped, wheels split out). |

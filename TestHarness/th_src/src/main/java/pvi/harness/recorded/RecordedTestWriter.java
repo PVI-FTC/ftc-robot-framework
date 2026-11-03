@@ -19,6 +19,7 @@ import pvi.harness.recorded.RecordedInputs.Period;
 import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.OpModeCatalog;
 import pvi.harness.runtime.OpModeRunner;
+import pvi.harness.runtime.RobotProfile;
 import pvi.harness.runtime.RunRecorder;
 import pvi.harness.recorded.RecordedInputs.Step;
 import pvi.harness.runtime.RunRecording;
@@ -157,7 +158,7 @@ public final class RecordedTestWriter {
     /** The whole test file as text. */
     public static String source(RunRecording recording, Options options) {
         RunRecording.Header header = recording.header();
-        String robotMethod = robotConfigMethod(header.robotConfig());
+        String robotCall = robotConfigCall(header.robotConfig());
         String opModeSimple = options.opModeClass().substring(options.opModeClass().lastIndexOf('.') + 1);
         RecordedInputs.Inputs inputs = RecordedInputs.from(recording);
         boolean useDriver = RecordedInputs.Inputs.hasInputs(inputs.gamepad1());
@@ -220,7 +221,7 @@ public final class RecordedTestWriter {
         out.append("\n");
         out.append("        // 2. SET UP: the same OpMode on the same robot\n");
         out.append("        OpModeRunner runner = new OpModeRunner(new ").append(opModeSimple).append("(), RobotConfigs.")
-                .append(robotMethod).append("())");
+                .append(robotCall).append(")");
         if (!defaultPeriod) {
             out.append("\n                .loopPeriod(").append(RecordedInputs.number(period)).append(")");
         }
@@ -287,11 +288,13 @@ public final class RecordedTestWriter {
         } catch (ReflectiveOperationException | ClassCastException | LinkageError e) {
             return null;
         }
-        FakeHardwareMap robot = switch (robotConfigMethod(recording.header().robotConfig())) {
+        robotConfigCall(recording.header().robotConfig());   // refuses a robot that can't be made
+        FakeHardwareMap robot = switch (recording.header().robotConfig()) {
             case "teamA" -> RobotConfigs.teamA();
             case "teamB" -> RobotConfigs.teamB();
             case "teamC" -> RobotConfigs.teamC();
-            default -> RobotConfigs.driveOnly();
+            case "driveOnly" -> RobotConfigs.driveOnly();
+            default -> RobotConfigs.profile(recording.header().robotConfig());
         };
         RecordedInputs.Inputs inputs = RecordedInputs.from(recording);
         OpModeRunner runner = new OpModeRunner(opMode, robot)
@@ -471,13 +474,18 @@ public final class RecordedTestWriter {
 
     // ---- Small helpers ---------------------------------------------------------------------
 
-    /** The RobotConfigs method for a recording's robot configuration name. */
-    static String robotConfigMethod(String configName) {
+    /** The call on RobotConfigs that makes a recording's robot, e.g. {@code teamA()}. */
+    static String robotConfigCall(String configName) {
         return switch (configName == null ? "" : configName) {
-            case "teamA", "teamB", "teamC", "driveOnly" -> configName;
-            default -> throw new IllegalArgumentException(
-                    "Can't make a test for robot configuration \"" + configName + "\": only teamA, teamB, teamC"
-                            + " and driveOnly have a RobotConfigs method. Edit the generated test by hand instead.");
+            case "teamA", "teamB", "teamC", "driveOnly" -> configName + "()";
+            default -> {
+                if (RobotProfile.all(HarnessConfig.load()).stream().noneMatch(p -> p.id().equals(configName))) {
+                    throw new IllegalArgumentException("Can't make a test for robot configuration \"" + configName
+                            + "\": only teamA, teamB, teamC, driveOnly and the robot profiles in "
+                            + RobotProfile.FOLDER + " can be made. Edit the generated test by hand instead.");
+                }
+                yield "profile(\"" + configName + "\")";
+            }
         };
     }
 

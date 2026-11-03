@@ -378,3 +378,51 @@ All three bots are idle with empty lists. The details of each decision follow.
   `PVI-FTC/ftc-robot-framework`. The bots' rule is now "push only when the user asks" (never
   another team's branch, no force-push, no tags unless asked). The local tag `before-pedro3` and
   the local `Team2-Testing` branch were not pushed.
+
+## Your direction: manager answers the bots' questions (2026-11-02)
+
+- **You said:** "if you have any questions answer them with what you feel is best and save them to
+  manager decisions". As on 2026-10-27, the manager decides questions for the current tasks and
+  writes each one here (D17 onward).
+
+## Your direction: VI_Arena pushed separately; team code pulled (2026-11-02)
+
+- **Pulled:** the team's `Pedro-3-Implementation` commits (KimCode `SimpleLeave`, `TeleopV1`, then
+  `TeleopV1`'s swapped stick axes) are merged into the local branch. 7 harness tests fail on those
+  two OpModes; **you fix them by hand**, the bots leave them alone.
+- **Pushed "everything but the VI_Arena folder":** commit `0b28f20` on top of GitHub's
+  `VI_Arena-Harness`, with today's tree minus `TestHarness/VI_Arena/` (fast-forward, no force).
+  Locally it's the branch `VI_Arena-Harness-code`; the local `VI_Arena-Harness` keeps VI_Arena.
+- **Shelved by you:** arena folders (option 1: one prefab per arena, found automatically),
+  shrinking the app (size-test option B and the other techniques), smaller game-ready art in git,
+  Git LFS, and committing `VI_Arena` to GitHub (only about 0.7 MB would upload; GitHub already has
+  the art from the first push).
+
+## D17 · The VI Arena splash screen (2026-11-02)
+
+- **You asked:** a splash screen with `C:\Dev\VI_Arena-art\ArenaLogo.png`.
+- **Decided:** the logo centred on black for about 2 seconds, fading in and out, skippable with a
+  click or key. Unity's built-in splash screen if it looks right (with "Made with Unity" off if the
+  Unity licence allows), otherwise a small start-up overlay. The logo goes in
+  `Assets/VI_Arena/Art/`, not under `Resources/`, so it isn't shipped twice; it's credited as your
+  own art. Tests and command-line runs never wait for it.
+- **Done as the overlay** (UnityBot): Unity's built-in splash can't be skipped with a click and
+  can't be tested, so the small start-up overlay (`Runtime/SplashOverlay.cs`) is used, as allowed
+  above. "Made with Unity" is switched off.
+- **To change it:** say if you want it longer, without the fade, or also as the window/app icon.
+
+## D18 · A second robot profile for KimCode (2026-11-03)
+
+- **You asked:** "create a new robot profile", after TeleopV1 stopped at INIT in Live mode.
+- **Decided:** a new folder `th_src/robots/kimcode/` with `drive.properties`, in the same keys as
+  `harness.properties`, overriding only what differs: motors `fl`/`fr`/`bl`/`br`, TeleopV1's motor
+  directions, a Limelight, and a new fake Blinker named "Control Hub". The file lists which OpModes
+  use it (`TeleopV1`, `SimpleLeave`). The harness finds profiles by scanning `robots/`, so another
+  robot is just another folder. Team A stays the default and doesn't change.
+- **Why:** it matches your plan for a robots folder with one setup per robot (D7), and changing the
+  shared robot would have broken Team A's OpModes.
+- **Not measured:** speeds, size and the rest are Team A's numbers, marked placeholder for this
+  robot. `SimpleLeave` sets `fl` and `br` the opposite way from `TeleopV1`; the profile uses
+  TeleopV1's, because Live mode drives TeleopV1.
+- **Your 7 failing tests:** some may start passing because of this. The bots don't chase them.
+- **To change it:** say if you want another name, or other OpModes on this robot.

@@ -3,6 +3,8 @@ package pvi.harness.hardware;
 import com.qualcomm.robotcore.hardware.HardwareDevice;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import pvi.harness.runtime.HarnessConfig;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +28,8 @@ public class FakeHardwareMap extends HardwareMap {
     private final Map<String, CameraSetup> cameraSetups = new LinkedHashMap<>();
     /** A short name for this configuration, e.g. "teamA", shown in run recordings. */
     private String configName = "custom";
+    /** The settings this robot was made from; null for a robot built by hand. */
+    private HarnessConfig settings;
     /** Port number for the next motor added (display only). */
     private int nextMotorPort;
     /** Port number for the next servo added (display only). */
@@ -136,6 +140,13 @@ public class FakeHardwareMap extends HardwareMap {
         FakeLimelight limelight = new FakeLimelight(configName);
         addDevice(configName, limelight);
         return limelight;
+    }
+
+    /** Adds a hub's status light (see {@link FakeBlinker}). */
+    public FakeBlinker addBlinker(String configName) {
+        FakeBlinker blinker = new FakeBlinker(configName);
+        addDevice(configName, blinker);
+        return blinker;
     }
 
     /**
@@ -281,6 +292,20 @@ public class FakeHardwareMap extends HardwareMap {
             throw new IllegalArgumentException("A robot configuration name must not be empty.");
         }
         this.configName = name;
+        return this;
+    }
+
+    /**
+     * The settings this robot was made from, so its wheels and its drive model are read from the
+     * same place as its devices. A robot built by hand follows {@code harness.properties}.
+     */
+    public HarnessConfig settings() {
+        return settings != null ? settings : HarnessConfig.load();
+    }
+
+    /** Says which settings this robot was made from (see {@link #settings()}). */
+    public FakeHardwareMap settings(HarnessConfig settings) {
+        this.settings = settings;
         return this;
     }
 

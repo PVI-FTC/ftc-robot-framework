@@ -32,9 +32,13 @@ final class BridgeTestOpModes {
                 .orElseThrow(() -> new IllegalStateException("This repo has no TeleOp for the bridge tests to drive."));
     }
 
-    /** The first autonomous; skips the test if the repo has none. */
+    /**
+     * PVI: Team A's autonomous, whose run the tests know (not simply the first by name, which
+     * changes when a team adds one). Elsewhere the first autonomous; skips the test if the repo has none.
+     */
     static BridgeOpModes.Entry autonomous() {
         BridgeOpModes.Entry auto = BridgeOpModes.all().stream().filter(e -> e.period() == MatchPeriod.AUTONOMOUS)
+                .filter(e -> !pvi() || e.id().equals("TeamAAutoOpMode"))
                 .findFirst().orElse(null);
         assumeTrue(auto != null, "this repo has no autonomous OpMode");
         return auto;

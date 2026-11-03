@@ -232,6 +232,7 @@ public final class BridgeSession {
             runner.gamepad1(driver).gamepad2(operator);
         }
         remotePhysics = null;
+        wheels = null;   // the next OpMode may run on another robot
         if ("unity".equals(physics)) {
             PoseEstimator builtIn = runner.positionEstimator();
             if (builtIn == null) {
@@ -412,10 +413,10 @@ public final class BridgeSession {
                 (String) contact, (String) obstacles));
     }
 
-    /** The wheel reader, read from harness.properties the first time it's needed. */
+    /** The wheel reader for the loaded robot, read from its settings the first time it's needed. */
     private WheelReader wheels() {
         if (wheels == null) {
-            wheels = WheelReader.fromConfig(HarnessConfig.load());
+            wheels = WheelReader.fromConfig(runner.hardwareMap().settings());
         }
         return wheels;
     }

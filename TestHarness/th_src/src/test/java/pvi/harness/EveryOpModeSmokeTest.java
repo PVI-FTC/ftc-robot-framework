@@ -87,10 +87,10 @@ class EveryOpModeSmokeTest {
             Assumptions.abort("skipped: listed as not driving (smokeTest.notDrivingTeleOps in harness.properties)");
         }
         FakeHardwareMap robot = RobotConfigs.forOpMode(entry, config);
-        HarnessConfig.DriveMotorNames names = config.driveMotors();
+        HarnessConfig.DriveMotorNames names = robot.settings().driveMotors();
         List<String> drive = List.of(names.frontLeft(), names.frontRight(), names.rearLeft(), names.rearRight());
         if (drive.stream().anyMatch(name -> robot.motor(name) == null)) {
-            Assumptions.abort("skipped: the robot in harness.properties has no drive motors " + drive);
+            Assumptions.abort("skipped: its robot has no drive motors " + drive);
         }
         GamepadScript driver = new GamepadScript()
                 .at(STICK_FROM_SECONDS).stick(Axis.LEFT_STICK_Y, -1.0)   // forward is -1 on a gamepad

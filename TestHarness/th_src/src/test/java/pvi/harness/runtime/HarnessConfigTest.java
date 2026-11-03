@@ -42,6 +42,7 @@ class HarnessConfigTest {
             "devices.otos=",
             "devices.limelights=",
             "devices.webcams=",
+            "devices.blinkers=",
             "devices.deadWheels=leftOdo:parallel:7.0, strafeOdo:perpendicular:-3.5",
             "drive.frontLeft.direction=REVERSE",
             "drive.frontRight.direction=FORWARD",

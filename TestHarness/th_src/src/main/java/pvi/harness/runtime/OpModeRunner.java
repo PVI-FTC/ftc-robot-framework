@@ -14,7 +14,6 @@ import pvi.harness.agent.SimTime;
 import pvi.harness.hardware.FakeHardwareMap;
 import pvi.harness.hardware.SimulatedSensor;
 import pvi.harness.hardware.SimulatedSensors;
-import pvi.harness.physics.DriveModel;
 import pvi.harness.physics.DriveModels;
 import pvi.harness.physics.Pose;
 import pvi.harness.physics.PoseEstimator;
@@ -83,9 +82,6 @@ public class OpModeRunner {
     /** Seconds since INIT when the sensors were last stepped, or -1 before the first call. */
     private double sensorsSteppedAt = -1.0;
 
-    /** Team A's drive model, read once from the Pedro configuration and shared by every runner. */
-    private static DriveModel defaultDriveModel;
-
     /**
      * Prepares an OpMode to run, the way the Robot Controller does before INIT.
      *
@@ -116,23 +112,17 @@ public class OpModeRunner {
         warnIfAgentMissing();
 
         // Track the robot's position automatically, if it has drive motors to track.
-        WheelReader wheels = WheelReader.teamA();
+        // (This robot's own wheels and drive model: a robot profile's differ from the settings file's.)
+        HarnessConfig settings = hardwareMap.settings();
+        WheelReader wheels = WheelReader.fromConfig(settings);
         java.util.List<String> missing = wheels.missingMotors(hardwareMap);
         if (missing.isEmpty()) {
-            positionEstimator = new PoseEstimator(defaultDriveModel(), wheels, Pose.ORIGIN);
+            positionEstimator = new PoseEstimator(DriveModels.fromConfig(settings), wheels, Pose.ORIGIN);
         } else {
             untrackedReason = "the fake robot has no drive motor(s) " + missing;
         }
         // So the final position can be printed when the test finishes.
         RunnerRegistry.register(this);
-    }
-
-    /** Team A's drive model, loaded the first time it is needed. */
-    private static synchronized DriveModel defaultDriveModel() {
-        if (defaultDriveModel == null) {
-            defaultDriveModel = DriveModels.teamA();
-        }
-        return defaultDriveModel;
     }
 
     // ---- Setup ----------------------------------------------------------------

@@ -101,7 +101,7 @@ public final class Scenarios {
         double seconds = autonomous ? MatchPeriod.AUTONOMOUS.seconds() : TELEOP_IDLE_SECONDS;
         String title = e.name() + (autonomous ? " (30 s)" : " (standing still, 3 s)");
         String description = autonomous
-                ? e.name() + " for a whole autonomous period, on the robot in harness.properties."
+                ? e.name() + " for a whole autonomous period, on its robot."
                 : e.name() + ": INIT, PLAY and no gamepad input for a few seconds.";
         return new Scenario(e.simpleName() + (autonomous ? "-autonomous" : "-idle"), title, description,
                 () -> record(new OpModeRunner(e.newOpMode(), RobotConfigs.forOpMode(e, config)), seconds));

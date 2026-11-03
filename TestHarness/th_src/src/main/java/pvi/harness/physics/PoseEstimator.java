@@ -207,7 +207,7 @@ public final class PoseEstimator {
      * center; use this only to choose a different model or start pose.</p>
      */
     public static PoseEstimator attachTo(OpModeRunner runner, DriveModel model) {
-        return attachTo(runner, model, WheelReader.teamA(), Pose.ORIGIN);
+        return attachTo(runner, model, WheelReader.fromConfig(runner.hardwareMap().settings()), Pose.ORIGIN);
     }
 
     /** Like {@link #attachTo(OpModeRunner, DriveModel)}, with a chosen wheel reader and start pose. */

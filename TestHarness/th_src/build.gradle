@@ -21,8 +21,8 @@ plugins {
 // ---------------------------------------------------------------------------
 def harnessSettings = new Properties()
 file('harness.properties').withReader('UTF-8') { harnessSettings.load(it) }
-if (harnessSettings.getProperty('config.version')?.trim() != '4') {
-    throw new GradleException("harness.properties: this harness reads config.version 4, the file says "
+if (harnessSettings.getProperty('config.version')?.trim() != '5') {
+    throw new GradleException("harness.properties: this harness reads config.version 5, the file says "
             + "${harnessSettings.getProperty('config.version')}. See docs/README.md, \"The config file\".")
 }
 // One setting by name, with a clear error if it is missing.

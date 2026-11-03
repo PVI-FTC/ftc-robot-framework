@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace VI_Arena
@@ -7,7 +8,8 @@ namespace VI_Arena
     /// the robot (<see cref="CameraMount"/>), with the webcam's field of view and shape, drawing into a
     /// small texture that the HUD shows in a corner of the field. The HUD draws a box with the id on
     /// each AprilTag the harness says that webcam detected (<see cref="TagBox"/>), so you can see at a
-    /// glance whether the detections match what the camera would really see.
+    /// glance whether the detections match what the camera would really see, and a thin white outline
+    /// on every other tag in view (<see cref="TagsInView"/>).
     ///
     /// <para>The texture is small (<see cref="TextureWidthPixels"/> wide) so the extra drawing stays
     /// cheap. The camera only draws while the picture is shown.</para>
@@ -45,8 +47,9 @@ namespace VI_Arena
 
         /// <summary>
         /// Puts the camera at <paramref name="mount"/> on <paramref name="robot"/> (the Unity robot object,
-        /// local +z its front) with the webcam's field of view and shape, and starts drawing. The sky and
-        /// background are copied from <paramref name="like"/> (the main camera), if given.
+        /// local +z its front) with the webcam's field of view and shape, and starts drawing. It shows the
+        /// setting's sky whenever the setting has one (<see cref="ClearFlagsFor"/>); the background color
+        /// is copied from <paramref name="like"/> (the main camera), if given.
         /// </summary>
         public void Show(Transform robot, CameraMount mount, Camera like = null)
         {
@@ -70,12 +73,24 @@ namespace VI_Arena
             camera.aspect = mount.Aspect;
             camera.transform.SetPositionAndRotation(robot.TransformPoint(mount.UnityLocalPosition),
                 robot.rotation * mount.UnityLocalRotation);
+            // Not the main camera's choice: its top-down view hides the sky, which left the webcam
+            // picture black there.
+            camera.clearFlags = ClearFlagsFor(RenderSettings.skybox);
             if (like != null)
             {
-                camera.clearFlags = like.clearFlags;
                 camera.backgroundColor = like.backgroundColor;
             }
             camera.enabled = true;
+        }
+
+        /// <summary>
+        /// What the webcam draws behind everything: the setting's sky (<paramref name="skybox"/>, from
+        /// RenderSettings) when there is one, else the plain background color. The same in every view
+        /// of the main window (top-down, 3D, the presets), because the webcam is on the robot either way.
+        /// </summary>
+        public static CameraClearFlags ClearFlagsFor(Material skybox)
+        {
+            return skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
         }
 
         /// <summary>Stops drawing the picture.</summary>
@@ -102,6 +117,35 @@ namespace VI_Arena
             Vector2 center = picture.position + pixel * scale;
             box = new Rect(center.x - side / 2f, center.y - side / 2f, side, side);
             return true;
+        }
+
+        /// <summary>
+        /// Where to put a tag's id of <paramref name="size"/> so it is readable: above
+        /// <paramref name="box"/>, else below it, else further up or down, always inside
+        /// <paramref name="inside"/> and clear of the ids in <paramref name="taken"/> when there is room
+        /// (tags printed side by side look close together from far off). The spot is added to
+        /// <paramref name="taken"/>.
+        /// </summary>
+        public static Rect TagIdSpot(Rect box, Vector2 size, Rect inside, List<Rect> taken)
+        {
+            float x = Mathf.Clamp(box.center.x - size.x / 2f, inside.x, Mathf.Max(inside.x, inside.xMax - size.x));
+            Rect? spot = null;
+            for (int row = 0; row < 8 && spot == null; row++)
+            {
+                foreach (float y in new[] { box.y - size.y - 1 - row * size.y, box.yMax + 1 + row * size.y })
+                {
+                    var tried = new Rect(x, y, size.x, size.y);
+                    if (tried.y >= inside.y && tried.yMax <= inside.yMax && !taken.Exists(t => t.Overlaps(tried)))
+                    {
+                        spot = tried;
+                        break;
+                    }
+                }
+            }
+            // No free spot at all: as near the box as still fits inside.
+            Rect result = spot ?? new Rect(x, Mathf.Clamp(box.y - size.y - 1, inside.y, Mathf.Max(inside.y, inside.yMax - size.y)), size.x, size.y);
+            taken.Add(result);
+            return result;
         }
 
         /// <summary>Removes the camera and its texture.</summary>

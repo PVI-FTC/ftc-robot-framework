@@ -208,6 +208,9 @@ namespace VI_Arena
             return "Not on " + fieldName + " (dashed): tag " + string.Join(", ", ids) + ", scripted or another season's";
         }
 
+        /// <summary>The webcam picture's one line saying what a thin white box means, so nobody reads it as a detection.</summary>
+        public const string TagsInViewLegend = "White: in view, not detected by robot code";
+
         /// <summary>
         /// The Live row's text when the harness side answers "hello" with an error (for example a
         /// harness.properties from another copy): the reason on one line.

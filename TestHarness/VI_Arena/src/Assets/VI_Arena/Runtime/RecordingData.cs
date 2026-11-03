@@ -77,6 +77,8 @@ namespace VI_Arena
         public int imageHeightPixels;
         /// <summary>How far away the camera can still read a tag.</summary>
         public double maxRangeInches;
+        /// <summary>How far a tag can be turned away from the camera and still be read (degrees); 0 if the recording doesn't say.</summary>
+        public double maxViewAngleDegrees;
         /// <summary>The names of the fields above that are guesses, not measurements (e.g. "horizontalFovDegrees").</summary>
         public List<string> placeholders = new List<string>();
     }

@@ -40,6 +40,8 @@ namespace VI_Arena
         public bool LensKnown { get; private set; }
         /// <summary>How far away the camera can still read a tag (inches), or 0 if not given.</summary>
         public double MaxRangeInches { get; private set; }
+        /// <summary>How far a tag can be turned away from the camera and still be read (degrees), or 0 if not given.</summary>
+        public double MaxViewAngleDegrees { get; private set; }
         /// <summary>The lens's place on the robot: right, forward, up (inches; up from the floor).</summary>
         public Vector3 PositionInches { get; private set; }
         /// <summary>The picture's right, in the robot's frame.</summary>
@@ -67,6 +69,7 @@ namespace VI_Arena
                 MountMeasured = !guesses.Exists(g => Array.IndexOf(MountFields, g) >= 0),
                 LensKnown = hasFov && !guesses.Contains("horizontalFovDegrees") && !guesses.Contains("verticalFovDegrees"),
                 MaxRangeInches = data.maxRangeInches,
+                MaxViewAngleDegrees = data.maxViewAngleDegrees,
                 PositionInches = new Vector3((float)-data.leftInches, (float)data.forwardInches, (float)data.upInches),
                 WidthPixels = data.imageWidthPixels > 0 ? data.imageWidthPixels : PlaceholderWidth,
                 HeightPixels = data.imageHeightPixels > 0 ? data.imageHeightPixels : PlaceholderHeight,

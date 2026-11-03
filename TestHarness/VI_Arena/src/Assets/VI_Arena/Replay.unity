@@ -149,6 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: VI_Arena::VI_Arena.ReplayController
   recordingPath: 
+  splashLogo: {fileID: 2800000, guid: 621e5c8f73a740f6a4901a4b067f2ef9, type: 3}
 --- !u!4 &923435555
 Transform:
   m_ObjectHideFlags: 0

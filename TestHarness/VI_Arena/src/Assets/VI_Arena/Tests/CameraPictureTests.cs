@@ -130,6 +130,47 @@ namespace VI_Arena.Tests
         }
 
         /// <summary>
+        /// WHAT: The webcam shows the setting's sky even while the main window is in the top-down view
+        /// (orthographic, plain background), and the plain background in a setting without a sky.
+        /// WHY: The picture used to copy the main camera's choice, so in the top-down view its sky was black.
+        /// </summary>
+        [Test]
+        public void TheWebcamShowsTheSkyInTheTopDownViewToo()
+        {
+            var parent = new GameObject("test parent");
+            var view = new CameraPictureView(parent.transform);
+            Material oldSky = RenderSettings.skybox;
+            var sky = new Material(Shader.Find("Skybox/Procedural"));
+            try
+            {
+                var robot = new GameObject("Robot").transform;
+                robot.SetParent(parent.transform, false);
+                Camera topDown = new GameObject("Main camera, top-down").AddComponent<Camera>();
+                topDown.transform.SetParent(parent.transform, false);
+                topDown.orthographic = true;
+                topDown.clearFlags = CameraClearFlags.SolidColor;
+                topDown.backgroundColor = Color.red;
+
+                RenderSettings.skybox = sky;
+                view.Show(robot, Mount(0, 18, 0), topDown);
+                Assert.AreEqual(CameraClearFlags.Skybox, view.Camera.clearFlags, "a setting with a sky");
+                Assert.IsFalse(view.Camera.orthographic);
+
+                RenderSettings.skybox = null;
+                view.Show(robot, Mount(0, 18, 0), topDown);
+                Assert.AreEqual(CameraClearFlags.SolidColor, view.Camera.clearFlags, "a setting without a sky");
+                Assert.AreEqual(Color.red, view.Camera.backgroundColor);
+            }
+            finally
+            {
+                RenderSettings.skybox = oldSky;
+                Object.DestroyImmediate(sky);
+                view.Destroy();
+                Object.DestroyImmediate(parent);
+            }
+        }
+
+        /// <summary>
         /// WHAT: A box is scaled from the webcam's pixels to the picture's size on screen.
         /// </summary>
         [Test]

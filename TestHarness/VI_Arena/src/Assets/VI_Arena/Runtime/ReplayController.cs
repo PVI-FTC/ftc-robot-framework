@@ -37,6 +37,9 @@ namespace VI_Arena
         [Tooltip("The port gradlew unityBridge listens on (7465 unless started with -Pport=...).")]
         [SerializeField] private int bridgePort = TcpBridgeTransport.DefaultPort;
 
+        [Tooltip("The VI Arena logo the built app shows for about two seconds at start-up (SplashOverlay).")]
+        [SerializeField] private Texture splashLogo;
+
         private FieldBuilder.Built scene;
         private Camera replayCamera;
         private OrbitCamera orbit;
@@ -263,6 +266,12 @@ namespace VI_Arena
 
         private void Start()
         {
+            // The logo over the window while it opens (only in the built app, opened normally).
+            if (SplashOverlay.ShouldShow(Environment.GetCommandLineArgs(), Application.isEditor, Application.isBatchMode))
+            {
+                SplashOverlay.Attach(gameObject, splashLogo);
+            }
+
             replayCamera = new GameObject("Replay camera").AddComponent<Camera>();
             replayCamera.clearFlags = CameraClearFlags.SolidColor;
             replayCamera.backgroundColor = HudTheme.Background;

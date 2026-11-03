@@ -521,8 +521,9 @@ namespace VI_Arena
         /// <summary>
         /// The C key's small picture in the field's bottom-right corner: what the shown webcam sees, from
         /// its mount, with a box and id on each tag the harness says it detected in this loop (only tags
-        /// on the shown field; see <see cref="AprilTagSightView.Target"/>). Says so when the recording
-        /// has no webcam setup (older recordings, or a robot without a webcam).
+        /// on the shown field; see <see cref="AprilTagSightView.Target"/>) and a thin white outline and id
+        /// on every other tag in view (<see cref="TagsInView"/>). Says so when the recording has no webcam
+        /// setup (older recordings, or a robot without a webcam).
         /// </summary>
         private static void DrawCameraPicture(Layout layout, ReplayController replay, LoopData loop, RunRecordingData recording, PoseData pose)
         {
@@ -566,6 +567,8 @@ namespace VI_Arena
             // A box and id on each tag this webcam detected in this loop that is on the shown field:
             // where it was measured (cyan), or on the real tag when measured elsewhere (amber).
             var notOnField = new List<int>();
+            var detected = new List<int>();
+            var idSpots = new List<Rect>();
             GUI.BeginGroup(picture);
             var inside = new Rect(0, 0, picture.width, picture.height);
             foreach (AprilTagSeenData tag in loop.aprilTags)
@@ -574,6 +577,7 @@ namespace VI_Arena
                 {
                     continue;
                 }
+                detected.Add(tag.id);
                 AprilTagSightView.TargetKind kind = AprilTagSightView.Target(pose, tag, mount, replay.FieldTags, out Vector3 spot);
                 if (kind == AprilTagSightView.TargetKind.NotOnField)
                 {
@@ -594,16 +598,67 @@ namespace VI_Arena
                     HudTheme.Hairline(box, color);
                     HudTheme.Hairline(new Rect(box.x + 1, box.y + 1, box.width - 2, box.height - 2), color);
                 }
-                HudTheme.Label(AprilTagSightView.LabelText(tag.id, kind), box.x, box.y - 3, 11, color);
+                DrawTagId(AprilTagSightView.LabelText(tag.id, kind), box, inside, idSpots, color);
+            }
+
+            // Every other tag in view: only "the webcam could see this", not "the robot's code detected
+            // it", so it gets its own thin white look, the tag's real outline.
+            List<TagsInView> inView = TagsInView.Find(mount, pose, replay.FieldTags, detected);
+            foreach (TagsInView tag in inView)
+            {
+                float scale = picture.width / mount.WidthPixels;
+                for (int i = 0; i < 4; i++)
+                {
+                    Vector2 from = tag.Corners[i] * scale, to = tag.Corners[(i + 1) % 4] * scale;
+                    HudTheme.StraightLine(from, to, 3f, TagOutlineShadow);
+                    HudTheme.StraightLine(from, to, 1f, Color.white);
+                }
+                Rect box = tag.BoxOn(mount, inside, MinimumTagBoxPixels);
+                if (box.width <= MinimumTagBoxPixels || box.height <= MinimumTagBoxPixels)
+                {
+                    HudTheme.Hairline(box, Color.white);
+                }
+                DrawTagId(tag.Id.ToString(), box, inside, idSpots, Color.white);
             }
             GUI.EndGroup();
+
+            float stripBottom = picture.yMax;
             string note2 = HudText.NotOnFieldText(notOnField, replay.FieldName);
             if (note2 != null)
             {
-                var strip = new Rect(picture.x, picture.yMax - 20, picture.width, 20);
-                HudTheme.Fill(strip, new Color(HudTheme.Panel.r, HudTheme.Panel.g, HudTheme.Panel.b, 0.85f));
-                HudTheme.Label(HudTheme.Ellipsize(note2, HudTheme.Style("normal", 10), picture.width - 16), strip.x + 8, strip.y + 14, 10, HudTheme.Amber);
+                DrawPictureStrip(picture, stripBottom, note2, HudTheme.Amber);
+                stripBottom -= 20;
             }
+            if (inView.Count > 0)
+            {
+                DrawPictureStrip(picture, stripBottom, HudText.TagsInViewLegend, HudTheme.Text);
+            }
+        }
+
+        private const float MinimumTagBoxPixels = 6f;
+        private const int TagIdFontSize = 12;
+        private static readonly Color TagOutlineShadow = new Color(0f, 0f, 0f, 0.6f);
+        private static readonly Color TagIdBacking = new Color(0f, 0f, 0f, 0.85f);
+
+        /// <summary>A tag's id on a dark backing, inside the picture, clear of the other ids; nothing for a box off the picture.</summary>
+        private static void DrawTagId(string text, Rect box, Rect inside, List<Rect> taken, Color color)
+        {
+            if (!box.Overlaps(inside))
+            {
+                return;
+            }
+            var size = new Vector2(HudTheme.LabelWidth(text, TagIdFontSize) + 6, TagIdFontSize + 4);
+            Rect spot = CameraPictureView.TagIdSpot(box, size, inside, taken);
+            HudTheme.Fill(spot, TagIdBacking);
+            HudTheme.Label(text, spot.x + 3, spot.yMax - 3, TagIdFontSize, color);
+        }
+
+        /// <summary>One line of words across the picture, with its bottom at <paramref name="bottom"/>.</summary>
+        private static void DrawPictureStrip(Rect picture, float bottom, string text, Color color)
+        {
+            var strip = new Rect(picture.x, bottom - 20, picture.width, 20);
+            HudTheme.Fill(strip, new Color(HudTheme.Panel.r, HudTheme.Panel.g, HudTheme.Panel.b, 0.85f));
+            HudTheme.Label(HudTheme.Ellipsize(text.ToUpperInvariant(), HudTheme.Style("normal", 10), picture.width - 16), strip.x + 8, strip.y + 14, 10, color);
         }
 
         /// <summary>A box outline drawn as short dashes, for a detection that isn't a tag on the shown field.</summary>

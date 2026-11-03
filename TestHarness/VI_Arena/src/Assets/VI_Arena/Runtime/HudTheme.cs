@@ -74,6 +74,24 @@ namespace VI_Arena
             GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, color, 0, 0);
         }
 
+        /// <summary>
+        /// A straight line <paramref name="width"/> pixels wide, drawn as a few flat runs (just one for a
+        /// level or upright line), so a group's clipping still works, which a turned GUI matrix would upset.
+        /// </summary>
+        public static void StraightLine(Vector2 from, Vector2 to, float width, Color color)
+        {
+            Vector2 d = to - from;
+            bool level = Mathf.Abs(d.x) >= Mathf.Abs(d.y);
+            int runs = Mathf.Clamp(Mathf.CeilToInt(level ? Mathf.Abs(d.y) : Mathf.Abs(d.x)) + 1, 1, 64);
+            for (int i = 0; i < runs; i++)
+            {
+                Vector2 a = from + d * i / runs, b = from + d * (i + 1) / runs;
+                Fill(level
+                    ? new Rect(Mathf.Min(a.x, b.x), a.y - width / 2f, Mathf.Abs(b.x - a.x) + 1f, width)
+                    : new Rect(a.x - width / 2f, Mathf.Min(a.y, b.y), width, Mathf.Abs(b.y - a.y) + 1f), color);
+            }
+        }
+
         /// <summary>A filled rectangle with round corners (radius in pixels); a circle when it is half the size.</summary>
         public static void Round(Rect rect, float radius, Color color)
         {

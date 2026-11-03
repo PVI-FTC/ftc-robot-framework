@@ -426,3 +426,13 @@ All three bots are idle with empty lists. The details of each decision follow.
   TeleopV1's, because Live mode drives TeleopV1.
 - **Your 7 failing tests:** some may start passing because of this. The bots don't chase them.
 - **To change it:** say if you want another name, or other OpModes on this robot.
+
+## D19 · Boxes and numbers on AprilTags in the camera view (2026-11-03)
+
+- **You asked:** boxes on the AprilTags in the camera view, with each tag's number showing.
+- **Found:** the picture already boxed tags, but only ones the harness says the webcam detected in
+  that loop, so an OpMode that doesn't run the vision code would show none.
+- **Decided:** every tag of the shown field that's in the webcam's view gets a box and its number,
+  in replay and Live mode. Detected tags keep today's colors. Tags only in view get a clearly
+  different style and a short legend, because a box there doesn't mean the robot's code saw it.
+- **To change it:** say if you'd rather have all boxes look the same, or only detected ones.

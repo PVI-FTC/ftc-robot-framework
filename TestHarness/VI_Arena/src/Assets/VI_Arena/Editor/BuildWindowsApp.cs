@@ -66,6 +66,9 @@ namespace VI_Arena.Editor
             PlayerSettings.defaultScreenHeight = 1000;
             PlayerSettings.resizableWindow = true;
             PlayerSettings.runInBackground = true; // keep live play stepping when the window isn't focused
+            // No "Made with Unity" screen (optional since Unity 6); the app shows its own logo (SplashOverlay).
+            PlayerSettings.SplashScreen.show = false;
+            PlayerSettings.SplashScreen.showUnityLogo = false;
             IncludeShaders();
             KeepNormalMappedVariant();
 

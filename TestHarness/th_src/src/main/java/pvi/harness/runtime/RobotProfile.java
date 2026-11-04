@@ -21,7 +21,9 @@ import java.util.stream.Stream;
  * {@link HarnessConfig#forProfile}) and only the ones that differ, plus {@code forOpModes}: the
  * OpModes that use it, by Driver Station name or class name. The harness finds profiles by
  * looking in the folder, so adding a robot needs no code. The file is apart from
- * {@code robot.properties}, which only says how a robot looks in Unity.</p>
+ * {@code robot.properties}, which only says how a robot looks in Unity, and from
+ * {@code camera.properties}, which holds the robot's own cameras. The folder of the robot in
+ * {@code harness.properties} ({@code robot.id}) has no profile: that robot needs none.</p>
  *
  * @param id         the folder's name, e.g. "kimcode"; recordings show it as the robot's name
  * @param forOpModes the OpModes that run on this robot
@@ -57,7 +59,13 @@ public record RobotProfile(String id, List<String> forOpModes, HarnessConfig con
                 if (!Files.isRegularFile(file)) {
                     continue;   // a robot that only has a look (robot.properties)
                 }
-                RobotProfile profile = read(base, robot.getFileName().toString(), file, problems);
+                String id = robot.getFileName().toString();
+                if (id.equals(base.robotId())) {
+                    problems.add(file + ": this is the folder of the robot in " + HarnessConfig.FILE_NAME
+                            + " (robot.id), which runs every OpMode no profile lists. Change it there, or use another folder.");
+                    continue;
+                }
+                RobotProfile profile = read(base, id, folder, file, problems);
                 if (profile == null) {
                     continue;
                 }
@@ -80,7 +88,7 @@ public record RobotProfile(String id, List<String> forOpModes, HarnessConfig con
     }
 
     /** One profile file, or null with the reason added to {@code problems}. */
-    private static RobotProfile read(HarnessConfig base, String id, Path file, List<String> problems) throws IOException {
+    private static RobotProfile read(HarnessConfig base, String id, Path folder, Path file, List<String> problems) throws IOException {
         Properties keys = new Properties();
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             keys.load(reader);
@@ -92,7 +100,7 @@ public record RobotProfile(String id, List<String> forOpModes, HarnessConfig con
             return null;
         }
         try {
-            return new RobotProfile(id, List.of(opModes.trim().split("\\s*,\\s*")), base.forProfile(keys, file.toString()));
+            return new RobotProfile(id, List.of(opModes.trim().split("\\s*,\\s*")), base.forProfile(keys, file.toString(), id, folder));
         } catch (IllegalArgumentException e) {
             problems.add(e.getMessage());
             return null;

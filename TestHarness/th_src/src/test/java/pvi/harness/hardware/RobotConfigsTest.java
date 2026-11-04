@@ -6,6 +6,7 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import pvi.harness.runtime.HarnessConfig;
 import pvi.harness.runtime.MatchPeriod;
@@ -56,9 +57,13 @@ class RobotConfigsTest {
      * <p>WHY: Another team's robot code looks up its sensors by name; without them it can't start.</p>
      */
     @Test
-    void theDeviceListsAddTheirDevices() throws IOException {
-        String text = withDevices(Files.readString(Path.of(HarnessConfig.FILE_NAME)));
-        FakeHardwareMap robot = RobotConfigs.robot(HarnessConfig.fromText(text, "devices"));
+    void theDeviceListsAddTheirDevices(@TempDir Path robotsFolder) throws IOException {
+        String text = withDevices(Files.readString(Path.of(HarnessConfig.FILE_NAME)))
+                .replaceAll("(?m)^robot\\.id=.*$", "robot.id=devices-test");
+        Files.createDirectories(robotsFolder.resolve("devices-test"));
+        Files.writeString(robotsFolder.resolve("devices-test").resolve(HarnessConfig.CAMERA_FILE_NAME),
+                "devices.webcams=camera\n" + cameraKeys("camera"));
+        FakeHardwareMap robot = RobotConfigs.robot(HarnessConfig.fromText(text, "devices", robotsFolder));
         java.util.Set<String> names = robot.deviceNames();
         for (String name : new String[] {"imu", "frontDistance", "rearDistance", "button", "intakeColor", "spinner",
                 "pot", "otos", "limelight", "camera", "leftOdo", "claw", "wrist"}) {
@@ -100,8 +105,6 @@ class RobotConfigsTest {
                 .replace("devices.analogInputs=\n", "devices.analogInputs=pot\n")
                 .replace("devices.otos=\n", "devices.otos=otos\n")
                 .replace("devices.limelights=\n", "devices.limelights=limelight\n")
-                .replaceAll("(?m)^webcam\\..*\n", "")
-                .replaceAll("(?m)^devices\\.webcams=.*$", "devices.webcams=camera\n" + cameraKeys("camera"))
                 .replace("devices.deadWheels=\n", "devices.deadWheels=leftOdo:parallel:7.0\n");
     }
 

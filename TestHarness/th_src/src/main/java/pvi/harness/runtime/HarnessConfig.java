@@ -36,7 +36,10 @@ public final class HarnessConfig {
     /** The file name, in the Harness folder. */
     public static final String FILE_NAME = "harness.properties";
     /** The layout of the file this harness reads. Goes up whenever keys change (README.md). */
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
+
+    /** The file in a robot's folder that holds its cameras: the only place they are set. */
+    public static final String CAMERA_FILE_NAME = "camera.properties";
 
     /**
      * One dead-wheel odometry pod from {@code devices.deadWheels}.
@@ -64,10 +67,10 @@ public final class HarnessConfig {
     private static final Set<String> KNOWN_KEYS = Set.of(
             "config.version", "teamCode.sourceDir", "teamCode.opModePackages", "host.dependenciesFile",
             "host.skipLibraries",
-            "robot.name", "drive.frontLeft", "drive.frontRight", "drive.rearLeft", "drive.rearRight", "pinpoint",
+            "robot.name", "robot.id", "drive.frontLeft", "drive.frontRight", "drive.rearLeft", "drive.rearRight", "pinpoint",
             "hardware.otherMotors", "hardware.servos", "devices.imu", "devices.crServos", "devices.distanceSensors",
             "devices.touchSensors", "devices.colorSensors", "devices.analogInputs", "devices.otos",
-            "devices.limelights", "devices.webcams", "devices.blinkers", "devices.deadWheels",
+            "devices.limelights", "devices.blinkers", "devices.deadWheels",
             "drive.frontLeft.direction", "drive.frontRight.direction", "drive.rearLeft.direction",
             "drive.rearRight.direction",
             "drive.forwardSpeedInchesPerSecond", "drive.strafeSpeedInchesPerSecond",
@@ -84,6 +87,7 @@ public final class HarnessConfig {
     private final String hostDependenciesFile;
     private final List<String> skipLibraries;
     private final String robotName;
+    private final String robotId;
     private final DriveMotorNames driveMotors;
     private final DriveMotorDirections driveDirections;
     private final String pinpointName;
@@ -97,7 +101,6 @@ public final class HarnessConfig {
     private final List<String> analogInputs;
     private final List<String> otos;
     private final List<String> limelights;
-    private final List<String> webcams;
     private final List<CameraSetup> cameras;
     private final List<String> blinkers;
     private final List<DeadWheel> deadWheels;
@@ -131,7 +134,13 @@ public final class HarnessConfig {
                     + ". Copy harness.properties into the TestHarness/th_src folder (see docs/README.md).");
         }
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            return read(reader, file.toString());
+            HarnessConfig config = read(reader, file.toString(), RobotProfile.FOLDER);
+            // A misspelled robot.id would otherwise just mean "no cameras", with no message.
+            if (!Files.isDirectory(RobotProfile.FOLDER.resolve(config.robotId()))) {
+                throw new IllegalArgumentException("Problems in " + file + ":\n  robot.id: there's no folder "
+                        + RobotProfile.FOLDER.resolve(config.robotId()) + ". Make it, or correct the name.");
+            }
+            return config;
         } catch (IOException e) {
             throw new IllegalStateException("Could not read " + file.toAbsolutePath(), e);
         }
@@ -139,24 +148,29 @@ public final class HarnessConfig {
 
     /** Reads settings written as text, for tests. {@code name} is used in error messages. */
     public static HarnessConfig fromText(String text, String name) {
+        return fromText(text, name, RobotProfile.FOLDER);
+    }
+
+    /** The same, with the robots' folders (and so their cameras) in {@code robotsFolder}. */
+    public static HarnessConfig fromText(String text, String name, Path robotsFolder) {
         try {
-            return read(new StringReader(text), name);
+            return read(new StringReader(text), name, robotsFolder);
         } catch (IOException e) {
             throw new IllegalStateException("Could not read " + name, e);   // a StringReader never fails
         }
     }
 
-    private static HarnessConfig read(Reader reader, String name) throws IOException {
+    private static HarnessConfig read(Reader reader, String name, Path robotsFolder) throws IOException {
         Properties properties = new Properties();
         properties.load(reader);
-        return check(properties, name, new ArrayList<>());
+        return check(properties, name, robotsFolder, new ArrayList<>());
     }
 
     /** Makes the settings from {@code properties}, failing with every problem at once. */
-    private static HarnessConfig check(Properties properties, String name, List<String> problems) {
-        HarnessConfig config = new HarnessConfig(properties, problems);
+    private static HarnessConfig check(Properties properties, String name, Path robotsFolder, List<String> problems) {
+        HarnessConfig config = new HarnessConfig(properties, robotsFolder, problems);
         for (String key : new TreeSet<>(properties.stringPropertyNames())) {
-            if (!KNOWN_KEYS.contains(key) && !config.isWebcamKey(key)) {
+            if (!KNOWN_KEYS.contains(key) && !isOldCameraKey(key)) {
                 problems.add(key + ": not a harness setting (check the spelling against docs/README.md)");
             }
         }
@@ -170,26 +184,29 @@ public final class HarnessConfig {
      * These settings with a robot profile's keys applied ({@link RobotProfile}). A profile may only
      * change the robot: {@code robot.*}, {@code drive.*}, {@code pinpoint}, {@code hardware.*},
      * {@code devices.*} and {@code webcam.*}. The rest (where the code is, the field, the viewer)
-     * is one setting for the whole harness. A profile that lists its own {@code devices.webcams}
-     * doesn't get this robot's webcam keys.
+     * is one setting for the whole harness. The profile's cameras are its own
+     * ({@code <robotsFolder>/<id>/camera.properties}), never this robot's.
      *
-     * @param profile the profile's keys
-     * @param name    used in error messages
+     * @param profile      the profile's keys
+     * @param name         used in error messages
+     * @param id           the profile's folder name
+     * @param robotsFolder where the robots' folders are
      */
-    HarnessConfig forProfile(Properties profile, String name) {
+    HarnessConfig forProfile(Properties profile, String name, String id, Path robotsFolder) {
         Properties merged = new Properties();
         merged.putAll(properties);
-        if (profile.getProperty("devices.webcams") != null) {
-            merged.keySet().removeIf(key -> key.toString().startsWith("webcam."));
-        }
         merged.putAll(profile);
+        merged.setProperty("robot.id", id);
         List<String> problems = new ArrayList<>();
         for (String key : new TreeSet<>(profile.stringPropertyNames())) {
             if (KNOWN_KEYS.contains(key) && !isRobotKey(key)) {
                 problems.add(key + ": a robot profile can't change this; it belongs in " + FILE_NAME);
             }
+            if (key.equals("robot.id")) {
+                problems.add(key + ": a robot profile's id is its folder's name, here " + id);
+            }
         }
-        return check(merged, name, problems);
+        return check(merged, name, robotsFolder, problems);
     }
 
     /** True for a key that describes the robot, which a profile may change. */
@@ -198,8 +215,13 @@ public final class HarnessConfig {
                 || key.startsWith("hardware.") || key.startsWith("devices.");
     }
 
+    /** True for a camera key in a settings file: cameras moved to each robot's own file. */
+    private static boolean isOldCameraKey(String key) {
+        return key.equals("devices.webcams") || key.startsWith("webcam.");
+    }
+
     /** Reads every value, adding a line to {@code problems} for each one that is wrong. */
-    private HarnessConfig(Properties properties, List<String> problems) {
+    private HarnessConfig(Properties properties, Path robotsFolder, List<String> problems) {
         this.properties = properties;
         Values values = new Values(properties, problems);
         String version = values.text("config.version");
@@ -214,6 +236,14 @@ public final class HarnessConfig {
         hostDependenciesFile = values.text("host.dependenciesFile");
         skipLibraries = values.list("host.skipLibraries");
         robotName = values.text("robot.name");
+        robotId = values.text("robot.id");
+        if (robotId != null && !robotId.matches("[A-Za-z0-9._-]+")) {
+            problems.add("robot.id: must be a folder's name in robots/, got \"" + robotId + "\"");
+        }
+        if (properties.stringPropertyNames().stream().anyMatch(HarnessConfig::isOldCameraKey)) {
+            problems.add("devices.webcams, webcam.*: cameras don't go in this file any more. Move these lines to "
+                    + robotsFolder.resolve(String.valueOf(robotId)).resolve(CAMERA_FILE_NAME));
+        }
         driveMotors = new DriveMotorNames(values.text("drive.frontLeft"), values.text("drive.frontRight"),
                 values.text("drive.rearLeft"), values.text("drive.rearRight"));
         driveDirections = new DriveMotorDirections(values.direction("drive.frontLeft.direction"),
@@ -230,8 +260,7 @@ public final class HarnessConfig {
         analogInputs = values.list("devices.analogInputs");
         otos = values.list("devices.otos");
         limelights = values.list("devices.limelights");
-        webcams = values.list("devices.webcams");
-        cameras = values.cameras(webcams);
+        cameras = readCameras(robotId, robotsFolder, problems);
         blinkers = values.list("devices.blinkers");
         deadWheels = values.deadWheels("devices.deadWheels");
         forwardSpeed = values.fact("drive.forwardSpeedInchesPerSecond", ModelValue.INCHES_PER_SECOND);
@@ -272,6 +301,11 @@ public final class HarnessConfig {
     /** {@code group:name} of the host libraries the harness leaves out (Android only). */
     public List<String> skipLibraries() {
         return skipLibraries;
+    }
+
+    /** This robot's folder in {@code robots/}, e.g. "team-a". */
+    public String robotId() {
+        return robotId;
     }
 
     /** The robot's name in reports, recordings and the viewer, e.g. "Team A". */
@@ -344,14 +378,15 @@ public final class HarnessConfig {
         return limelights;
     }
 
-    /** Names of its USB webcams ({@code devices.webcams}). May be empty. */
+    /** Names of its USB webcams ({@code devices.webcams} in its camera file). May be empty. */
     public List<String> webcams() {
-        return webcams;
+        return cameras.stream().map(CameraSetup::name).toList();
     }
 
     /**
      * Each webcam's mount and view ({@code webcam.<name>.<fact>}), in the order of
-     * {@code devices.webcams}. Every listed webcam has one.
+     * {@code devices.webcams}, from this robot's own {@code robots/<id>/camera.properties}. Empty
+     * if it has no such file.
      */
     public List<CameraSetup> cameras() {
         return cameras;
@@ -362,8 +397,40 @@ public final class HarnessConfig {
         return blinkers;
     }
 
-    /** True for a {@code webcam.<name>.<fact>} key of a webcam in {@code devices.webcams}. */
-    private boolean isWebcamKey(String key) {
+    /**
+     * The webcams in {@code <robotsFolder>/<robotId>/camera.properties}: none if there's no such
+     * file. Each thing wrong in the file is added to {@code problems}, naming the file.
+     */
+    private static List<CameraSetup> readCameras(String robotId, Path robotsFolder, List<String> problems) {
+        if (robotId == null) {
+            return List.of();
+        }
+        Path file = robotsFolder.resolve(robotId).resolve(CAMERA_FILE_NAME);
+        if (!Files.isRegularFile(file)) {
+            return List.of();
+        }
+        Properties keys = new Properties();
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            keys.load(reader);
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not read " + file.toAbsolutePath(), e);
+        }
+        List<String> fileProblems = new ArrayList<>();
+        Values values = new Values(keys, fileProblems);
+        List<String> webcams = values.list("devices.webcams");
+        List<CameraSetup> setups = values.cameras(webcams);
+        for (String key : new TreeSet<>(keys.stringPropertyNames())) {
+            if (!key.equals("devices.webcams") && !isWebcamKey(key, webcams)) {
+                fileProblems.add(key + ": not a camera setting (check the spelling, and that the webcam is in"
+                        + " devices.webcams)");
+            }
+        }
+        fileProblems.forEach(problem -> problems.add(file + ": " + problem));
+        return setups;
+    }
+
+    /** True for a {@code webcam.<name>.<fact>} key of a webcam in {@code webcams}. */
+    private static boolean isWebcamKey(String key, List<String> webcams) {
         for (String name : webcams) {
             for (String fact : CameraSetup.FACT_NAMES) {
                 if (key.equals("webcam." + name + "." + fact)) {

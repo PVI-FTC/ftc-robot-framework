@@ -110,17 +110,23 @@ match **your** robot configuration (the names your code passes to `hardwareMap.g
 | `pinpoint` | Your Pinpoint's name. No Pinpoint? Leave the name as it is: the harness adds a fake Pinpoint your code never uses, which does no harm. |
 | `hardware.otherMotors` | Every other motor, comma-separated: `intake, arm, lift`. (Team 2's file has `intake`; replace it.) |
 | `hardware.servos` | Every servo, comma-separated: `claw, wrist`. |
-| `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams`, `devices.blinkers` | The names of those devices on your robot, comma-separated. Leave a line empty if you have none. |
-| `webcam.<name>.*` | One block per webcam in `devices.webcams`: where it sits (forward, left, up from the robot's center on the floor, the angles, 0, 0, 0 = level and looking forward), its field of view and picture size. Copy Team 2's block and change the numbers; mark guesses `placeholder`. `webcam.<name>.aprilTags=field` makes it see the field's tags from where the robot is; `script` sees only what a test scripts. |
+| `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.blinkers` | The names of those devices on your robot, comma-separated. Leave a line empty if you have none. |
+| `robot.id` | Your robot's folder in `robots/`, for example `my-team`. Make that folder. Your cameras go in it (`robots/my-team/camera.properties`), and Team 2's `robots/team-a` and `robots/kimcode` folders can be deleted. |
 | `devices.deadWheels` | Odometry pods plugged into motor encoder ports, if you have them (the file shows the format). |
 | `drive.forwardSpeedInchesPerSecond` and the other numbers | Your robot's measured speeds, if you have them (for example from your Pedro tuners). Otherwise you may keep Team 2's numbers to start with, **but change `measured` to `placeholder`** on each of those lines: they were measured on Team 2's robot, not yours. |
 | `viewer.defaultTeleOp` | The TeleOp the viewer drives when it opens: your TeleOp's Driver Station name, or leave it empty for the first TeleOp by name. (Team 2's file says `TeamATeleOp`.) |
-| `smokeTest.skipOpModes` | Leave it empty for now (Team 2's file lists `KimCode TeleopV1`); see Step 4. |
+| `smokeTest.skipOpModes` | Leave it empty for now (Team 2's file has it empty too); see Step 4. |
 | `smokeTest.notDrivingTeleOps` | Leave it empty for now (Team 2's file lists three of its tool OpModes); see Step 4. |
 
+**Your cameras** go in `robots/<your robot.id>/camera.properties`, not in `harness.properties`. Copy Team 2's `robots/team-a/camera.properties` and edit it. No webcam? Leave the file out.
+
+| Key | What to put |
+|---|---|
+| `devices.webcams` | Your webcams' names, comma-separated. |
+| `webcam.<name>.*` | One block per webcam in `devices.webcams`: where it sits (forward, left, up from the robot's center on the floor, the angles, 0, 0, 0 = level and looking forward), its field of view and picture size. Copy Team 2's block and change the numbers; mark guesses `placeholder`. `webcam.<name>.aprilTags=field` makes it see the field's tags from where the robot is; `script` sees only what a test scripts. |
+
 **Clear Team 2's own values** you don't need: anything in `hardware.*`, `devices.*` and the
-`smokeTest.*` lines that names a Team 2 device or OpMode (for example
-`devices.webcams=logitechVisionWebcam`, unless your robot has that webcam too).
+`smokeTest.*` lines that names a Team 2 device or OpMode.
 A line ending in `\` carries on onto the next line (as `host.skipLibraries` does, which you keep):
 if you ever empty such a value, delete its following line too, or the harness stops with "not a
 harness setting".

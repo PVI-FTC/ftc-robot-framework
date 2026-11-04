@@ -185,6 +185,17 @@ namespace VI_Arena
         }
 
         /// <summary>
+        /// The short message after switching the sight lines (A key, Visuals screen). With no detections in
+        /// the run nothing changes on screen, so it says why. A live run's recording only has the loops
+        /// so far, so that means none yet. Null <paramref name="recording"/>: nothing is open, so no reason.
+        /// </summary>
+        public static string SightLinesSwitchText(bool on, RunRecordingData recording)
+        {
+            string text = "AprilTag sight lines: " + (on ? "On" : "Off");
+            return recording == null || AnyAprilTags(recording) ? text : text + " (no tags detected in this run)";
+        }
+
+        /// <summary>
         /// What the webcam picture says when the recording has no camera setup: recordings before
         /// format version 5 (2026-11-01) never have one; a newer one without means no webcam.
         /// </summary>

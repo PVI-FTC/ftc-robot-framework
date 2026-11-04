@@ -294,7 +294,7 @@ Top level:
 | `driveModel` | drive model or `null` | — | Robot speeds and size used for the estimate; `null` if not tracked. |
 | `pieces` | array of piece | — | Every game piece at INIT, in a fixed order (version 4). Empty if position wasn't tracked. |
 | `field` | string | — | The field the run was on, `field=` in `harness.properties` (e.g. `"biobuzz-2026"`), so Unity and the viewer show that field and its tags (version 5). |
-| `cameras` | array of camera | — | Each webcam's mount and view, from `webcam.<name>.<fact>` in `harness.properties`, in the order of `devices.webcams` (version 5). Empty if the robot has no webcam. |
+| `cameras` | array of camera | — | Each webcam's mount and view, from `webcam.<name>.<fact>` in the robot's `robots/<id>/camera.properties`, in the order of `devices.webcams` (version 5). Empty if the robot has no webcam. |
 
 camera (version 5): `name` (string, the webcam's configuration name), then plain numbers:
 `forwardInches`, `leftInches`, `upInches` (in, from the robot's center on the floor, robot frame:
@@ -740,10 +740,11 @@ the robot profile (`HarnessConfig.load()`). It's a plain Java `.properties` file
 lines, `#` starts a comment, and a line ending in `\` carries on the next line. Paths are relative
 to the `TestHarness/th_src` folder.
 
-**Format version:** `config.version=5` (version 2, 2026-10-27, added the robot name, drive
+**Format version:** `config.version=6` (version 2, 2026-10-27, added the robot name, drive
 directions, speeds, coasting, other motors, OpMode packages and `pvi.extras`; version 3 added
 `viewer.defaultTeleOp` and the `devices.*` lists; version 4, 2026-11-01, added the
-`webcam.<name>.<fact>` camera setups; version 5, 2026-11-03, added `devices.blinkers`).
+`webcam.<name>.<fact>` camera setups; version 5, 2026-11-03, added `devices.blinkers`; version 6, 2026-11-03, added `robot.id` and moved
+`devices.webcams` and `webcam.*` to each robot's `camera.properties`).
 This number goes up whenever keys are added, renamed or removed. Both the build and
 `HarnessConfig` refuse a file with a different version and say which one they expect.
 
@@ -753,7 +754,7 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 
 | Key | Type | Meaning | PVI's value |
 |---|---|---|---|
-| `config.version` | integer | Layout of this file (see above) | `5` |
+| `config.version` | integer | Layout of this file (see above) | `6` |
 | `teamCode.sourceDir` | path | The robot code the harness compiles and tests (read only) | `../../TeamCode/src/main/java` |
 | `teamCode.opModePackages` | package list, comma-separated (at least one) | Java packages searched for `@TeleOp` / `@Autonomous` OpModes (RP8) | `org.firstinspires.ftc.teamcode` |
 | `host.dependenciesFile` | path | The robot build's library list. The harness uses every `implementation 'group:name:version'` (or `api`) line in it, with the same versions | `../../build.dependencies.gradle` |
@@ -761,8 +762,8 @@ the harness doesn't know (usually a typo), a value that isn't a number, or a fac
 | `drive.frontLeft`, `drive.frontRight`, `drive.rearLeft`, `drive.rearRight` | text | The mecanum drive motors' names in the robot configuration | `frontLeft`, `frontRight`, `rearLeft`, `rearRight` |
 | `pinpoint` | text | The Pinpoint's name in the robot configuration | `pinpoint` |
 | `robot.name` | text | The robot's name in reports, recordings and the viewer | `Team A` |
-| `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights`, `devices.webcams` | name lists, comma-separated (each may be empty) | More devices on the fake robot (RP7, TestBot's fakes: `FakeImu`, `FakeCRServo`, `FakeDistanceSensor`, `FakeTouchSensor`, `FakeColorSensor`), named as in the robot configuration | all empty (Team A's TeamCode uses none yet) |
-| `webcam.<name>.forwardInches`, `.leftInches`, `.upInches`, `.yawDegrees`, `.pitchDegrees`, `.rollDegrees`, `.horizontalFovDegrees`, `.verticalFovDegrees`, `.imageWidthPixels`, `.imageHeightPixels`, `.maxRangeInches`, `.maxViewAngleDegrees`, and `.aprilTags` | facts (any number for the mount; field of view between 0 and 180; whole-number picture size; range above 0; view angle above 0, at most 90); `aprilTags` is `field` or `script` | Required for **each** webcam in `devices.webcams` (`CameraSetup`; keys for a webcam that isn't listed are refused). The mount is from the robot's center on the floor: forward, left (negative: right) and up. Angles 0, 0, 0 mean level and looking straight forward; yaw + turns the lens left, pitch + tilts it up, roll + turns the picture clockwise as seen from behind, applied in that order about the camera's own axes. Field of view edge to edge, picture size, the farthest distance a tag is still read, and how far a tag may be turned away and still be read. `aprilTags=field`: the webcam sees the field's tags that are in view (TestBot's T14); `script`: only a test's `AprilTagScript`. They go into each run recording's header (`cameras`) for Unity and the viewer | `logitechVisionWebcam`: forward 4.875, left -6.875, up 19, yaw 0, roll 0, 640 × 480 (measured from `TeamAAprilTagVisionRobot`); pitch 18 (placeholder: tilted up in the config to see the HIVE's raised tags, UnityBot C24; TeamCode still says level). `harness.properties` owns the mount: PVI's `TeamACameraMatchesTeamCodeTest` prints a note for a mount number chosen differently from TeamCode (and refuses one whose source still claims TeamCode), but keeps the picture size strict; field of view 65.9 × 51.8 degrees (placeholder: Logitech's 78 degree C920 diagonal split for 4:3) range 120 in and view angle 60 degrees (placeholders); `aprilTags=field` (the user wants tags to appear by themselves; tests that need a script choose it) |
+| `robot.id` | folder name | This robot's folder in `robots/`, which must exist. Its cameras are in `robots/<robot.id>/camera.properties` | `team-a` |
+| `devices.imu`, `devices.crServos`, `devices.distanceSensors`, `devices.touchSensors`, `devices.colorSensors`, `devices.analogInputs`, `devices.otos`, `devices.limelights` | name lists, comma-separated (each may be empty) | More devices on the fake robot (RP7, TestBot's fakes: `FakeImu`, `FakeCRServo`, `FakeDistanceSensor`, `FakeTouchSensor`, `FakeColorSensor`), named as in the robot configuration | all empty (Team A's TeamCode uses none yet) |
 | `devices.blinkers` | name list, comma-separated (may be empty) | A hub's status light (`FakeBlinker`), for robot code that does `hardwareMap.get(Blinker.class, "Control Hub")` | empty |
 | `devices.deadWheels` | `name:parallel:inches` or `name:perpendicular:inches`, comma-separated (may be empty) | Dead-wheel odometry pods (TestBot's `FakeDeadWheel`): the motor port its encoder is plugged into, which way it rolls, and how far left (parallel) or forward (perpendicular) of the center it is | empty |
 | `hardware.servos` | name list, comma-separated (may be empty) | The fake robot's servos (`FakeServo`), named as in the robot configuration | empty |
@@ -793,6 +794,18 @@ only the ones that differ, plus `forOpModes`. `RobotConfigs.forOpMode` picks it,
 viewer and Live mode alike, and `RobotConfigs.profile("<id>")` makes that robot directly. PVI's is
 `robots/kimcode` (TeleopV1, SimpleLeave). A fake robot remembers its settings
 (`FakeHardwareMap.settings()`), so the runner reads its wheels and drive model from there.
+
+**Cameras belong to each robot (D21):** a robot's webcams are set only in
+`th_src/robots/<id>/camera.properties`, with the keys below. `<id>` is `robot.id` for the main robot
+and the folder's name for a profile. No file, or an empty `devices.webcams`, means no webcam, and a
+robot never gets another robot's cameras. `devices.webcams` or `webcam.*` in `harness.properties` or a
+`drive.properties` stops with a message saying where to move them; a misspelled key or a missing fact in
+`camera.properties` stops too, naming the file.
+
+| Key in `camera.properties` | Type | Meaning | Team A's value |
+|---|---|---|---|
+| `devices.webcams` | name list, comma-separated (may be empty) | The robot's webcams (`FakeWebcam`), named as in the robot configuration | `logitechVisionWebcam` |
+| `webcam.<name>.forwardInches`, `.leftInches`, `.upInches`, `.yawDegrees`, `.pitchDegrees`, `.rollDegrees`, `.horizontalFovDegrees`, `.verticalFovDegrees`, `.imageWidthPixels`, `.imageHeightPixels`, `.maxRangeInches`, `.maxViewAngleDegrees`, and `.aprilTags` | facts (any number for the mount; field of view between 0 and 180; whole-number picture size; range above 0; view angle above 0, at most 90); `aprilTags` is `field` or `script` | Required for **each** webcam in `devices.webcams` (`CameraSetup`; keys for a webcam that isn't listed are refused). The mount is from the robot's center on the floor: forward, left (negative: right) and up. Angles 0, 0, 0 mean level and looking straight forward; yaw + turns the lens left, pitch + tilts it up, roll + turns the picture clockwise as seen from behind, applied in that order about the camera's own axes. Field of view edge to edge, picture size, the farthest distance a tag is still read, and how far a tag may be turned away and still be read. `aprilTags=field`: the webcam sees the field's tags that are in view (TestBot's T14); `script`: only a test's `AprilTagScript`. They go into each run recording's header (`cameras`) for Unity and the viewer | `logitechVisionWebcam`: forward 4.875, left -6.875, up 19, yaw 0, roll 0, 640 × 480 (measured from `TeamAAprilTagVisionRobot`); pitch 18 (placeholder: tilted up in the config to see the HIVE's raised tags, UnityBot C24; TeamCode still says level). `harness.properties` owns the mount: PVI's `TeamACameraMatchesTeamCodeTest` prints a note for a mount number chosen differently from TeamCode (and refuses one whose source still claims TeamCode), but keeps the picture size strict; field of view 65.9 × 51.8 degrees (placeholder: Logitech's 78 degree C920 diagonal split for 4:3) range 120 in and view angle 60 degrees (placeholders); `aprilTags=field` (the user wants tags to appear by themselves; tests that need a script choose it) |
 
 A **fact** is written `number | measured or placeholder | where it came from`, for example
 `robot.lengthInches=17.5 | measured | tape measure at the robot, 2026-10-30`. The number must be
@@ -1146,14 +1159,14 @@ FakeHardwareMap hw = RobotConfigs.teamA();
 hw.addWebcam("logitechVisionWebcam")
         .seeFieldTags(FieldAprilTags.forField("biobuzz-2026"),
                 CameraView.lookingForward(6.875, 4.875, 19));   // right, forward, up, as setCameraPose
-// or, with the webcam.<name>.* lines from harness.properties:  .seeFieldTags("biobuzz-2026")
+// or, with the webcam.<name>.* lines from the robot's camera.properties:  .seeFieldTags("biobuzz-2026")
 ```
 
 | Setting | Where |
 |---|---|
 | Scripted or automatic for one test | `.script(...)` or `.seeFieldTags(...)` (the last call wins) |
-| The default for live and viewer runs | `webcam.<name>.aprilTags=field` or `script` in `harness.properties` (Team 2's webcam: `field`) |
-| Mount, field of view, range, view angle | `webcam.<name>.*` lines (`CameraView.from(setup)`), or a `CameraView` in a test |
+| The default for live and viewer runs | `webcam.<name>.aprilTags=field` or `script` in the robot's `camera.properties` (Team 2's webcam: `field`) |
+| Mount, field of view, range, view angle | `webcam.<name>.*` lines in `camera.properties` (`CameraView.from(setup)`), or a `CameraView` in a test |
 
 A tag is in the picture only if **all** of these hold (`CameraView`):
 

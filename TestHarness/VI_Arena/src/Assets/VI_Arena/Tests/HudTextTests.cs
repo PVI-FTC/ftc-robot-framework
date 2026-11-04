@@ -94,5 +94,68 @@ namespace VI_Arena.Tests
             Assert.LessOrEqual(ReplayHud.ReadoutWidth(longName), column, "fits before PERIOD: " + longName);
             Assert.AreEqual("TeamATeleOp", ReplayHud.VehicleText("TeamATeleOp", cardWidth, 0));
         }
+
+        /// <summary>WHAT: Switching the sight lines says On or Off, for a run with detections.</summary>
+        [Test]
+        public void TheSightLinesMessageSaysOnOrOff()
+        {
+            RunRecordingData seen = RunWithLoops(new LoopData(), new LoopData { aprilTags = { new AprilTagSeenData { id = 30 } } });
+
+            Assert.AreEqual("AprilTag sight lines: On", HudText.SightLinesSwitchText(true, seen));
+            Assert.AreEqual("AprilTag sight lines: Off", HudText.SightLinesSwitchText(false, seen));
+        }
+
+        /// <summary>
+        /// WHAT: With no detections in the run, the message says so.
+        /// WHY: There are no lines to show or hide, so the key looked broken.
+        /// </summary>
+        [Test]
+        public void TheSightLinesMessageSaysWhenNoTagsWereDetected()
+        {
+            RunRecordingData none = RunWithLoops(new LoopData(), new LoopData());
+
+            Assert.AreEqual("AprilTag sight lines: On (no tags detected in this run)", HudText.SightLinesSwitchText(true, none));
+            Assert.AreEqual("AprilTag sight lines: Off (no tags detected in this run)", HudText.SightLinesSwitchText(false, none));
+        }
+
+        /// <summary>WHAT: A live run is judged by its loops so far: the reason goes away once a tag is detected.</summary>
+        [Test]
+        public void ALiveRunIsJudgedByTheLoopsSoFar()
+        {
+            RunRecordingData live = RunWithLoops(new LoopData());
+            Assert.AreEqual("AprilTag sight lines: On (no tags detected in this run)", HudText.SightLinesSwitchText(true, live));
+
+            live.loops.Add(new LoopData { aprilTags = { new AprilTagSeenData { id = 30 } } });
+
+            Assert.AreEqual("AprilTag sight lines: On", HudText.SightLinesSwitchText(true, live));
+        }
+
+        /// <summary>WHAT: With nothing open there is no run to talk about.</summary>
+        [Test]
+        public void WithNothingOpenTheSightLinesMessageGivesNoReason()
+        {
+            Assert.AreEqual("AprilTag sight lines: Off", HudText.SightLinesSwitchText(false, null));
+        }
+
+        /// <summary>WHAT: A timed message shows for two seconds and then goes; a new one starts its own two seconds.</summary>
+        [Test]
+        public void ATimedMessageGoesAwayByItself()
+        {
+            var message = new TimedMessage();
+            Assert.IsNull(message.TextAt(0f), "nothing yet");
+
+            message.Show("first", 10f);
+            Assert.AreEqual("first", message.TextAt(11.9f));
+            Assert.IsNull(message.TextAt(12f), "time is up");
+
+            message.Show("second", 20f);
+            message.Show("third", 21f);
+            Assert.AreEqual("third", message.TextAt(22.5f), "the newest one, timed from its own start");
+        }
+
+        private static RunRecordingData RunWithLoops(params LoopData[] loops)
+        {
+            return new RunRecordingData { loops = new List<LoopData>(loops) };
+        }
     }
 }

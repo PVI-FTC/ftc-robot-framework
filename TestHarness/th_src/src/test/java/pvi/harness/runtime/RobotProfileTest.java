@@ -135,19 +135,20 @@ class RobotProfileTest {
         assertTrue(message.contains("one") && message.contains("two"), message);
     }
 
-    /**
-     * WHAT: A profile that lists its own webcams doesn't inherit the main robot's webcam keys
-     * (they would be "not a harness setting" for it), and one that doesn't keeps them.
-     */
+    /** WHAT: The folder of the robot in harness.properties can't also be a profile. */
     @Test
-    void aProfilesOwnWebcamListReplacesTheMainRobots() throws IOException {
-        profile("none", "forOpModes=A\ndevices.webcams=\n");
-        profile("same", "forOpModes=B\n");
+    void theMainRobotsFolderCantBeAProfile() throws IOException {
+        profile(BASE.robotId(), "forOpModes=Some OpMode\n");
 
-        List<RobotProfile> profiles = RobotProfile.all(BASE, folder);
+        assertTrue(problems().contains("robot.id"), problems());
+    }
 
-        assertEquals(List.of(), profiles.get(0).config().cameras());
-        assertEquals(BASE.cameras(), profiles.get(1).config().cameras());
+    /** WHAT: A profile's id is its folder's name, so it can't set robot.id. */
+    @Test
+    void aProfileCantSetItsId() throws IOException {
+        profile("other", "forOpModes=Some OpMode\nrobot.id=another\n");
+
+        assertTrue(problems().contains("robot.id: a robot profile's id is its folder's name, here other"), problems());
     }
 
     /** Full power on motors a, b, c and d. */

@@ -6,6 +6,7 @@ or both:
 | File | What |
 |---|---|
 | `drive.properties` | A robot profile: the fake robot some OpModes run on (see "drive.properties" below). |
+| `camera.properties` | The robot's cameras (see "camera.properties" below). The only place they are set. |
 | `robot.properties` | The robot's name, where the model came from, which Unity model to draw, the model's units and axes, its center, and which parts are the drive wheels. |
 | anything else | How the model was made (for example `slim_model.py`). |
 
@@ -50,9 +51,9 @@ It has the same keys as `harness.properties`, only the ones that differ, plus:
 |---|---|
 | `forOpModes` | **Required.** The OpModes that run on this robot, comma-separated: Driver Station name or class name. |
 
-- **A profile may only change the robot:** `robot.*`, `drive.*`, `pinpoint`, `hardware.*`, `devices.*`
-  and `webcam.*`. The field, the viewer and the build settings are one setting for the whole harness.
-- **Webcams:** a profile that lists its own `devices.webcams` doesn't get the main robot's webcam keys.
+- **A profile may only change the robot:** `robot.*` (not `robot.id`: its id is the folder's name),
+  `drive.*`, `pinpoint`, `hardware.*` and `devices.*`. The field, the viewer and the build settings are one setting for the whole harness.
+- **Cameras** aren't set here. See "camera.properties" below.
 - **Numbers it doesn't list come from `harness.properties` as they are, marked measured or not.** So
   copy any number you borrow into the profile and mark it `placeholder`: a speed measured on one robot
   isn't measured on another.
@@ -62,9 +63,24 @@ It has the same keys as `harness.properties`, only the ones that differ, plus:
 Copying the harness to another team's branch? Delete the profiles that aren't yours. One that lists
 OpModes you don't have does no harm, but it's clutter.
 
+## camera.properties
+
+A robot's webcams, for the main robot (the folder `robot.id` in `harness.properties` names) and for
+any profile alike. A robot never gets another robot's cameras.
+
+- **No webcam:** leave the file out, or write an empty `devices.webcams=`.
+- **To add one:** copy `team-a/camera.properties` into the robot's folder, change the name in
+  `devices.webcams`, and change each `webcam.<name>.*` line to that webcam. Mark what you didn't measure
+  `placeholder`.
+- **It fails early, naming the file:** a misspelled key, a key for a webcam that isn't listed, or a listed
+  webcam missing one of its lines. `docs/README.md` lists the keys.
+
+The main robot's folder has no `drive.properties`: its other settings are in `harness.properties`.
+
 ## Robots here
 
 | Folder | Robot | Model |
 |---|---|---|
-| `kimcode` | KimCode's robot: `drive.properties` only, for TeleopV1 and SimpleLeave. | None; Unity draws whichever look is picked. |
+| `team-a` | Team A, the main robot: `camera.properties` only (its logitechVisionWebcam). | None; Unity draws whichever look is picked. |
+| `kimcode` | KimCode's robot: `drive.properties` only, for TeleopV1 and SimpleLeave. No webcam. | None; Unity draws whichever look is picked. |
 | `gobilda-starter-bot` | goBILDA FTC Starter Bot (2026-2027) | goBILDA's STEP, converted to OBJ by the user, slimmed from 3.4 million to about 140,000 triangles by `slim_model.py` (screws and nuts dropped, wheels split out). |

@@ -436,3 +436,21 @@ All three bots are idle with empty lists. The details of each decision follow.
   in replay and Live mode. Detected tags keep today's colors. Tags only in view get a clearly
   different style and a short legend, because a box there doesn't mean the robot's code saw it.
 - **To change it:** say if you'd rather have all boxes look the same, or only detected ones.
+
+## D20 · The A key says what it did (2026-11-03)
+
+- **You reported:** A doesn't toggle the AprilTag sight lines.
+- **Found:** a short press already worked. A press held over about half a second flipped the switch
+  twice, which is now fixed. A run with no detections has no lines to hide, so A looks dead there.
+- **Decided:** each press shows a short message: "AprilTag sight lines: On" or "Off", plus "(no tags
+  detected in this run)" when that's why nothing changes.
+- **To change it:** say if you'd rather have no message.
+
+## D21 · Each robot has its own camera file (2026-11-03)
+
+- **You asked:** make camera positions unique to each robot, not a standard harness setting.
+- **Decided:** each robot's webcams and their positions go in `th_src/robots/<id>/camera.properties`,
+  the only place cameras are set. No file means no webcam, and no robot inherits another's. Team A's
+  values move unchanged to `robots/team-a/camera.properties`; `harness.properties` just says which
+  folder is the main robot's. Webcam lines left in the old places stop with a clear message.
+- **To change it:** say if you'd rather keep them in each robot's `drive.properties`.

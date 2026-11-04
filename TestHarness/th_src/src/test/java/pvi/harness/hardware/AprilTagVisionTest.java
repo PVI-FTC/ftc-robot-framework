@@ -145,7 +145,7 @@ class AprilTagVisionTest {
      */
     @Test
     void withoutTheWebcamVisionIsUnavailableAndDisabled() {
-        // The config robot has Team A's webcam (devices.webcams), so take it off for this test.
+        // The config robot has Team A's webcam (its camera file), so take it off for this test.
         OpModeRunner runner = new OpModeRunner(new TeamAAprilTagVisionTestOpMode(),
                 RobotConfigs.teamA().without(WEBCAM));
         runner.init().start();

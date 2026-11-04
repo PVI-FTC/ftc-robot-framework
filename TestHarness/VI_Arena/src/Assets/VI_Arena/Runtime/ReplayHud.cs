@@ -247,6 +247,12 @@ namespace VI_Arena
             {
                 showing += "  ·  " + replay.Notice;
             }
+            // First on the line, so a long live status can't cut it off.
+            if (replay.SwitchMessage != null)
+            {
+                showing = replay.SwitchMessage + "  ·  " + showing;
+                showingColor = HudTheme.Text;
+            }
             HudTheme.DrawText(HudTheme.Ellipsize(showing, HudTheme.Style("normal", 12),
                 r.width - 56 - FieldButtonWidth - PhysicsButtonWidth - LiveModeButtonWidth - 32), 28, r.y + 56,
                 HudTheme.Style("normal", 12), showingColor);

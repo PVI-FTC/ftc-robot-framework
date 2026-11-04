@@ -190,7 +190,7 @@ public class FakeHardwareMap extends HardwareMap {
     /**
      * Adds a fake USB webcam that sees scripted AprilTags (see {@link FakeWebcam}). Robot code
      * finds it with {@code hardwareMap.get(WebcamName.class, name)}. If the robot already has a
-     * webcam with this name (for example from {@code devices.webcams} in harness.properties), that
+     * webcam with this name (for example from {@code devices.webcams} in its camera file), that
      * one is returned instead, so a test can script it and there's never a second, hidden copy.
      */
     public FakeWebcam addWebcam(String configName) {
@@ -205,7 +205,7 @@ public class FakeHardwareMap extends HardwareMap {
 
     /**
      * Adds a fake webcam with its mount and view ({@code webcam.<name>.<fact>} in
-     * harness.properties), or gives an existing webcam of that name this setup. Returns the webcam.
+     * its camera file), or gives an existing webcam of that name this setup. Returns the webcam.
      */
     public FakeWebcam addWebcam(CameraSetup setup) {
         if (setup == null) {

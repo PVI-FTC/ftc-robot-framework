@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * PVI extra (built only with {@code pvi.extras=true}): Team A's webcam in {@code harness.properties}
+ * PVI extra (built only with {@code pvi.extras=true}): Team A's webcam in {@code robots/team-a/camera.properties}
  * ({@code webcam.logitechVisionWebcam.*}) compared with the mount and picture size in Team A's
  * code.
  *
@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * +y forward, +z up; the harness's is forward, left, up, so "right" becomes a negative "left".
  * TeamCode's mount angles 0, 0, 0 mean level and facing forward, as in the harness.</p>
  *
- * <p>{@code harness.properties} owns the camera's mount (the user's decision, 2026-11-01: for
+ * <p>{@code camera.properties} owns the camera's mount (the user's decision, 2026-11-01: for
  * example tilted down to see the bottom of the HIVE while TeamCode still says level). So a mount
  * number that differs from TeamCode is reported, not a failure, as long as its source doesn't
  * still claim to be copied from TeamCode. The picture size stays strict: robot code asks the
@@ -41,7 +41,7 @@ class TeamACameraMatchesTeamCodeTest {
     private static final Path ROBOT_FILE = Path.of("org/firstinspires/ftc/teamcode/robots/teamA/TeamAAprilTagVisionRobot.java");
     private static final Path OPMODE_FILE =
             Path.of("org/firstinspires/ftc/teamcode/opmodes/testing/TeamAAprilTagVisionTestOpMode.java");
-    private static final String FIX = " Update webcam." + WEBCAM + ".* in harness.properties to match "
+    private static final String FIX = " Update webcam." + WEBCAM + ".* in robots/team-a/camera.properties to match "
             + "TeamAAprilTagVisionRobot.";
 
     private static String source(Path file) throws IOException {
@@ -57,7 +57,7 @@ class TeamACameraMatchesTeamCodeTest {
 
     private static CameraSetup camera() {
         return HarnessConfig.load().cameras().stream().filter(c -> c.name().equals(WEBCAM)).findFirst()
-                .orElseThrow(() -> new AssertionError("harness.properties has no webcam " + WEBCAM));
+                .orElseThrow(() -> new AssertionError("robots/team-a/camera.properties has no webcam " + WEBCAM));
     }
 
     /**
@@ -71,11 +71,11 @@ class TeamACameraMatchesTeamCodeTest {
         assertFalse(config.source().startsWith("TeamCode"), "webcam." + WEBCAM + "." + fact + " is " + config.value()
                 + " but TeamCode says " + teamCode + ", while its source still says it was copied from TeamCode."
                 + " Either copy TeamCode's number or say where this one came from.");
-        return fact + ": harness.properties " + config.value() + " (" + config.source() + "), TeamCode " + teamCode;
+        return fact + ": camera.properties " + config.value() + " (" + config.source() + "), TeamCode " + teamCode;
     }
 
     /**
-     * WHAT: The webcam name in harness.properties is the one Team A's vision OpMode asks for.
+     * WHAT: The webcam name in camera.properties is the one Team A's vision OpMode asks for.
      */
     @Test
     void theWebcamNameIsTheOneTheOpModeUses() throws IOException {
@@ -106,21 +106,21 @@ class TeamACameraMatchesTeamCodeTest {
         notes.add(differenceNote("rollDegrees", Double.parseDouble(angles.group(3)), cam.rollDegrees()));
         notes.removeIf(note -> note == null);
         if (!notes.isEmpty()) {
-            System.out.println("NOTE: Team A's webcam mount in harness.properties differs from TeamCode on purpose:\n  "
+            System.out.println("NOTE: Team A's webcam mount in camera.properties differs from TeamCode on purpose:\n  "
                     + String.join("\n  ", notes));
         }
     }
 
     /**
-     * WHAT: A mount number chosen in harness.properties is only reported, but one that differs
+     * WHAT: A mount number chosen in camera.properties is only reported, but one that differs
      * from TeamCode while its source still claims TeamCode is refused.
      */
     @Test
     void aChosenMountNumberIsReportedButAWrongCopyIsRefused() {
         assertNull(differenceNote("pitchDegrees", 0, ModelValue.measured(0, CameraSetup.DEGREES, "TeamCode")));
         String note = differenceNote("pitchDegrees", 0,
-                ModelValue.placeholder(-15, CameraSetup.DEGREES, "chosen in harness.properties to see the HIVE"));
-        assertTrue(note.contains("harness.properties -15.0") && note.contains("TeamCode 0.0"), note);
+                ModelValue.placeholder(-15, CameraSetup.DEGREES, "chosen in camera.properties to see the HIVE"));
+        assertTrue(note.contains("camera.properties -15.0") && note.contains("TeamCode 0.0"), note);
         assertThrows(AssertionError.class, () -> differenceNote("pitchDegrees", 0,
                 ModelValue.measured(-15, CameraSetup.DEGREES, "TeamCode TeamAAprilTagVisionRobot mount angles")));
     }

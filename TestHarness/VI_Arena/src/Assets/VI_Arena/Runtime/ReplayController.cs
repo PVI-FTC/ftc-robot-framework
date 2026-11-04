@@ -49,6 +49,8 @@ namespace VI_Arena
         private GamePieceTrack pieceTrack;
         private GamePieceView pieceView;
         private AprilTagSightView tagSights;
+        private readonly HeldKeys heldKeys = new HeldKeys();
+        private readonly TimedMessage switchMessage = new TimedMessage();
         // The A key / Visuals switch: draw the AprilTag sight lines and the "Tags in view" card (remembered, on by default).
         private bool showAprilTags = true;
         private const string AprilTagsPreferenceKey = "VI_Arena.aprilTags";
@@ -115,6 +117,8 @@ namespace VI_Arena
         public string ErrorMessage { get; private set; }
         /// <summary>A short note for the user, e.g. where a live run was saved, or null.</summary>
         public string Notice { get; private set; }
+        /// <summary>What a switch just did, for about two seconds (see <see cref="TimedMessage"/>), or null.</summary>
+        public string SwitchMessage => switchMessage.TextAt(Time.realtimeSinceStartup);
         /// <summary>The recordings in TestHarness/th_src/build/recordings, newest first (for the chooser).</summary>
         public List<string> RecordingsNewestFirst => recordingsNewestFirst;
 
@@ -147,6 +151,7 @@ namespace VI_Arena
         {
             showAprilTags = show;
             PlayerPrefs.SetInt(AprilTagsPreferenceKey, show ? 1 : 0);
+            switchMessage.Show(HudText.SightLinesSwitchText(show, recording), Time.realtimeSinceStartup);
             if (timeline != null)
             {
                 ShowPlayhead();
@@ -925,10 +930,29 @@ namespace VI_Arena
             hud.Draw(this, ReplayHud.Layout.For(Screen.width, Screen.height));
         }
 
+        private void OnApplicationFocus(bool focused)
+        {
+            if (!focused)
+            {
+                heldKeys.Clear();
+            }
+        }
+
         private void HandleKeys(Event e)
         {
+            if (e.type == EventType.KeyUp)
+            {
+                heldKeys.Released(e.keyCode);
+                return;
+            }
             if (e.type != EventType.KeyDown)
             {
+                return;
+            }
+            // Windows repeats a held key; a switch must flip once per press (see HeldKeys).
+            if (e.keyCode != KeyCode.None && heldKeys.IsRepeat(e.keyCode) && !HeldKeys.ActsWhileHeld(e.keyCode))
+            {
+                e.Use();
                 return;
             }
             bool liveRunning = live != null && (live.Initialized || live.Playing);

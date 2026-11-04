@@ -9,8 +9,8 @@ import pvi.harness.physics.ModelValue;
 
 /**
  * Where a webcam sits on the robot and what it can see: its mount, field of view, picture size
- * and how far away it can still read an AprilTag. Plain data, read from {@code harness.properties}
- * ({@code webcam.<name>.<fact>}), so the fake webcam can work out which tags are in view and Unity
+ * and how far away it can still read an AprilTag. Plain data, read from the robot's
+ * {@code robots/<id>/camera.properties} ({@code webcam.<name>.<fact>}), so the fake webcam can work out which tags are in view and Unity
  * or the viewer can show what the camera sees.
  *
  * <p>The mount is measured from the robot's center on the floor (the point the drive pose is

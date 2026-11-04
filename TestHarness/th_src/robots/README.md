@@ -82,5 +82,6 @@ The main robot's folder has no `drive.properties`: its other settings are in `ha
 | Folder | Robot | Model |
 |---|---|---|
 | `team-a` | Team A, the main robot: `camera.properties` only (its logitechVisionWebcam). | None; Unity draws whichever look is picked. |
-| `kimcode` | KimCode's robot: `drive.properties` only, for TeleopV1 and SimpleLeave. No webcam. | None; Unity draws whichever look is picked. |
+| `kimcode` | KimCode's robot: `drive.properties` only, for TeleopV1, SimpleLeave and FieldCentricTest. No webcam. | None; Unity draws whichever look is picked. |
+| `hive` | The robot for Hive Auto Red and Blue: `drive.properties` and `camera.properties` (its Limelight, as a harness camera). Uses `pedro/Constants.java`'s motor directions. | None; Unity draws whichever look is picked. |
 | `gobilda-starter-bot` | goBILDA FTC Starter Bot (2026-2027) | goBILDA's STEP, converted to OBJ by the user, slimmed from 3.4 million to about 140,000 triangles by `slim_model.py` (screws and nuts dropped, wheels split out). |

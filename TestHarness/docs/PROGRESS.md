@@ -3,9 +3,9 @@
 Where the FTC test harness stands, what is being worked on and what comes next. Update this file in
 the same change as the work (see [ai-instructions/03-workflow.md](ai-instructions/03-workflow.md)).
 
-**Last updated:** 2026-11-03
-**Test status:** 419 tests in 68 classes (416 pass, 3 skipped), no failures (`.\gradlew.bat test` from `TestHarness\th_src`, 2026-11-03); Unity 148/148 (2026-11-02)
-**Git:** branch `VI_Arena-Harness`; on GitHub without `TestHarness/VI_Arena/` (see `MANAGER_DECISIONS.md`, 2026-11-02)
+**Last updated:** 2026-11-04
+**Test status:** 431 tests in 69 classes (426 pass, 5 skipped), no failures (`.\gradlew.bat test` from `TestHarness\th_src`, 2026-11-04); Unity 148/148 (2026-11-02)
+**Git:** merged into Team 2's `Pedro-3-Implementation` and on GitHub there, with `TestHarness/VI_Arena/` (see `MANAGER_DECISIONS.md`, 2026-11-04). `VI_Arena-Harness` is now behind it
 **Next up:** see the manager's lists (Step 15 done 2026-10-27)
 
 Status key: ✅ done · 🟡 partly done · ⏳ next · ⬜ not started · 💤 later / optional
@@ -503,6 +503,7 @@ Newest first. One line per change: date, what changed, test result.
 
 | Date | Change | Tests |
 |---|---|---|
+| 2026-11-04 | **Harness merged into `Pedro-3-Implementation`** (user's request). New `robots/hive` profile and camera for Hive Auto, `HiveAutoRecordingTest` (4 tests, saves `HiveAuto-Red.json` and `HiveAuto-Blue.json`), `FieldCentricTest` and an IMU added to `robots/kimcode`, Hive Vision and Launcher tests marked as not driving, and `KimCodeRobotTest` updated for `TeleopV1`'s normal stick mapping (team commit 810de43). Hive results assume `pedro/Constants.java`'s motor directions, which disagree with `TeleopV1`'s | 431 tests, 426 pass, 5 skipped, no failures |
 | 2026-11-03 | **Naming the Harness no longer locks the session** (D22, user's request): the `TestHarness/`-only rule now covers the Harness task, and later requests that aren't Harness work follow the repository's normal instructions. `AGENTS.md`, `CLAUDE.md`, `ai-instructions/README.md`, `01`, `06`. Docs only | Not run (no code change) |
 | 2026-11-03 | **Cameras belong to each robot** (WorkerBot, D21; user: camera positions per robot, not a shared setting). `robots/<id>/camera.properties` is the only place a robot's `devices.webcams` and `webcam.*` are set; new `robot.id=team-a` in `harness.properties` names the main robot's folder (it must exist, so a typo doesn't just mean "no cameras"), and Team A's block moved to `robots/team-a/camera.properties`, values and marks unchanged (only the pitch's source text now says "this file"). A profile's cameras are its own; the inherit path is gone. No file or an empty list means no webcam. `devices.webcams`/`webcam.*` in `harness.properties` or `drive.properties` stop with one line saying where to move them; a bad camera file fails naming it. Config version 6 (5 was already committed with `devices.blinkers`). New `HarnessConfig.robotId()`, `CAMERA_FILE_NAME`, `fromText(text, name, robotsFolder)`. `CameraSetupTest` rewritten around real camera files, with `eachRobotHasItsOwnCameras` (fake webcam and recording header); `RobotProfileTest` two new. 10 breaks checked | 419 run, 0 failed, 3 skipped |
 | 2026-11-03 | **C30 the A switch says what it did** (UnityBot; manager D20). Each press of A, and the Visuals screen's sight-lines button, shows "AprilTag sight lines: On" or "Off" for 2 s at the start of the line under the Replay chooser; with no detections in the run so far it adds "(no tags detected in this run)", because nothing changes on screen then. `HudText.SightLinesSwitchText`, new `TimedMessage.cs`. Checked in the built app: replay with and without detections, the Visuals button, a live run with a PS5 controller connected, and the message gone after 3 s. New tests in `HudTextTests` (5, break-checked). Pictures: `th_src/build/d20-a-off.png`, `d20-a-no-detections.png`, `d20-a-live.png`, `d20-visuals-button.png` | Unity 158/158 |

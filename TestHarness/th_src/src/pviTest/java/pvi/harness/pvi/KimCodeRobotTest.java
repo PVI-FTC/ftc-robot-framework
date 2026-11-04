@@ -34,9 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * PVI extra (D18): KimCode's OpModes run on their own robot, {@code robots/kimcode/drive.properties},
  * and Team A's OpModes stay on Team A's.
  *
- * <p>TeleopV1's left stick is swapped on purpose in its code (team commit a37623d): the stick's
- * left/right drives the robot forward and its up/down strafes. These tests check the code as it is,
- * so if the team changes the mapping, they change too.</p>
+ * <p>TeleopV1's left stick uses the normal mapping since team commit 810de43: up drives the robot
+ * forward and right strafes it right. These tests check the code as it is, so if the team changes
+ * the mapping, they change too.</p>
  */
 class KimCodeRobotTest {
     /** A bridge gamepad message: the left stick all the way right. */
@@ -116,19 +116,19 @@ class KimCodeRobotTest {
         }
     }
 
-    /** WHAT: TeleopV1 gets through INIT (Blinker, motors, Limelight) and its left stick moves the robot: sideways on the stick means forward. */
+    /** WHAT: TeleopV1 gets through INIT (Blinker, motors, Limelight) and up on its left stick drives the robot forward. */
     @Test
-    void teleopV1DrivesForwardOnTheSticksLeftRight() {
-        Pose end = teleOpWith(Axis.LEFT_STICK_X, 1.0);
+    void teleopV1DrivesForwardOnTheSticksUpDown() {
+        Pose end = teleOpWith(Axis.LEFT_STICK_Y, -1.0);
 
         assertTrue(end.xInches() > 10, "forward: " + end);
         assertEquals(0.0, end.yInches(), 0.5, "not sideways: " + end);
     }
 
-    /** WHAT: Up on TeleopV1's left stick strafes the robot right (the swap in its code). */
+    /** WHAT: Right on TeleopV1's left stick strafes the robot right. */
     @Test
-    void teleopV1StrafesOnTheSticksUpDown() {
-        Pose end = teleOpWith(Axis.LEFT_STICK_Y, -1.0);
+    void teleopV1StrafesOnTheSticksLeftRight() {
+        Pose end = teleOpWith(Axis.LEFT_STICK_X, 1.0);
 
         assertTrue(end.yInches() < -10, "to the right: " + end);
         assertEquals(0.0, end.xInches(), 0.5, "not forward: " + end);

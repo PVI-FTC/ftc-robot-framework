@@ -464,3 +464,10 @@ All three bots are idle with empty lists. The details of each decision follow.
   session. During a Harness task, a change needed outside `TestHarness/` still stops and asks you
   first.
 - **To change it:** say if you'd rather drop the limit during Harness tasks too.
+
+## Your direction: the harness goes into Team 2's branch (2026-11-04)
+
+- **You asked:** push the test harness into `Pedro-3-Implementation`.
+- **Done:** the local `VI_Arena-Harness` is merged and pushed there, including the `TestHarness/VI_Arena/` project, which you had earlier shelved putting on GitHub. It is the newest copy, and GitHub's older copy conflicted on `TeleopV1`. Only about 2.4 MB was new to GitHub.
+- **Still left out of git:** the built app (`VI_Arena/dist/`), Unity's generated folders, and the zips, as `TestHarness/.gitignore` says.
+- **Side effect:** anyone who fetches `Pedro-3-Implementation` now downloads about 260 MB of harness history, if they don't have it already.

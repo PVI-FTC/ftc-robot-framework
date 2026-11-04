@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 3 of 6 (launcher alone): added `KimCode/KimLauncher`, which holds wheel speed and
+  feeds shots on timers, `HiveShotTable`, which turns distance into speed, and the
+  `HiveLauncherTest` TeleOp, which maps controls through `InputManager` and does not drive.
+  `HiveAuto` does not use the launcher yet. Motor names, directions, feed timing, and every table
+  speed are placeholders. A missing motor reports nothing instead of stopping an OpMode. Compiles
+  only; no launcher has run.
 - Hive Auto, stage 2 of 6 (see the tags): added `KimCode/KimHiveVision`, which reads tags 30-45 from
   the Limelight, `HiveCellFinder`, which votes on the raised CELL from tag height, and the
   `HiveVisionTest` TeleOp, which reports what the camera sees with the robot not driving. `HiveAuto`

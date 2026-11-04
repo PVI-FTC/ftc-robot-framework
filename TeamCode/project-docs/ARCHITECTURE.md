@@ -158,6 +158,20 @@ Pathing OpMode
   `TeamAPedroPathStep`; it uses the Pedro 3 follower through its own private controller and maps
   gamepad input through `InputManager`.
 
+### KimCode Hive Auto exception
+The team approved this exception for `KimCode/HiveAuto` and its helper classes.
+- **What it skips:** the OpMode owns its Pedro follower, and its stages are a `switch` rather than
+  `AutoSequence` steps. It does not use the Robot, subsystem, or drive FSM layers, or the
+  `robots.*` and `opmodes.*` packages.
+- **Why:** it is one team's autonomous for one robot, and it needs several things to run at once
+  while one clock can interrupt any stage. `AutoSequence` runs one step at a time.
+- **Rules it still follows:** no blocking waits or `sleep`, one follower update per loop, one owner
+  for each motor, no scheduler, no autonomous control through `InputManager`, and no SDK changes.
+- **Safety gate:** nothing in code enforces the path-following gate here, because
+  `Constants.create()` does not call `requirePathFollowingReady()`. The team follows it by hand:
+  verify localization, motor directions, and stop behavior first, and run powered tests with adult
+  supervision and a named Driver Station STOP operator.
+
 ### Lifecycle and entry paths
 - During pathing robot initialization, team-specific code obtains the required hardware through the allowed hardware boundary and creates the Pedro 3 follower. It uses only inspected hardware configuration.
 - The standalone KimCode TeleOp maps gamepad input through `InputManager` and updates its private

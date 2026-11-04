@@ -12,6 +12,52 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
+  pivot, but the robot was launching along y, into the CELL's side wall. It now launches from
+  (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New
+  `LAUNCH_CLEAR_FRAME` and `RETURN_CLEAR_FRAME` stages drive through a spot that misses the frame's
+  feet, and the return cutoff moved from 23 s to 18 s because the longer return takes about 10 s.
+  Harness runs on both alliances and both HIVE tilts: with a scratch `headingFeedback` of 2.2 the
+  robot reaches the spot, sees all 4 tags, aims, and parks by about 22 s with no hits. **Open
+  problem:** with the 205.6 in `pedro/Constants.java`, the robot chatters through the turn, never
+  reaches the launch spot, and doesn't park. `Constants.java` is shared, so it is unchanged until
+  the team picks a value. Harness results only; nothing has run on a robot.
+- Hive Auto, stage 6 of 6 (tuning support): `HiveAuto` now shows when each stage began on telemetry,
+  and `project-docs/HIVE_AUTO_TEST_PLAN.md` lists the physical tests in order and every placeholder
+  to replace. The tuning itself is still to do, because it needs the real robot and field. The code
+  stages are complete, but nothing has been run on a robot, so the Auto is not match-ready.
+- Hive Auto, stage 5 of 6 (aim with vision): the vision answer now picks the target CELL, including
+  the other CELL if the HIVE has tipped. A new `AIM` stage sets launcher speed from the tag angle
+  and corrects heading, for up to 2 s. Heading is only corrected when all 4 tags are seen, because a
+  partial set would give a false center. With no vision answer, the robot assumes the HIVE has not
+  tipped and makes the preset shot. Compiles only, with the logic checked outside the robot; aiming
+  has not been tried, and its accuracy depends on the placeholder camera mount.
+- Hive Auto, stage 4 of 6 (preset shot): `HiveAuto` now drives to a preset launch spot in front of
+  the CELL raised at the start of a match, fires all 4 preloads, then parks. The launcher spins up
+  during the drive, and the 23 s cutoff stops any firing and starts the return. A missing launcher
+  skips firing. The vision answer still does not change what the robot does. The launch spot and
+  speed are placeholders. Compiles only; no shot has been tried.
+- Hive Auto, stage 3 of 6 (launcher alone): added `KimCode/KimLauncher`, which holds wheel speed and
+  feeds shots on timers, `HiveShotTable`, which turns distance into speed, and the
+  `HiveLauncherTest` TeleOp, which maps controls through `InputManager` and does not drive.
+  `HiveAuto` does not use the launcher yet. Motor names, directions, feed timing, and every table
+  speed are placeholders. A missing motor reports nothing instead of stopping an OpMode. Compiles
+  only; no launcher has run.
+- Hive Auto, stage 2 of 6 (see the tags): added `KimCode/KimHiveVision`, which reads tags 30-45 from
+  the Limelight, `HiveCellFinder`, which votes on the raised CELL from tag height, and the
+  `HiveVisionTest` TeleOp, which reports what the camera sees with the robot not driving. `HiveAuto`
+  now stops at the viewing spot for up to 3 s and shows the answer on telemetry; it does not act on
+  the answer yet. A missing Limelight reports nothing instead of stopping the Auto. Camera height,
+  tilt, and forward offset and the pipeline number are placeholders. Compiles only; the steep view
+  of the downward-facing tags has not been tried on a real camera.
+- Hive Auto, stage 1 of 6 (drive and park): added `KimCode/HiveField`, `HiveAuto`, `HiveAutoRed`,
+  and `HiveAutoBlue`. The iterative OpMode leaves the wall, drives to a viewing spot, then parks in
+  the LOADING ZONE, using a follower from `pedro/Constants.create()`. A clock check before every
+  stage forces the return at 23 s and stops the robot at 29 s. Paths are capped at 30% of top speed
+  for first runs. This is a recorded exception to the usual layers; see "KimCode Hive Auto
+  exception" in `ARCHITECTURE.md`. `TeamCode:assembleDebug` passes, which proves compilation only:
+  field positions come from CAD, motor directions are unsettled between `TeleopV1` and `Constants`,
+  and nothing has run on a robot.
 - Fixed the standalone `KimCode/TeleopV1` mecanum rotation and strafe mappings by negating the
   right-stick X and left-stick X inputs before passing them to Pedro's manual drive API. Forward
   and reverse mappings are unchanged; this corrects left/right rotation and strafe direction at

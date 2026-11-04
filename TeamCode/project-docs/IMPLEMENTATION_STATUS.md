@@ -12,6 +12,13 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 2 of 6 (see the tags): added `KimCode/KimHiveVision`, which reads tags 30-45 from
+  the Limelight, `HiveCellFinder`, which votes on the raised CELL from tag height, and the
+  `HiveVisionTest` TeleOp, which reports what the camera sees with the robot not driving. `HiveAuto`
+  now stops at the viewing spot for up to 3 s and shows the answer on telemetry; it does not act on
+  the answer yet. A missing Limelight reports nothing instead of stopping the Auto. Camera height,
+  tilt, and forward offset and the pipeline number are placeholders. Compiles only; the steep view
+  of the downward-facing tags has not been tried on a real camera.
 - Hive Auto, stage 1 of 6 (drive and park): added `KimCode/HiveField`, `HiveAuto`, `HiveAutoRed`,
   and `HiveAutoBlue`. The iterative OpMode leaves the wall, drives to a viewing spot, then parks in
   the LOADING ZONE, using a follower from `pedro/Constants.create()`. A clock check before every

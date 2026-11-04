@@ -31,27 +31,53 @@ final class HiveField {
     static final double START_X_INCHES = -12.0;
     static final double START_Y_INCHES = -(WALL_INCHES - ROBOT_LENGTH_INCHES / 2.0);
 
-    /** PLACEHOLDER: where the robot stops to look at the HIVE. It stays clear of the frame. */
+    /**
+     * PLACEHOLDER: where the robot stops to look at the HIVE. It stays clear of the frame and, with
+     * the placeholder camera mount, far enough back that both CELLs should fit in the picture.
+     */
     static final double VIEW_X_INCHES = 0.0;
-    static final double VIEW_Y_INCHES = -44.0;
+    static final double VIEW_Y_INCHES = -50.0;
 
     /** Inside Red's LOADING ZONE, which runs from x = -46 to -24 and from y = -60 to the wall. */
     static final double PARK_X_INCHES = -34.0;
     static final double PARK_Y_INCHES = -60.0;
 
+    /** Under the CELL that is raised at the start of a match, written for Red. */
+    static final double START_RAISED_CELL_X_INCHES = 11.0;
+    /** Under the CELL that is lowered at the start of a match, written for Red. */
+    static final double START_LOWERED_CELL_X_INCHES = -11.0;
+    static final double CELL_Y_INCHES = -12.75;
+
+    /** Height of a tag under a raised CELL, from the field CAD. */
+    static final double RAISED_TAG_HEIGHT_INCHES = 49.0;
+    /** Height of a tag under a lowered CELL, from the field CAD. */
+    static final double LOWERED_TAG_HEIGHT_INCHES = 36.3;
+
+    /** PLACEHOLDER: Limelight lens height from TeleopV1, not measured on this robot. */
+    static final double CAMERA_HEIGHT_INCHES = 20.0;
+    /** PLACEHOLDER: Limelight upward tilt from TeleopV1, not measured on this robot. */
+    static final double CAMERA_TILT_DEGREES = 25.0;
+    /** PLACEHOLDER: how far the lens sits in front of the robot's center. */
+    static final double CAMERA_FORWARD_INCHES = 8.0;
+
     private HiveField() {}
+
+    /** First of the four tag IDs on the CELL that is raised at the start of a match. */
+    static int startRaisedFirstTagId(Alliance alliance) {
+        return alliance == Alliance.RED ? 34 : 42;
+    }
+
+    /** First of the four tag IDs on the CELL that is lowered at the start of a match. */
+    static int startLoweredFirstTagId(Alliance alliance) {
+        return alliance == Alliance.RED ? 30 : 38;
+    }
 
     /** Turns a position written for Red into the position for this alliance. */
     static Pose pose(Alliance alliance, double xInches, double yInches, double headingDegrees) {
         double heading = Math.toRadians(headingDegrees);
         if (alliance == Alliance.BLUE) {
-            return new Pose(-xInches, -yInches, normalize(heading + Math.PI));
+            return new Pose(-xInches, -yInches, heading + Math.PI);
         }
-        return new Pose(xInches, yInches, normalize(heading));
-    }
-
-    /** Keeps an angle between -pi and +pi so the same direction is always the same number. */
-    private static double normalize(double radians) {
-        return Math.atan2(Math.sin(radians), Math.cos(radians));
+        return new Pose(xInches, yInches, heading);
     }
 }

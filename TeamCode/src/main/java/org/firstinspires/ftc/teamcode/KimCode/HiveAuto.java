@@ -21,7 +21,7 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
  * See "KimCode Hive Auto exception" in ARCHITECTURE.md.</p>
  */
 public abstract class HiveAuto extends OpMode {
-    private enum Stage { LOCATE_DRIVE, RETURN, DONE }
+    private enum Stage { LOCATE_DRIVE, LOCATE_READ, RETURN, DONE }
 
     /** From this time on, whatever the robot is doing, it drives to the LOADING ZONE. */
     private static final double RETURN_CUTOFF_SECONDS = 23.0;
@@ -29,9 +29,13 @@ public abstract class HiveAuto extends OpMode {
     private static final double HARD_STOP_SECONDS = 29.0;
     /** Share of the robot's top speed used on paths. Kept low for first runs; raise it later. */
     private static final double PATH_SPEED_FRACTION = 0.30;
+    /** How long the robot looks for the HIVE's tags before moving on without an answer. */
+    private static final double LOCATE_TIME_LIMIT_SECONDS = 3.0;
 
     private final ElapsedTime matchTimer = new ElapsedTime();
+    private final ElapsedTime stageTimer = new ElapsedTime();
     private Follower follower;
+    private KimHiveVision vision;
     private Stage stage = Stage.LOCATE_DRIVE;
 
     /** Which alliance this OpMode plays. */
@@ -42,7 +46,10 @@ public abstract class HiveAuto extends OpMode {
         follower = Constants.create(hardwareMap);
         follower.holdEnd.set(true);
         follower.setPose(startPose());
+        vision = new KimHiveVision(hardwareMap, alliance());
+        vision.start();
         telemetry.addData("Hive Auto", "%s, ready", alliance());
+        telemetry.addData("Limelight found", vision.isAvailable());
         telemetry.update();
     }
 
@@ -67,6 +74,9 @@ public abstract class HiveAuto extends OpMode {
         if (follower != null) {
             stopDriving();
         }
+        if (vision != null) {
+            vision.stop();
+        }
     }
 
     /** The clock outranks every stage: this is what makes sure the robot parks in time. */
@@ -84,6 +94,16 @@ public abstract class HiveAuto extends OpMode {
         switch (stage) {
             case LOCATE_DRIVE:
                 if (!follower.following()) {
+                    stage = Stage.LOCATE_READ;
+                    stageTimer.reset();
+                }
+                break;
+            case LOCATE_READ:
+                // For now the answer is only shown on telemetry. The robot keeps holding still.
+                vision.update(follower.pose());
+                if (vision.finder().answer() != HiveCellFinder.Answer.NOT_SURE
+                        || !vision.isAvailable()
+                        || stageTimer.seconds() >= LOCATE_TIME_LIMIT_SECONDS) {
                     enterReturn();
                 }
                 break;
@@ -137,6 +157,7 @@ public abstract class HiveAuto extends OpMode {
         telemetry.addData("Time", "%.1f s", matchTimer.seconds());
         telemetry.addData("Pose", "(%.1f, %.1f, %.0f deg)", pose.x(), pose.y(),
                 Math.toDegrees(pose.heading()));
+        telemetry.addData("Raised CELL", vision.finder().answer());
         telemetry.update();
     }
 }

@@ -1,0 +1,142 @@
+package org.firstinspires.ftc.teamcode.KimCode;
+
+import com.pedropathing.api.Paths;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.pedro.Constants;
+
+/**
+ * The BIOBUZZ autonomous: locate the raised CELL, launch into it, and park in the LOADING ZONE.
+ *
+ * <p>{@link HiveAutoRed} and {@link HiveAutoBlue} only choose the alliance. Each pass through
+ * {@link #loop()} checks the clock, runs the current stage for a moment, and updates the follower
+ * once. Nothing here waits or sleeps, so the clock is always being watched and the robot can
+ * always head for the LOADING ZONE in time.</p>
+ *
+ * <p>This OpMode owns its follower directly, which is a recorded exception to the usual layers.
+ * See "KimCode Hive Auto exception" in ARCHITECTURE.md.</p>
+ */
+public abstract class HiveAuto extends OpMode {
+    private enum Stage { LOCATE_DRIVE, RETURN, DONE }
+
+    /** From this time on, whatever the robot is doing, it drives to the LOADING ZONE. */
+    private static final double RETURN_CUTOFF_SECONDS = 23.0;
+    /** The robot stops here even if it hasn't arrived, so it is motionless when AUTO ends. */
+    private static final double HARD_STOP_SECONDS = 29.0;
+    /** Share of the robot's top speed used on paths. Kept low for first runs; raise it later. */
+    private static final double PATH_SPEED_FRACTION = 0.30;
+
+    private final ElapsedTime matchTimer = new ElapsedTime();
+    private Follower follower;
+    private Stage stage = Stage.LOCATE_DRIVE;
+
+    /** Which alliance this OpMode plays. */
+    protected abstract HiveField.Alliance alliance();
+
+    @Override
+    public void init() {
+        follower = Constants.create(hardwareMap);
+        follower.holdEnd.set(true);
+        follower.setPose(startPose());
+        telemetry.addData("Hive Auto", "%s, ready", alliance());
+        telemetry.update();
+    }
+
+    @Override
+    public void start() {
+        matchTimer.reset();
+        // Set again because the Pinpoint may have still been starting up during init.
+        follower.setPose(startPose());
+        driveTo(fieldPose(HiveField.VIEW_X_INCHES, HiveField.VIEW_Y_INCHES));
+    }
+
+    @Override
+    public void loop() {
+        checkClock();
+        runStage();
+        follower.update();
+        publishTelemetry();
+    }
+
+    @Override
+    public void stop() {
+        if (follower != null) {
+            stopDriving();
+        }
+    }
+
+    /** The clock outranks every stage: this is what makes sure the robot parks in time. */
+    private void checkClock() {
+        double seconds = matchTimer.seconds();
+        if (stage != Stage.DONE && seconds >= HARD_STOP_SECONDS) {
+            enterDone();
+        } else if (stage != Stage.DONE && stage != Stage.RETURN
+                && seconds >= RETURN_CUTOFF_SECONDS) {
+            enterReturn();
+        }
+    }
+
+    private void runStage() {
+        switch (stage) {
+            case LOCATE_DRIVE:
+                if (!follower.following()) {
+                    enterReturn();
+                }
+                break;
+            case RETURN:
+                if (!follower.following()) {
+                    enterDone();
+                }
+                break;
+            case DONE:
+            default:
+                break;
+        }
+    }
+
+    private void enterReturn() {
+        stage = Stage.RETURN;
+        driveTo(fieldPose(HiveField.PARK_X_INCHES, HiveField.PARK_Y_INCHES));
+    }
+
+    private void enterDone() {
+        stage = Stage.DONE;
+        follower.stop();
+    }
+
+    /** Starts one straight path from wherever the robot is now. */
+    private void driveTo(Pose target) {
+        Pose from = follower.pose();
+        Path path = Paths.line(from, target).linear(from, target)
+                .with(Constants.foresightConfig.maxPathSpeed.at(PATH_SPEED_FRACTION));
+        follower.follow(path);
+    }
+
+    /** Follower.stop() only changes its mode. The motors stop on the update() after it. */
+    private void stopDriving() {
+        follower.stop();
+        follower.update();
+    }
+
+    private Pose startPose() {
+        return fieldPose(HiveField.START_X_INCHES, HiveField.START_Y_INCHES);
+    }
+
+    private Pose fieldPose(double xInches, double yInches) {
+        return HiveField.pose(alliance(), xInches, yInches, HiveField.FACING_HIVE_DEGREES);
+    }
+
+    private void publishTelemetry() {
+        Pose pose = follower.pose();
+        telemetry.addData("Alliance", alliance());
+        telemetry.addData("Stage", stage);
+        telemetry.addData("Time", "%.1f s", matchTimer.seconds());
+        telemetry.addData("Pose", "(%.1f, %.1f, %.0f deg)", pose.x(), pose.y(),
+                Math.toDegrees(pose.heading()));
+        telemetry.update();
+    }
+}

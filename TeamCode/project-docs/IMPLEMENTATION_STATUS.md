@@ -12,6 +12,14 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 1 of 6 (drive and park): added `KimCode/HiveField`, `HiveAuto`, `HiveAutoRed`,
+  and `HiveAutoBlue`. The iterative OpMode leaves the wall, drives to a viewing spot, then parks in
+  the LOADING ZONE, using a follower from `pedro/Constants.create()`. A clock check before every
+  stage forces the return at 23 s and stops the robot at 29 s. Paths are capped at 30% of top speed
+  for first runs. This is a recorded exception to the usual layers; see "KimCode Hive Auto
+  exception" in `ARCHITECTURE.md`. `TeamCode:assembleDebug` passes, which proves compilation only:
+  field positions come from CAD, motor directions are unsettled between `TeleopV1` and `Constants`,
+  and nothing has run on a robot.
 - Fixed the standalone `KimCode/TeleopV1` mecanum rotation and strafe mappings by negating the
   right-stick X and left-stick X inputs before passing them to Pedro's manual drive API. Forward
   and reverse mappings are unchanged; this corrects left/right rotation and strafe direction at

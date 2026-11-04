@@ -1,0 +1,249 @@
+package pvi.harness.physics;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * The game pieces: where BIOBUZZ's start, and how the robot box pushes the loose ones, how they
+ * roll to a stop, and how they bounce off the walls and each other.
+ *
+ * <p>These drive {@link GamePieces} directly with a robot box moved step by step, so the numbers
+ * are easy to follow. {@code GamePiecesRecordingTest} checks the same through a real OpMode run.</p>
+ */
+class GamePiecesTest {
+    /** An 18 × 18 in robot box. */
+    private static final double SIZE = 18.0;
+    /** One loop, in seconds. */
+    private static final double LOOP = 0.02;
+
+    private static GamePieces onePollenAt(double x, double y) {
+        return new GamePieces(List.of(new GamePiece("ball", GamePiece.POLLEN, GamePiece.FIELD, x, y, 1.4)),
+                PieceModel.bioBuzz());
+    }
+
+    /** Drives the robot box straight along +x at {@code speed} in/s for {@code seconds}, from x = {@code fromX}. */
+    private static Pose driveAlongX(GamePieces pieces, double fromX, double speed, double seconds) {
+        Pose robot = Pose.inches(fromX, 0, 0);
+        for (double t = 0; t < seconds - 1e-9; t += LOOP) {
+            Pose next = Pose.inches(robot.xInches() + speed * LOOP, 0, 0);
+            pieces.step(robot, next, SIZE, SIZE, LOOP, true);
+            robot = next;
+        }
+        return robot;
+    }
+
+    private static GamePiece piece(GamePieces pieces, String id) {
+        return pieces.snapshot().stream().filter(p -> p.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    /**
+     * WHAT: The balls' sizes are the official manual's (TU06 section 9.8: POLLEN 2.8 in, NECTAR
+     * 3.6 in, polyethylene); the masses are AndyMark's (POLLEN 24.9 g, NECTAR 41.3 g, from its store
+     * pages, D6); bounce and rolling stay placeholders because no source gives them.
+     *
+     * <p>WHY: The user asked for official facts where they exist and marked guesses everywhere
+     * else, never invented numbers.</p>
+     */
+    @Test
+    void ballSizesComeFromTheManualAndMassesFromAndyMark() {
+        assertEquals(2.8, GamePiece.POLLEN_DIAMETER.value(), 1e-9, "POLLEN, manual 9.8");
+        assertEquals(3.6, GamePiece.NECTAR_DIAMETER.value(), 1e-9, "NECTAR, manual 9.8");
+        assertEquals(1.4, GamePiece.radiusInches(GamePiece.POLLEN), 1e-9);
+        assertEquals(1.8, GamePiece.radiusInches(GamePiece.BLUE_NECTAR), 1e-9);
+        assertTrue(GamePiece.POLLEN_DIAMETER.measured() && GamePiece.NECTAR_DIAMETER.measured(),
+                "official sizes count as known values");
+        assertTrue(GamePiece.POLLEN_DIAMETER.source().contains("TU06, section 9.8"), GamePiece.POLLEN_DIAMETER.source());
+        assertTrue(GamePiece.NECTAR_DIAMETER.source().contains("polyethylene"), GamePiece.NECTAR_DIAMETER.source());
+
+        // Masses from AndyMark's store pages (0.055 lb and 0.091 lb), measured; the rest are guesses.
+        PieceModel model = PieceModel.bioBuzz();
+        assertEquals(24.9, model.pollenMass().value(), 1e-9, "POLLEN, 0.055 lb");
+        assertEquals(41.3, model.nectarMass().value(), 1e-9, "NECTAR, 0.091 lb");
+        assertTrue(model.pollenMass().measured() && model.nectarMass().measured(), "AndyMark's weights count as known");
+        assertTrue(model.nectarMass().source().contains("AndyMark"), model.nectarMass().source());
+        assertEquals(List.of("ball rolling deceleration", "ball wall bounce", "ball-to-ball bounce",
+                "robot-to-ball bounce"), model.unmeasured(), "no source gives these yet");
+        assertTrue(model.wallBounce().source().startsWith("not given in the BIOBUZZ Competition Manual TU06"),
+                model.wallBounce().source());
+    }
+
+    /**
+     * WHAT: BIOBUZZ starts with 44 pieces, each with its own id: 16 POLLEN in the FLOWERs, 8 in
+     * the GARDENs, 4 pre-loads behind the robot, 3 NECTAR in each upward CELL and 5 in each
+     * ALLIANCE AREA.
+     *
+     * <p>WHY: Unity and the viewer find each ball by its id all run, so ids must be unique.</p>
+     */
+    @Test
+    void bioBuzzStartsWithEveryPieceOnce() {
+        List<GamePiece> start = BioBuzzPieces.start(Pose.ORIGIN, SIZE);
+        Set<String> ids = new HashSet<>();
+        start.forEach(p -> ids.add(p.id()));
+
+        assertEquals(44, start.size());
+        assertEquals(44, ids.size(), "ids must be unique");
+        assertEquals(16, start.stream().filter(p -> p.state().equals(GamePiece.FLOWER)).count());
+        assertEquals(12, start.stream().filter(p -> p.state().equals(GamePiece.FIELD)).count());
+        assertEquals(6, start.stream().filter(p -> p.state().equals(GamePiece.CELL)).count());
+        assertEquals(10, start.stream().filter(p -> p.state().equals(GamePiece.ALLIANCE_AREA)).count());
+    }
+
+    /**
+     * WHAT: The CELL NECTAR sit up the 30 degree tipped CELL floor, where the official CAD and
+     * manual 10.3.1 put them: red ball 1, against the back wall, is lowest, and blue is the point
+     * mirror of red (each ball keeps its own height).
+     *
+     * <p>WHY: A level row of balls floated above, or sank into, the tipped floor. Unity's
+     * {@code CellNectarTests} checks the same spots against the CAD itself.</p>
+     */
+    @Test
+    void cellNectarSitOnTheTiltedCellFloorAgainstTheBackWall() {
+        List<GamePiece> start = BioBuzzPieces.start(Pose.ORIGIN, SIZE);
+        GamePiece red1 = start.stream().filter(p -> p.id().equals("red-nectar-cell-1")).findFirst().orElseThrow();
+        GamePiece red3 = start.stream().filter(p -> p.id().equals("red-nectar-cell-3")).findFirst().orElseThrow();
+        GamePiece blue1 = start.stream().filter(p -> p.id().equals("blue-nectar-cell-1")).findFirst().orElseThrow();
+        GamePiece blue3 = start.stream().filter(p -> p.id().equals("blue-nectar-cell-3")).findFirst().orElseThrow();
+
+        assertEquals(9.57, red1.xInches(), 0.01);
+        assertEquals(-21.03, red1.yInches(), 0.01);
+        assertEquals(49.86, red1.zInches(), 0.01, "ball 1 is lowest, against the back wall");
+        assertEquals(53.46, red3.zInches(), 0.01, "ball 3 is highest, up the slope");
+        assertEquals(-red1.xInches(), blue3.xInches(), 1e-9, "blue mirrors red in x");
+        assertEquals(-red1.yInches(), blue3.yInches(), 1e-9, "blue mirrors red in y");
+        assertEquals(red1.zInches(), blue3.zInches(), 1e-9, "a mirrored ball keeps its own height");
+        assertEquals(red3.zInches(), blue1.zInches(), 1e-9, "a mirrored ball keeps its own height");
+    }
+
+    /**
+     * WHAT: The 4 pre-loads touch the robot's back edge; when the robot's back is against a wall,
+     * they touch its front edge instead.
+     *
+     * <p>WHY: The plan places them against the robot, and never outside the field.</p>
+     */
+    @Test
+    void preloadsTouchTheRobotsBackOrFront() {
+        GamePiece behind = BioBuzzPieces.start(Pose.ORIGIN, SIZE).stream()
+                .filter(p -> p.id().equals("pollen-preload-1")).findFirst().orElseThrow();
+        assertEquals(-(9 + 1.4), behind.xInches(), 1e-9, "touching the back edge of a robot facing +x");
+        assertEquals(-4.2, behind.yInches(), 1e-9, "spread across the robot (left offset -4.2 in)");
+
+        // Facing +x with the back 1 in from the -x wall: no room behind.
+        Pose againstWall = Pose.inches(-72 + 9 + 1, 0, 0);
+        GamePiece front = BioBuzzPieces.start(againstWall, SIZE).stream()
+                .filter(p -> p.id().equals("pollen-preload-1")).findFirst().orElseThrow();
+        assertEquals(againstWall.xInches() + 9 + 1.4, front.xInches(), 1e-9);
+    }
+
+    /**
+     * WHAT: Driving into a ball pushes it ahead: it never ends up inside the robot box, and it
+     * leaves at least as fast as the robot.
+     *
+     * <p>WHY: This is the "level 3" behavior: the robot pushes the loose balls out of its way.</p>
+     */
+    @Test
+    void theRobotPushesABallAhead() {
+        GamePieces pieces = onePollenAt(14, 0);
+        Pose robot = driveAlongX(pieces, 0, 40, 0.5);
+        GamePiece ball = piece(pieces, "ball");
+
+        assertTrue(ball.xInches() >= robot.xInches() + 9 + 1.4 - 1e-6, "in front of the robot: " + ball + " robot " + robot);
+        assertTrue(pieces.speedInchesPerSecond("ball") >= 40 - 1e-6, "at least the robot's speed");
+        assertEquals(0.0, ball.yInches(), 1e-9, "straight ahead");
+    }
+
+    /**
+     * WHAT: A pushed ball that is left alone rolls on and slows to a stop, after about
+     * v²/(2a) inches.
+     *
+     * <p>WHY: Rolling friction (a placeholder value) is what stops a ball on the tiles.</p>
+     */
+    @Test
+    void aBallRollsToAStop() {
+        GamePieces pieces = onePollenAt(14, 0);
+        driveAlongX(pieces, 0, 20, 0.3);
+        double speed = pieces.speedInchesPerSecond("ball");
+        double from = piece(pieces, "ball").xInches();
+        // Back the robot away so it no longer touches the ball, then wait.
+        Pose robot = Pose.inches(-30, 0, 0);
+        for (int i = 0; i < 300; i++) {
+            pieces.step(robot, robot, SIZE, SIZE, LOOP, true);
+        }
+        double deceleration = PieceModel.bioBuzz().rollingDeceleration().value();
+        assertEquals(0.0, pieces.speedInchesPerSecond("ball"), 0.0, "stopped");
+        assertEquals(speed * speed / (2 * deceleration), piece(pieces, "ball").xInches() - from, 1.0);
+    }
+
+    /**
+     * WHAT: A ball rolling into a wall stops at the wall (its edge at 72 in) and bounces back.
+     *
+     * <p>WHY: Balls must stay on the field, like the robot.</p>
+     */
+    @Test
+    void aBallBouncesOffTheWall() {
+        GamePieces pieces = onePollenAt(60, 0);
+        driveAlongX(pieces, 40, 50, 0.3);
+        Pose robot = Pose.inches(0, 0, 0);
+        double furthest = 0;
+        for (int i = 0; i < 100; i++) {
+            pieces.step(robot, robot, SIZE, SIZE, LOOP, true);
+            furthest = Math.max(furthest, piece(pieces, "ball").xInches());
+        }
+        assertEquals(72 - 1.4, furthest, 1e-9, "reaches the wall, no further");
+        assertTrue(piece(pieces, "ball").xInches() < 72 - 1.4 - 0.5, "bounced back off it");
+    }
+
+    /**
+     * WHAT: A pushed ball knocks into another one and sets it rolling.
+     *
+     * <p>WHY: Balls bounce off each other, so a push can move more than one.</p>
+     */
+    @Test
+    void aBallKnocksAnotherOne() {
+        GamePieces pieces = new GamePieces(List.of(
+                new GamePiece("first", GamePiece.POLLEN, GamePiece.FIELD, 14, 0, 1.4),
+                new GamePiece("second", GamePiece.RED_NECTAR, GamePiece.FIELD, 24, 0, 1.8)), PieceModel.bioBuzz());
+        driveAlongX(pieces, 0, 40, 0.3);
+        Pose robot = Pose.inches(-30, 0, 0);
+        for (int i = 0; i < 20; i++) {
+            pieces.step(robot, robot, SIZE, SIZE, LOOP, true);
+        }
+        GamePiece first = piece(pieces, "first");
+        GamePiece second = piece(pieces, "second");
+        assertTrue(second.xInches() > 24.5, "the second ball moved: " + second);
+        assertTrue(second.xInches() - first.xInches() >= 1.4 + 1.8 - 1e-6, "they don't overlap");
+    }
+
+    /**
+     * WHAT: Balls in a FLOWER, a CELL or an ALLIANCE AREA stay put, even with the robot box over them.
+     *
+     * <p>WHY: Only loose balls on the tiles move for now (no scoring or intake yet).</p>
+     */
+    @Test
+    void onlyLooseBallsMove() {
+        GamePiece inFlower = new GamePiece("f", GamePiece.POLLEN, GamePiece.FLOWER, 14, 0, 20);
+        GamePieces pieces = new GamePieces(List.of(inFlower), PieceModel.bioBuzz());
+        driveAlongX(pieces, 0, 40, 0.5);
+        assertEquals(inFlower, piece(pieces, "f"));
+    }
+
+    /**
+     * WHAT: The same pushes give exactly the same ball positions every time.
+     *
+     * <p>WHY: Replays and tests depend on a run always giving the same result.</p>
+     */
+    @Test
+    void thePushesAreTheSameEveryTime() {
+        GamePieces a = new GamePieces(BioBuzzPieces.start(Pose.ORIGIN, SIZE), PieceModel.bioBuzz());
+        GamePieces b = new GamePieces(BioBuzzPieces.start(Pose.ORIGIN, SIZE), PieceModel.bioBuzz());
+        driveAlongX(a, 0, -40, 1.0);
+        driveAlongX(b, 0, -40, 1.0);
+        assertEquals(a.snapshot(), b.snapshot());
+        assertTrue(piece(a, "pollen-preload-1").xInches() < -12, "driving backward pushed the pre-loads");
+    }
+}

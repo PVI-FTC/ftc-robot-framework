@@ -1,0 +1,25 @@
+{
+  "format": "pvi-harness-field",
+  "version": 1,
+  "id": "decode-2025",
+  "name": "DECODE",
+  "season": "2025-2026",
+  "sources": [
+    "FTC SDK Vision 12.0.0, AprilTagGameDatabase.getDecodeTagLibrary() (tag IDs, names, sizes, positions and orientation quaternions)",
+    "FTC field coordinate system (ftc-docs): DECODE is an 'inverted square' field, red alliance on the left as seen from the audience"
+  ],
+  "frame": "FTC field frame, inches: origin at the field center on the tiles, +x toward the audience, +y from the red wall toward the blue wall, z up. Heading counter-clockwise from +x seen from above.",
+  "audienceSide": "+x",
+  "redWall": "-y",
+  "blueWall": "+y",
+  "accuracyNote": "Tag numbers are copied exactly from the FTC SDK. The goals, obelisk and other field elements are not drawn yet: add them from the DECODE Competition Manual or field CAD (don't guess them).",
+  "startingNote": "",
+  "elements": [],
+  "aprilTags": [
+    { "id": 20, "name": "BlueTarget", "cluster": null, "sizeInches": 6.5, "clusterOffsetInches": null, "xInches": -58.3727, "yInches": -55.6425, "zInches": 29.5, "facing": { "x": 0.587, "y": 0.81, "z": 0 }, "sdkQuaternionWXYZ": [0.2182149, -0.2182149, -0.6725937, 0.6725937], "moves": false, "accuracy": "sdk" },
+    { "id": 21, "name": "Obelisk_GPP", "cluster": null, "sizeInches": 6.5, "clusterOffsetInches": null, "xInches": null, "yInches": null, "zInches": null, "facing": null, "moves": false, "accuracy": "no field position in the SDK" },
+    { "id": 22, "name": "Obelisk_PGP", "cluster": null, "sizeInches": 6.5, "clusterOffsetInches": null, "xInches": null, "yInches": null, "zInches": null, "facing": null, "moves": false, "accuracy": "no field position in the SDK" },
+    { "id": 23, "name": "Obelisk_PPG", "cluster": null, "sizeInches": 6.5, "clusterOffsetInches": null, "xInches": null, "yInches": null, "zInches": null, "facing": null, "moves": false, "accuracy": "no field position in the SDK" },
+    { "id": 24, "name": "RedTarget", "cluster": null, "sizeInches": 6.5, "clusterOffsetInches": null, "xInches": -58.3727, "yInches": 55.6425, "zInches": 29.5, "facing": { "x": 0.587, "y": -0.81, "z": 0 }, "sdkQuaternionWXYZ": [0.6725937, -0.6725937, -0.2182149, 0.2182149], "moves": false, "accuracy": "sdk" }
+  ]
+}

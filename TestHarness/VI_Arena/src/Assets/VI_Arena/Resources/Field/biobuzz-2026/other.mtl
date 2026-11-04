@@ -1,0 +1,32 @@
+newmtl cad_B3B3B3
+Ka 0 0 0
+Kd 0.7020 0.7020 0.7020
+Ks 0.1 0.1 0.1
+Ns 20
+d 1
+illum 2
+
+newmtl cad_E6E6E6
+Ka 0 0 0
+Kd 0.9020 0.9020 0.9020
+Ks 0.1 0.1 0.1
+Ns 20
+d 1
+illum 2
+
+newmtl cad_9AA5AF
+Ka 0 0 0
+Kd 0.6039 0.6471 0.6863
+Ks 0.1 0.1 0.1
+Ns 20
+d 1
+illum 2
+
+newmtl cad_E6E0CF
+Ka 0 0 0
+Kd 0.9020 0.8784 0.8118
+Ks 0.1 0.1 0.1
+Ns 20
+d 1
+illum 2
+

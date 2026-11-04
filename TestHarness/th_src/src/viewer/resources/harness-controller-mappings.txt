@@ -1,0 +1,4 @@
+# Extra SDL game controller mappings for the harness viewer (none needed so far).
+# SDL's built-in mappings already cover Xbox, PlayStation and Logitech controllers.
+# Jamepad loads this file at start; without it, it prints a harmless but alarming error.
+# To support an unusual controller, add its line from https://github.com/mdqinc/SDL_GameControllerDB

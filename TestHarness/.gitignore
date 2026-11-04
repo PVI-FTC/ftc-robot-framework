@@ -1,0 +1,43 @@
+# Files git should not track in the test harness. All of these are created by tools and can be
+# rebuilt at any time, so committing them would only clutter the repository.
+
+# --- th_src: the Java test harness ---------------------------------------------------------
+# Gradle's working files and caches
+/th_src/.gradle/
+# Compiled classes, test reports, recordings, harness-agent.jar, sim logs
+/th_src/build/
+# Machine-specific paths written by Android Studio
+/th_src/local.properties
+# Android Studio / IntelliJ project files
+*.iml
+.idea/
+
+# --- VI_Arena: the Unity application -------------------------------------------------------
+# Unity's generated folders and IDE files in the Unity project (VI_Arena/src). Unity rebuilds
+# them; only Assets/, Packages/ and ProjectSettings/ are kept.
+/VI_Arena/src/[Ll]ibrary/
+/VI_Arena/src/[Tt]emp/
+/VI_Arena/src/[Ll]ogs/
+/VI_Arena/src/[Oo]bj/
+/VI_Arena/src/[Uu]ser[Ss]ettings/
+/VI_Arena/src/[Bb]uild/
+/VI_Arena/src/[Bb]uilds/
+/VI_Arena/src/GeneratedAssets/
+/VI_Arena/src/.vs/
+/VI_Arena/src/.vscode/
+/VI_Arena/src/*.csproj
+/VI_Arena/src/*.sln
+/VI_Arena/src/*.slnx
+
+# The built app and its zips are never committed (user, 2026-11-02): builds stay local, and the
+# whole dist folder is zipped (VI_Arena/package.bat) for Google Drive or a thumb drive.
+/VI_Arena/dist/
+/VI_Arena/*.zip
+
+# Temporary copy of the raw Mixamo files while the people builder runs (it deletes the folder after).
+/VI_Arena/src/Assets/HarnessReplay/PeopleSource/
+/VI_Arena/src/Assets/HarnessReplay/PeopleSource.meta
+/VI_Arena/src/Assets/VI_Arena/PeopleSource/
+/VI_Arena/src/Assets/VI_Arena/PeopleSource.meta
+
+# The art originals live outside the repo now, in C:\Dev\VI_Arena-art (see VI_Arena/ART_INBOX.md).

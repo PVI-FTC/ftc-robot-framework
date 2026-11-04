@@ -92,8 +92,8 @@ public class TeleopV1 extends LinearOpMode {
              */
 
             // MECHANUM DRIVE STUFF DOWN HERE
-            double y = gamepad1.left_stick_x; // Remember: Y stick is negative when pushed forward
-            double x = -gamepad1.left_stick_y;  // Counteract imperfect strafing
+            double y = -gamepad1.left_stick_y; // Remember: Y stick is negative when pushed forward
+            double x = gamepad1.left_stick_x;  // Counteract imperfect strafing
             double turnInput = gamepad1.right_stick_x;
             // A sub-linear curve makes moderate stick movements produce a quicker turn response.
             double rx = Math.copySign(Math.pow(Math.abs(turnInput), 0.65), turnInput);

@@ -50,10 +50,11 @@ final class HiveField {
 
     /**
      * PLACEHOLDER: the robot launches from straight in front of the raised CELL, at this y. It
-     * has to be a distance the launcher can reach, and the front of the robot must clear the
-     * HIVE frame, whose foot bar is near y = -24.
+     * has to be a distance the launcher can reach, and the raised CELL's tags have to stay in the
+     * camera's picture so the robot can aim. Closer than about y = -46 puts them above the top of
+     * the picture with the placeholder camera mount.
      */
-    static final double LAUNCH_Y_INCHES = -44.0;
+    static final double LAUNCH_Y_INCHES = -54.0;
 
     /** Height of a tag under a raised CELL, from the field CAD. */
     static final double RAISED_TAG_HEIGHT_INCHES = 49.0;

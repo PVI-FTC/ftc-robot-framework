@@ -20,7 +20,7 @@ final class KimHiveVision {
     private static final int APRILTAG_PIPELINE = 0;
     /** Results older than this describe where the robot was, not where it is. */
     private static final long MAX_RESULT_AGE_MILLISECONDS = 250;
-    private static final int TAGS_PER_CELL = 4;
+    static final int TAGS_PER_CELL = 4;
 
     /** What the camera sees of one CELL's four tags in the latest frame. */
     static final class CellView {

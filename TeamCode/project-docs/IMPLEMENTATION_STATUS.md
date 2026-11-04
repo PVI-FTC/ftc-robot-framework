@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 5 of 6 (aim with vision): the vision answer now picks the target CELL, including
+  the other CELL if the HIVE has tipped. A new `AIM` stage sets launcher speed from the tag angle
+  and corrects heading, for up to 2 s. Heading is only corrected when all 4 tags are seen, because a
+  partial set would give a false center. With no vision answer, the robot assumes the HIVE has not
+  tipped and makes the preset shot. Compiles only, with the logic checked outside the robot; aiming
+  has not been tried, and its accuracy depends on the placeholder camera mount.
 - Hive Auto, stage 4 of 6 (preset shot): `HiveAuto` now drives to a preset launch spot in front of
   the CELL raised at the start of a match, fires all 4 preloads, then parks. The launcher spins up
   during the drive, and the 23 s cutoff stops any firing and starts the return. A missing launcher

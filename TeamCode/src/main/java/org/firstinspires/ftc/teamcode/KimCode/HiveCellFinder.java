@@ -22,6 +22,8 @@ final class HiveCellFinder {
 
     /** How far ahead one answer must be. */
     private static final int VOTE_LEAD_NEEDED = 5;
+    /** Below this, a tiny angle error makes a huge distance error. */
+    private static final double MIN_ANGLE_FOR_DISTANCE_DEGREES = 5.0;
     /** Halfway between a raised tag and a lowered tag. */
     private static final double RAISED_IF_ABOVE_INCHES =
             (HiveField.RAISED_TAG_HEIGHT_INCHES + HiveField.LOWERED_TAG_HEIGHT_INCHES) / 2.0;
@@ -34,6 +36,19 @@ final class HiveCellFinder {
         double angleUpRadians = Math.toRadians(HiveField.CAMERA_TILT_DEGREES + targetYDegrees);
         return HiveField.CAMERA_HEIGHT_INCHES
                 + horizontalDistanceInches * Math.tan(angleUpRadians);
+    }
+
+    /**
+     * Works out the level distance from the camera to a raised CELL's tags, using how far above
+     * the crosshair they appear. Returns NaN if the angle is too low to give a useful distance.
+     */
+    static double distanceToRaisedTagInches(double targetYDegrees) {
+        double angleUpDegrees = HiveField.CAMERA_TILT_DEGREES + targetYDegrees;
+        if (angleUpDegrees < MIN_ANGLE_FOR_DISTANCE_DEGREES) {
+            return Double.NaN;
+        }
+        return (HiveField.RAISED_TAG_HEIGHT_INCHES - HiveField.CAMERA_HEIGHT_INCHES)
+                / Math.tan(Math.toRadians(angleUpDegrees));
     }
 
     /** Adds one reading of a CELL's tags. */

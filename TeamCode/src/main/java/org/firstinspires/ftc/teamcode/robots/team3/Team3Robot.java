@@ -6,9 +6,12 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl;
 import org.firstinspires.ftc.teamcode.common.hardware.DriveHardware;
 import org.firstinspires.ftc.teamcode.common.hardware.RobotHardware;
+import org.firstinspires.ftc.teamcode.common.hardware.VisionHardware;
 import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.core.robot.Robot;
 
 import java.util.List;
@@ -22,6 +25,7 @@ import java.util.List;
  */
 public class Team3Robot extends Robot implements AutonomousRobotControl {
     private final RobotHardware robotHardware;
+    private final VisionHardware visionHardware;
     private final Team3MechanismHardware mechanismHardware = new Team3MechanismHardware();
     private final Team3PinpointHardware pinpointHardware = new Team3PinpointHardware();
     private final Team3StabilizedDriveController driveController;
@@ -33,9 +37,9 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
     private final VisionSubsystem visionSubsystem;
     private boolean hardwareInitialized;
 
-    /** Creates Team 3's robot with the shared baseline hardware composition. */
+    /** Creates Team 3's robot with the shared baseline hardware composition and Team 3 vision. */
     public Team3Robot() {
-        this(new RobotHardware());
+        this(new RobotHardware(), Team3VisionConfiguration.createVisionHardware());
     }
 
     /**
@@ -44,18 +48,29 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
      * @param robotHardware the hardware wrappers owned by this robot
      */
     public Team3Robot(RobotHardware robotHardware) {
-        if (robotHardware == null) {
-            throw new IllegalArgumentException("Team 3 robot needs robot hardware.");
+        this(robotHardware, robotHardware == null ? null : robotHardware.getVisionHardware());
+    }
+
+    /**
+     * Creates Team 3's robot with the supplied hardware and vision wrappers.
+     *
+     * @param robotHardware the hardware wrappers owned by this robot
+     * @param visionHardware the vision hardware wrapper owned by this robot
+     */
+    public Team3Robot(RobotHardware robotHardware, VisionHardware visionHardware) {
+        if (robotHardware == null || visionHardware == null) {
+            throw new IllegalArgumentException("Team 3 robot needs robot and vision hardware.");
         }
 
         this.robotHardware = robotHardware;
+        this.visionHardware = visionHardware;
         driveController = new Team3StabilizedDriveController(robotHardware.getDriveHardware(), pinpointHardware);
         driveSubsystem = new DriveSubsystem(driveController);
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
         intakeDeploySubsystem = new Team3IntakeDeploySubsystem(mechanismHardware);
         midtakeSubsystem = new Team3MidtakeSubsystem(mechanismHardware);
         outtakeSubsystem = new Team3OuttakeSubsystem(mechanismHardware);
-        visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
+        visionSubsystem = new VisionSubsystem(this.visionHardware);
         registerSubsystem(driveSubsystem);
         registerSubsystem(intakeSubsystem);
         registerSubsystem(intakeDeploySubsystem);
@@ -85,6 +100,7 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         }
 
         robotHardware.initialize(hardwareMap);
+        visionHardware.initialize(hardwareMap);
         mechanismHardware.initialize(hardwareMap);
         pinpointHardware.initialize(hardwareMap);
         hardwareInitialized = true;
@@ -182,6 +198,44 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
                 pinpointHardware.getXInches(),
                 pinpointHardware.getYInches());
         driveSubsystem.enableHeadingHold();
+    }
+
+    /**
+     * Automatically aims the robot's target heading at the best visible AprilTag.
+     *
+     * <p>Prefers DECODE Goal tags (20 Blue, 24 Red) first, then any detected tag with a valid
+     * robot-relative bearing. Updates {@link Team3PoseLock}'s target heading to
+     * {@code currentHeading + tagBearing} so the closed-loop heading controller smoothly rotates
+     * the shooter to face the tag.</p>
+     *
+     * @return the AprilTag ID that was aimed at, or {@code -1} if no tag with a valid bearing is visible
+     */
+    public int aimAtVisibleAprilTag() {
+        List<AprilTagObservation> observations = getAprilTagObservations();
+        if (observations.isEmpty() || !pinpointHardware.isAvailable()) {
+            return -1;
+        }
+
+        AprilTagObservation selected = null;
+        for (AprilTagObservation obs : observations) {
+            if (obs.isRobotRelativePoseAvailable()) {
+                if (obs.getTagId() == 20 || obs.getTagId() == 24) {
+                    selected = obs;
+                    break;
+                }
+                if (selected == null) {
+                    selected = obs;
+                }
+            }
+        }
+
+        if (selected == null) {
+            return -1;
+        }
+
+        double targetHeadingDegrees = getHeadingDegrees() + selected.getBearingDegrees();
+        snapToHeading(targetHeadingDegrees);
+        return selected.getTagId();
     }
 
     /** Returns whether heading hold or full pose stabilization is currently active. */
@@ -304,7 +358,7 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         midtakeSubsystem.setReversing(reversing);
     }
 
-    /** Requests the outtake power from 0.0 (stopped) to 1.0 (full power). */
+    /** Requests the outtake power from -1.0 (full reverse) to 1.0 (full forward). */
     public void setOuttakePower(double power) {
         outtakeSubsystem.setPower(power);
     }
@@ -379,7 +433,7 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         return outtakeSubsystem.getCurrentStateName();
     }
 
-    /** Returns the commanded power for the outtake motor (0.0 to 1.0). */
+    /** Returns the commanded power for the outtake motor (-1.0 to 1.0). */
     public double getOuttakePower() {
         return outtakeSubsystem.getPower();
     }
@@ -400,9 +454,20 @@ public class Team3Robot extends Robot implements AutonomousRobotControl {
         return visionSubsystem.isAvailable();
     }
 
+    /** Returns the latest immutable, library-neutral AprilTag observations. */
+    public List<AprilTagObservation> getAprilTagObservations() {
+        return visionSubsystem.getLatestObservations();
+    }
+
+    /** Returns observations plus their neutral fresh, retained, or unavailable status. */
+    public AprilTagObservationSnapshot getAprilTagObservationSnapshot() {
+        return visionSubsystem.getLatestSnapshot();
+    }
+
     @Override
     protected void onStop() {
         robotHardware.stopAll();
+        visionHardware.stop();
         mechanismHardware.stop();
     }
 

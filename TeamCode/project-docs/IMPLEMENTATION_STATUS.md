@@ -11,6 +11,61 @@ PVI-FTC | Editable master guide
 - Current sequential prompt: LP-11 four-path Pedro selector ready for deployment review
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
+## Team 3 Development Session Notes (November 4, 2026)
+### Problems Addressed & Solutions Implemented
+1. **Shooter / Outtake Control Restored with Forward & Reverse Support**:
+   - *Requirement*: Outtake forward must be analog/variable matching trigger pull ($0.0 \to 1.0$). Outtake reverse must be available via bumper.
+   - *Subsystem Fix*: Updated [Team3OuttakeSubsystem.java](file:///TeamCode/src/main/java/org/firstinspires/ftc/teamcode/robots/team3/Team3OuttakeSubsystem.java):
+     - FSM transitions now evaluate `Math.abs(requestedPower) > POWER_DEADBAND` (instead of `requestedPower > POWER_DEADBAND`) so negative powers trigger the `Spinning` state.
+     - Clamped range expanded to `[-1.0, 1.0]` in `setPower(double)` to allow full reverse and full forward.
+     - Deadband check in `getPower()` updated to `Math.abs(requestedPower) > POWER_DEADBAND`.
+   - *OpMode Mapping*: In [Team3TeleOp.java](file:///TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/teleop/Team3TeleOp.java):
+     - Right Trigger = Variable Forward ($0.0 \to 1.0$, matching trigger pull).
+     - Right Bumper = Reverse (full $-1.0$, or matches trigger pull if trigger is also pulled).
+2. **Unified Single-Gamepad Control Scheme (No Gamepad 2)**:
+   - *Midtake*: Moved from triggers/bumpers to D-pad to free up trigger for analog shooter control.
+     - D-pad Up (hold) = Forward at 50% power.
+     - D-pad Down (hold) = Reverse at 50% power.
+   - *Intake*:
+     - Left Trigger (hold) = Forward at 75% power.
+     - Left Bumper (hold) = Eject/Reverse at 15% power.
+   - *Brake Button*:
+     - Moved to button **B (hold)**. While held, commands `robot.brake()` (zero motor power with BRAKE behavior) and ignores stick inputs.
+   - *Intake-Deploy Servo*:
+     - Moved toggle from button **A** to button **X**.
+     - Startup rule preserved: starts in `Team3IntakeNotMovedState` sending zero PWM to the servo during `init()` or `start()`. First press of **X** commands `stowedState` (`0.0`).
+   - *Pose Lock*:
+     - Kept button **Y** to toggle XY Pose Lock (`FULL` vs `HEADING` mode).
+3. **Controller Hardware Diagnostics (Rear Ring-Finger Paddles)**:
+   - Driver's physical controller features rear underside paddles.
+   - *Hardware Reality*: In Android / FTC SDK, controllers communicate over standard HID. Rear paddles are mapped internally by the controller's onboard firmware to duplicate standard front buttons. Specifically, the left paddle was factory-mirrored to send the 'A' button signal, and the right paddle was unassigned.
+   - Moving the servo toggle to **X** and brake to **B** prevents rear paddle mirroring from unintentionally deploying or stowing mechanisms.
+
+### Team 3 TeleOp Gamepad 1 Mapping Reference
+| Control | Action | Details |
+|---|---|---|
+| **Left Stick Y/X** | Drive Translation | Forward / Backward / Strafe |
+| **Right Stick X** | Drive Rotation | Turn Left / Right |
+| **B (hold)** | Drivetrain Brake | Cuts power to drive motors with BRAKE mode; ignores sticks |
+| **Left Trigger (hold)** | Intake IN | 75% power |
+| **Left Bumper (hold)** | Intake OUT (Eject) | 15% power |
+| **Right Trigger (hold)** | Outtake Forward (Shooter) | Variable power ($0.0 \to 1.0$) matching trigger pull |
+| **Right Bumper (hold)** | Outtake Reverse | Reverse ($-1.0$, or trigger-scaled if trigger held) |
+| **D-pad Up (hold)** | Midtake Forward | 50% power |
+| **D-pad Down (hold)** | Midtake Reverse | 50% power |
+| **D-pad Left / Right (press)** | AprilTag Auto-Aim | Snaps target heading to visible AprilTag bearing (+ 150ms buzz) |
+| **X (press)** | Intake Deploy / Stow | Toggle servo; zero movement on boot, first press stows |
+| **Y (press)** | Pose Lock Toggle | Toggle full (X,Y) position lock ON / OFF |
+
+4. **Table / Bench Testing TeleOp (`Team3TableTestTeleOp.java`)**:
+   - Created `opmodes.testing.Team3TableTestTeleOp` (`@TeleOp(name = "Team 3 Table Test (No Odo)", group = "Team 3 Testing")`).
+   - Calls `robot.enableManualDrive()` (`Team3DriveAssistLevel.OFF`) in `start()`, applies a `0.08` joystick deadband (`STICK_DEADBAND`), and omits the `Y` pose-lock toggle so Pinpoint odometry and IMU heading correction never spin the wheels when the robot is sitting on a table or blocks during intake, midtake, outtake, and servo testing.
+5. **Pedro Autonomous Intake, Scoring Step, RumbleManager, and AprilTag Vision Integration**:
+   - `Team3PedroRobot.java`: Added `IntakeHardware`, `IntakeSubsystem`, `VisionHardware` (via `Team3VisionConfiguration`), and `VisionSubsystem`, exposing full intake (`startIntake`, `stopIntake`, `ejectIntake`, `setIntakePower`, `setIntakeEjectPower`) and AprilTag vision queries (`enableVision`, `getAprilTagObservations`, `getAprilTagObservationSnapshot`).
+   - `Team3ScoreStep.java`: Created reusable non-blocking `AutoStep` that spins up the outtake shooter (`0.5s` default) and feeds with the midtake (`1.0s` default), wired into `Team3AutonomousOpMode.java` after `Team3PedroPathStep`.
+   - `Team3TeleOp.java`: Integrated `RumbleManager` (`init()`, `resetTimer()` in `start()`, `update()` in `loop()`) for automatic match-timer endgame alerts (90s, 105s, 115s) and enabled `robot.enableVision()` on start.
+   - `Team3VisionConfiguration.java`, `Team3Robot.java`, `Team3AprilTagVisionTestOpMode.java`, & `Team3WebcamTestAutoOpMode.java`: Configured Team 3's default webcam (`"Webcam 1"`, 640x480, DECODE goal tags) safely through `VisionHardware` and created both `"Team 3 AprilTag Vision Test"` (TeleOp) and `"Team 3 Webcam Test (Auto)"` (Autonomous, active during `init_loop()` and `loop()` with drive disabled) diagnostic OpModes.
+
 ## Team 3 Development Session Notes (October 30, 2026)
 ### Problems Addressed & Solutions Implemented
 1. **Pedro 3 Autonomous Drift Fix**:
@@ -21,17 +76,9 @@ PVI-FTC | Editable master guide
    - Created `Team3TempStrafeRight8AutoOpMode.java` (`@Autonomous(name = "Team 3 Temp Strafe Right 8 in", group = "Team 3 Testing")`) and `Team3PedroStrafeRight8Path.java` (`(0,0) -> (2,0) -> (2,-8)`).
    - *Requirement*: Servo must NOT move during `init()`, but at `start()` must deploy (matching 'A' in TeleOp). Added `robot.deployIntake()` inside `start()`.
 3. **Intake-Deploy Servo Startup Behavior**:
-   - *Requirement*: Robot starts with intake physically deployed on field; servo must NOT move or twitch at all during `init()` or TeleOp start, and the first press of 'A' must stow it.
-   - *Solution*: Created `Team3IntakeNotMovedState.java` as initial FSM state in `Team3IntakeDeploySubsystem.java` (sends no commands until requested). Initialized `deployRequested = true` so the first press of 'A' transitions to `stowedState` (`STOWED_POSITION = 0.0`).
-4. **Single-Gamepad Mechanism Controls & Power Tuning**:
-   - Setup: Only Gamepad 1 exists (no Gamepad 2).
-   - *Intake*: Added `setIntakePower(double)` and `setEjectPower(double)` to `IntakeSubsystem.java` (defaults remain 1.0 for other teams); `Team3Robot.java` exposes them. In `Team3TeleOp.java`: Left Trigger (hold) = 75% IN, Left Bumper (hold) = 15% OUT.
-   - *Midtake*: Set `MIDTAKE_POWER = 0.5` (50% power in forward and reverse) in `Team3MidtakeSubsystem.java`. In `Team3TeleOp.java`: Right Trigger (hold) = 50% Forward, Right Bumper (hold) = 50% Reverse.
-   - *Outtake*: Disregarded for now; commanded to `0.0`.
-   - *Brake*: Mapped to Back button (`gamepad1.back` hold). Cleared old idle auto-run toggle from Back button.
-   - *Heading Snaps*: Removed all snap logic on X, B, D-pad Left, D-pad Right to clear collisions.
-   - *Pose Lock*: Kept Y button toggle.
-5. **Controller Hardware Diagnostics for Future AI**:
+   - *Requirement*: Robot starts with intake physically deployed on field; servo must NOT move or twitch at all during `init()` or TeleOp start, and the first press must stow it.
+   - *Solution*: Created `Team3IntakeNotMovedState.java` as initial FSM state in `Team3IntakeDeploySubsystem.java` (sends no commands until requested). Initialized `deployRequested = true` so the first toggle transitions to `stowedState` (`STOWED_POSITION = 0.0`).
+4. **Controller Hardware Diagnostics for Future AI**:
    - Driver uses a gamepad with rear ring-finger paddles/buttons.
    - Hardware Diagnostic: Left rear paddle is factory hardware-mapped to duplicate `gamepad.a`, while right rear paddle is unprogrammed.
    - *Note for Future AI*: Android and FTC SDK cannot distinguish physical rear paddles from the standard buttons they duplicate because the controller chip transmits standard HID codes. Ring-finger paddles can only be used by hardware-programming them on the controller to mirror unused front buttons (e.g. stick clicks or D-pad).

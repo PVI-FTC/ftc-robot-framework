@@ -25,9 +25,9 @@ public class Team3OuttakeSubsystem implements Subsystem {
         spinningState = new Team3OuttakeSpinningState(this);
         fsm = new FSM(idleState);
         fsm.addTransition(new Transition(idleState, spinningState,
-                () -> requestedPower > POWER_DEADBAND));
+                () -> Math.abs(requestedPower) > POWER_DEADBAND));
         fsm.addTransition(new Transition(spinningState, idleState,
-                () -> requestedPower <= POWER_DEADBAND));
+                () -> Math.abs(requestedPower) <= POWER_DEADBAND));
     }
 
     @Override
@@ -52,14 +52,14 @@ public class Team3OuttakeSubsystem implements Subsystem {
     }
 
     /**
-     * Requests the outtake power from 0.0 (stopped) to 1.0 (full power).
+     * Requests the outtake power from -1.0 (full reverse) to 1.0 (full forward).
      * Values outside that range are clamped, and NaN is treated as stopped.
      */
     public void setPower(double power) {
         if (Double.isNaN(power)) {
             requestedPower = 0.0;
         } else {
-            requestedPower = Math.max(0.0, Math.min(1.0, power));
+            requestedPower = Math.max(-1.0, Math.min(1.0, power));
         }
     }
 
@@ -72,12 +72,12 @@ public class Team3OuttakeSubsystem implements Subsystem {
         return hardware.isOuttakeAvailable();
     }
 
-    /** Returns the power currently commanded to the outtake motor (0.0 to 1.0). */
+    /** Returns the power currently commanded to the outtake motor (-1.0 to 1.0). */
     public double getPower() {
-        return requestedPower > POWER_DEADBAND ? requestedPower : 0.0;
+        return Math.abs(requestedPower) > POWER_DEADBAND ? requestedPower : 0.0;
     }
 
-    /** Returns the raw requested power (0.0 to 1.0) before deadband. */
+    /** Returns the raw requested power (-1.0 to 1.0) before deadband. */
     public double getRequestedPower() {
         return requestedPower;
     }

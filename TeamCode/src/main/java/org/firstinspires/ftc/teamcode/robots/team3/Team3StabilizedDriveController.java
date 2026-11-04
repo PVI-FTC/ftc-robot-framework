@@ -42,12 +42,18 @@ public class Team3StabilizedDriveController implements DriveController {
 
     @Override
     public void updateManualDrive(double forward, double strafe, double rotate) {
-        // Read Pinpoint odometry once per loop right before motor calculations
-        pinpointHardware.update();
-
         double dtSeconds = loopTimer.seconds();
         loopTimer.reset();
         lastLoopTimeMs = dtSeconds * 1000.0;
+
+        // When assist is OFF (e.g. Table Test mode), bypass Pinpoint I2C and PoseLock completely
+        if (poseLock.getAssistLevel() == Team3DriveAssistLevel.OFF) {
+            mecanumDriveController.updateManualDrive(forward, strafe, rotate);
+            return;
+        }
+
+        // Read Pinpoint odometry once per loop right before motor calculations
+        pinpointHardware.update();
 
         if (pinpointHardware.isAvailable()) {
             double[] stabilized = poseLock.update(

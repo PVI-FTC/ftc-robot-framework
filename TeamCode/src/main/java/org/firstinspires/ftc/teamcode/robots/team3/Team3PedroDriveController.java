@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
+import com.pedropathing.api.PoseFactory;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.common.localization.PoseEstimate;
@@ -13,6 +14,11 @@ public final class Team3PedroDriveController implements DriveController {
     void setFollower(Follower follower) {
         if (follower == null) throw new IllegalArgumentException("Pedro drive controller needs a follower.");
         this.follower = follower;
+    }
+
+    void setPose(double xInches, double yInches, double headingRadians) {
+        requireFollower();
+        follower.setPose(PoseFactory.radians().of(xInches, yInches, headingRadians));
     }
 
     void preparePath(Team3PedroPathRoute route) {

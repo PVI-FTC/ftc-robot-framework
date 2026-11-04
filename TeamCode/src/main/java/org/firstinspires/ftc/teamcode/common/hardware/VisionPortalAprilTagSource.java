@@ -244,14 +244,14 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         if (detection.frameAcquisitionNanoTime <= 0) {
             return "the frame acquisition timestamp is invalid.";
         }
-        if (detection.id != VERIFIED_TAG_ID) {
-            return "only DECODE tag 22 is verified for this experiment.";
+        if (detection.id != 20 && detection.id != 22 && detection.id != 24) {
+            return "only DECODE tags 20, 22, and 24 are verified for this experiment.";
         }
         AprilTagMetadata metadata = detection.metadata;
         if (metadata == null) {
             return "tag 22 metadata is missing.";
         }
-        if (metadata.id != VERIFIED_TAG_ID || !VERIFIED_TAG_NAME.equals(metadata.name)
+        if (metadata.id != detection.id
                 || metadata.distanceUnit == null) {
             return "tag 22 metadata does not match the verified SDK entry.";
         }

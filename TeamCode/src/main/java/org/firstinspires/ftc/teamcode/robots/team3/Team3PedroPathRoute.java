@@ -14,7 +14,14 @@ public enum Team3PedroPathRoute {
             103.42511867493754, 32.68189726856656, 90.0),
     STRAFE_RIGHT_6("Strafe Right 6 in", 0.0, 0.0, 0.0, 0.0, -6.0, 0.0),
     STRAFE_RIGHT_8("Strafe Right 8 in", 0.0, 0.0, 0.0, 2.0, -8.0, 0.0),
-    FORWARD_36("Forward 36 in (3 ft)", 0.0, 0.0, 0.0, 36.0, 0.0, 0.0);
+    FORWARD_36("Forward 36 in (3 ft)", 0.0, 0.0, 0.0, 36.0, 0.0, 0.0),
+    SQUARE_LAP_TEST("Square Lap Test (path.pp)",
+            Team3PedroSquareTestPath.START_X_INCHES,
+            Team3PedroSquareTestPath.START_Y_INCHES,
+            Team3PedroSquareTestPath.START_HEADING_DEGREES,
+            Team3PedroSquareTestPath.END_X_INCHES,
+            Team3PedroSquareTestPath.END_Y_INCHES,
+            Team3PedroSquareTestPath.END_HEADING_DEGREES);
 
     private final String displayName;
     private final double startXInches;
@@ -64,6 +71,8 @@ public enum Team3PedroPathRoute {
                 return Team3PedroStrafeRight8Path.build(follower);
             case FORWARD_36:
                 return Team3PedroForward36Path.build(follower);
+            case SQUARE_LAP_TEST:
+                return Team3PedroSquareTestPath.build(follower);
             default:
                 throw new IllegalStateException("No Team 3 Pedro path builder exists for " + this);
         }

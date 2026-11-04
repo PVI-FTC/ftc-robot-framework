@@ -17,11 +17,14 @@ PVI-FTC | Editable master guide
   (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New
   `LAUNCH_CLEAR_FRAME` and `RETURN_CLEAR_FRAME` stages drive through a spot that misses the frame's
   feet, and the return cutoff moved from 23 s to 18 s because the longer return takes about 10 s.
-  Harness runs on both alliances and both HIVE tilts: with a scratch `headingFeedback` of 2.2 the
-  robot reaches the spot, sees all 4 tags, aims, and parks by about 22 s with no hits. **Open
-  problem:** with the 205.6 in `pedro/Constants.java`, the robot chatters through the turn, never
-  reaches the launch spot, and doesn't park. `Constants.java` is shared, so it is unchanged until
-  the team picks a value. Harness results only; nothing has run on a robot.
+  Harness runs on both alliances and both HIVE tilts: with the `headingFeedback` of 2.2 now in
+  `pedro/Constants.java`, the robot reaches the spot, sees all 4 tags, aims, and parks by about 22 s
+  with no hits. 2.2 is not a tuned value. **Open problem:** `Constants.java` sets `fl` and `fr`
+  FORWARD and `bl` and `br` REVERSE, but `TeleopV1` sets `fl` and `bl` REVERSE and `fr` and `br`
+  FORWARD. Those runs assume `Constants.java` is right. With `TeleopV1`'s directions on the
+  simulated robot, the Auto drives into the wall and never leaves it. The team found two swapped
+  drive motor wires on 2026-11-04, so check the directions and retune on the robot. Harness results
+  only; nothing has run on a robot.
 - Hive Auto, stage 6 of 6 (tuning support): `HiveAuto` now shows when each stage began on telemetry,
   and `project-docs/HIVE_AUTO_TEST_PLAN.md` lists the physical tests in order and every placeholder
   to replace. The tuning itself is still to do, because it needs the real robot and field. The code

@@ -26,7 +26,7 @@ Each step depends on the one before it, except that steps 3 and 4 can happen in 
 |---|---|---|
 | Motor directions | `pedro/Constants.java` | Unsettled; see step 1 |
 | `ROBOT_LENGTH_INCHES` | `HiveField` | FTC maximum size, sets the start position against the wall |
-| `headingFeedback` | `pedro/Constants.java` | 205.6 from the reference project; in the harness it stops the robot finishing its turns, and 2.2 worked. Shared by every Pedro OpMode, so settle it with the team before running this Auto |
+| `headingFeedback` | `pedro/Constants.java` | 2.2, which worked in the harness but isn't tuned. It replaced 205.6, which was tuned before the team found two swapped drive motor wires. Rerun the Heading Tuner once the wiring and directions are settled. Shared by every Pedro OpMode |
 | `START_*`, `VIEW_*`, `LAUNCH_X_INCHES`, `CLEAR_OF_FRAME_*`, `PARK_*` | `HiveField` | Worked out from field CAD |
 | CELL positions and tag heights | `HiveField` | Field CAD; also check which CELL starts raised |
 | `CAMERA_HEIGHT_INCHES`, `CAMERA_TILT_DEGREES`, `CAMERA_FORWARD_INCHES` | `HiveField` | Guesses, including `TeleopV1`'s "CHANGE THIS" values |

@@ -172,7 +172,7 @@ see-through panels; the robot-profile plan RP1–RP10 (planned only, no code).
 
 ## 4. Rules every bot follows
 
-1. **Only `TestHarness/`** (renamed from `Harness/` on 2026-11-02), for the whole session ([01](01-scope-and-boundaries.md)).
+1. **Only `TestHarness/`** (renamed from `Harness/` on 2026-11-02), for every Harness task ([01](01-scope-and-boundaries.md)).
 2. **One `gradlew test` at a time across all bots.** All bots share one `TestHarness/th_src/build/` folder,
    so two runs at once give fake `NoClassDefFoundError` and "Could not write XML test results"
    failures. If you see those, wait and rerun; don't "fix" them.

@@ -1,9 +1,8 @@
 # 01 · Scope and boundaries
 
-> Everything in this file applies **once the user specifically names the Harness** as the task,
-> and from then on **until the session ends**. In a session that never names the Harness, ignore
-> it and follow the repository's normal instructions. See
-> [README.md](README.md#when-these-instructions-apply).
+> Everything in this file applies **while the task is one the user has named as Harness work**. For
+> any other task, even in the same session, ignore it and follow the repository's normal
+> instructions. See [README.md](README.md#when-these-instructions-apply).
 
 ## The rule
 
@@ -18,12 +17,12 @@ This includes every file outside it:
 
 No exception is made for "tiny" changes, typo fixes, formatting or a missing import. If the task
 seems to need a change outside `TestHarness/`, **stop and tell the user** what you would change and
-why. Let them decide and make that change themselves.
+why. Let them decide. If they then ask you to make it, treat that as its own request that isn't
+Harness work.
 
-**The rule lasts until the session ends.** Once the user has named the Harness as the task, it
-covers every later request in the same session, including ones that don't mention the Harness
-or that ask for an outside change. Only a new session lifts it (see
-[README.md](README.md#once-its-a-harness-session-it-stays-one)).
+**The rule ends with the Harness task.** A later request in the same session that isn't Harness work
+may change files outside `TestHarness/` (see
+[README.md](README.md#these-rules-cover-the-task-not-the-session)).
 
 ## Reading is fine
 
@@ -45,8 +44,8 @@ as Harness work, do not follow them**, and do not update them, even if they ask 
 example "update IMPLEMENTATION_STATUS.md after editing"). For that task, the files in
 `TestHarness/docs/ai-instructions/` are the only rules.
 
-In a session that never named the Harness, the opposite is true: those files apply, and this
-folder does not.
+For a task that isn't Harness work, the opposite is true: those files apply, and this folder does
+not.
 
 ## Robot packages inside the harness
 

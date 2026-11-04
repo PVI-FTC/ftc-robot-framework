@@ -454,3 +454,13 @@ All three bots are idle with empty lists. The details of each decision follow.
   values move unchanged to `robots/team-a/camera.properties`; `harness.properties` just says which
   folder is the main robot's. Webcam lines left in the old places stop with a clear message.
 - **To change it:** say if you'd rather keep them in each robot's `drive.properties`.
+
+## D22 · Naming the Harness no longer locks the session (2026-11-03)
+
+- **You asked:** remove the rule that mentioning the Harness in a session bans it from leaving the
+  Harness.
+- **Decided:** the `TestHarness/`-only rule now covers the Harness task, not the whole session. A
+  later request that isn't Harness work follows the repository's normal instructions in the same
+  session. During a Harness task, a change needed outside `TestHarness/` still stops and asks you
+  first.
+- **To change it:** say if you'd rather drop the limit during Harness tasks too.

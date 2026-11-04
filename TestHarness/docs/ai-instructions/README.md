@@ -12,29 +12,24 @@ example by naming "the harness", "the test harness" or the `TestHarness/` folder
   Do not follow `AGENTS.md`, `CLAUDE.md`, `TeamCode/project-docs/` or any other instruction file
   outside `TestHarness/`. Those are written for robot code. If they disagree with these files, these
   files win.
-- **The user has not named the Harness at any point in this session:** ignore these files
-  completely, even if you opened,
-  read or searched files in `TestHarness/`, or these files were loaded automatically. Follow the
-  repository's normal instructions (the root `AGENTS.md` and the files it points to).
+- **The task isn't Harness work:** ignore these files completely, even if you opened, read or
+  searched files in `TestHarness/`, these files were loaded automatically, or an earlier task in
+  this session was Harness work. Follow the repository's normal instructions (the root `AGENTS.md`
+  and the files it points to).
 - **You are not sure:** ask the user whether the task is Harness work before you change
   anything. Don't guess.
 
 Reading a file in `TestHarness/` while doing other work does not make it a Harness task.
 
-## Once it's a Harness session, it stays one
+## These rules cover the task, not the session
 
-As soon as the user has named the Harness as the task, **the whole session (conversation) is a
-Harness session until it ends.** From that point:
+Naming the Harness makes that task Harness work. It doesn't restrict the rest of the session:
 
-- **Add, edit or delete nothing outside `TestHarness/` for the rest of the session.** This still
-  holds if a later message doesn't mention the Harness, is about other work, or asks for a change
-  outside `TestHarness/`. It also holds after the conversation is summarized or compacted.
-- If a later request needs a file outside `TestHarness/` changed, **don't do it.** Tell the user which
-  file and what change, and suggest they make it themselves or start a **new session** for that
-  work. Only a new session can lift this rule. Saying "it's fine" in the same session does not.
-- You may still **read** anything (see [01-scope-and-boundaries.md](01-scope-and-boundaries.md)).
-- If your context is summarized, keep the fact "this is a Harness session" in the summary so the
-  rule survives.
+- **During a Harness task,** add, edit or delete nothing outside `TestHarness/`. If the task needs a
+  file outside it changed, stop and tell the user which file and what change.
+- **A later request that isn't Harness work** follows the repository's normal instructions and may
+  change files outside `TestHarness/`, in the same session. No new session is needed.
+- You may always **read** anything (see [01-scope-and-boundaries.md](01-scope-and-boundaries.md)).
 
 ## Read in this order
 
@@ -52,8 +47,7 @@ before you start and update it when you finish.
 
 ## The two rules that matter most
 
-1. **Only add, edit or delete files inside `TestHarness/`.** Nothing outside it, for the rest of the
-   session.
+1. **For a Harness task, only add, edit or delete files inside `TestHarness/`.** Nothing outside it.
 2. **Keep the simulation core free of any engine, window or network code**, so Unity, or the
    fallback desktop window, can be connected later without rewriting it.
 

@@ -5,22 +5,20 @@ example by naming "the harness", "the test harness" or the `TestHarness/` folder
 
 - **The user names the Harness:** follow these instructions instead of the repository-root
   `AGENTS.md` and every other agent file outside `TestHarness/`.
-- **The user has not named the Harness at any point in this session:** ignore this file and
-  `docs/ai-instructions/` completely, even if you are reading or searching files in `TestHarness/`. Follow
-  the repository's normal instructions.
+- **The task isn't Harness work:** ignore this file and `docs/ai-instructions/` completely, even if
+  you are reading or searching files in `TestHarness/`, or an earlier task in this session was
+  Harness work. Follow the repository's normal instructions.
 - **You are not sure:** ask the user before changing anything.
 
-**Once the Harness has been named, the rest of the session is a Harness session.** Until the
-session ends, add, edit or delete nothing outside `TestHarness/`, even if a later request doesn't
-mention the Harness or asks for an outside change. Tell the user what would need changing and
-suggest a new session for it. See
-[docs/ai-instructions/README.md](docs/ai-instructions/README.md#once-its-a-harness-session-it-stays-one).
+**These rules last only as long as the Harness task.** Naming the Harness doesn't restrict the rest
+of the session. See
+[docs/ai-instructions/README.md](docs/ai-instructions/README.md#these-rules-cover-the-task-not-the-session).
 
 For a Harness task, read every file in [`docs/ai-instructions/`](docs/ai-instructions/README.md) before making
 changes. In short:
 
-1. **Only add, edit or delete files inside `TestHarness/`, for the rest of the session.** Read
-   anything, change nothing outside. If a task needs a change elsewhere, stop and tell the user.
+1. **For a Harness task, only add, edit or delete files inside `TestHarness/`.** Read anything,
+   change nothing outside. If the task needs a change elsewhere, stop and tell the user.
 2. **Keep the simulation core engine-free, UI-free and step-driven**, sharing state as plain data
    in FTC units, so a future Unity simulator, or the fallback desktop window (field view and
    telemetry), can connect without a rewrite

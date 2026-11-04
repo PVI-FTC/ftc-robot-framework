@@ -48,6 +48,13 @@ final class HiveField {
     static final double START_LOWERED_CELL_X_INCHES = -11.0;
     static final double CELL_Y_INCHES = -12.75;
 
+    /**
+     * PLACEHOLDER: the robot launches from straight in front of the raised CELL, at this y. It
+     * has to be a distance the launcher can reach, and the front of the robot must clear the
+     * HIVE frame, whose foot bar is near y = -24.
+     */
+    static final double LAUNCH_Y_INCHES = -44.0;
+
     /** Height of a tag under a raised CELL, from the field CAD. */
     static final double RAISED_TAG_HEIGHT_INCHES = 49.0;
     /** Height of a tag under a lowered CELL, from the field CAD. */
@@ -70,6 +77,18 @@ final class HiveField {
     /** First of the four tag IDs on the CELL that is lowered at the start of a match. */
     static int startLoweredFirstTagId(Alliance alliance) {
         return alliance == Alliance.RED ? 30 : 38;
+    }
+
+    /** The x of a CELL, written for Red. */
+    static double cellXInches(boolean isStartRaisedCell) {
+        return isStartRaisedCell ? START_RAISED_CELL_X_INCHES : START_LOWERED_CELL_X_INCHES;
+    }
+
+    /** Level distance from a point on the field to a CELL's tags. */
+    static double distanceToCellInches(Alliance alliance, boolean isStartRaisedCell,
+            double xInches, double yInches) {
+        Pose cell = pose(alliance, cellXInches(isStartRaisedCell), CELL_Y_INCHES, 0.0);
+        return Math.hypot(cell.x() - xInches, cell.y() - yInches);
     }
 
     /** Turns a position written for Red into the position for this alliance. */

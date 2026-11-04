@@ -21,7 +21,9 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
  * See "KimCode Hive Auto exception" in ARCHITECTURE.md.</p>
  */
 public abstract class HiveAuto extends OpMode {
-    private enum Stage { LOCATE_DRIVE, LOCATE_READ, RETURN, DONE }
+    private enum Stage { LOCATE_DRIVE, LOCATE_READ, LAUNCH_DRIVE, LAUNCH, RETURN, DONE }
+
+    private static final int PRELOADED_BALLS = 4;
 
     /** From this time on, whatever the robot is doing, it drives to the LOADING ZONE. */
     private static final double RETURN_CUTOFF_SECONDS = 23.0;
@@ -36,6 +38,7 @@ public abstract class HiveAuto extends OpMode {
     private final ElapsedTime stageTimer = new ElapsedTime();
     private Follower follower;
     private KimHiveVision vision;
+    private KimLauncher launcher;
     private Stage stage = Stage.LOCATE_DRIVE;
 
     /** Which alliance this OpMode plays. */
@@ -48,8 +51,10 @@ public abstract class HiveAuto extends OpMode {
         follower.setPose(startPose());
         vision = new KimHiveVision(hardwareMap, alliance());
         vision.start();
+        launcher = new KimLauncher(hardwareMap);
         telemetry.addData("Hive Auto", "%s, ready", alliance());
         telemetry.addData("Limelight found", vision.isAvailable());
+        telemetry.addData("Launcher found", launcher.isAvailable());
         telemetry.update();
     }
 
@@ -65,6 +70,7 @@ public abstract class HiveAuto extends OpMode {
     public void loop() {
         checkClock();
         runStage();
+        launcher.update();
         follower.update();
         publishTelemetry();
     }
@@ -76,6 +82,9 @@ public abstract class HiveAuto extends OpMode {
         }
         if (vision != null) {
             vision.stop();
+        }
+        if (launcher != null) {
+            launcher.stop();
         }
     }
 
@@ -104,6 +113,17 @@ public abstract class HiveAuto extends OpMode {
                 if (vision.finder().answer() != HiveCellFinder.Answer.NOT_SURE
                         || !vision.isAvailable()
                         || stageTimer.seconds() >= LOCATE_TIME_LIMIT_SECONDS) {
+                    enterLaunchDrive();
+                }
+                break;
+            case LAUNCH_DRIVE:
+                if (!follower.following()) {
+                    stage = Stage.LAUNCH;
+                    launcher.fire(PRELOADED_BALLS);
+                }
+                break;
+            case LAUNCH:
+                if (launcher.isDoneFiring()) {
                     enterReturn();
                 }
                 break;
@@ -118,13 +138,26 @@ public abstract class HiveAuto extends OpMode {
         }
     }
 
+    /** Spins up during the drive, so the wheel is ready as soon as the robot arrives. */
+    private void enterLaunchDrive() {
+        stage = Stage.LAUNCH_DRIVE;
+        boolean targetIsStartRaisedCell = true;
+        Pose launchSpot = fieldPose(HiveField.cellXInches(targetIsStartRaisedCell),
+                HiveField.LAUNCH_Y_INCHES);
+        launcher.spinUpTo(HiveShotTable.speedForDistance(HiveField.distanceToCellInches(
+                alliance(), targetIsStartRaisedCell, launchSpot.x(), launchSpot.y())));
+        driveTo(launchSpot);
+    }
+
     private void enterReturn() {
         stage = Stage.RETURN;
+        launcher.stop();
         driveTo(fieldPose(HiveField.PARK_X_INCHES, HiveField.PARK_Y_INCHES));
     }
 
     private void enterDone() {
         stage = Stage.DONE;
+        launcher.stop();
         follower.stop();
     }
 
@@ -158,6 +191,9 @@ public abstract class HiveAuto extends OpMode {
         telemetry.addData("Pose", "(%.1f, %.1f, %.0f deg)", pose.x(), pose.y(),
                 Math.toDegrees(pose.heading()));
         telemetry.addData("Raised CELL", vision.finder().answer());
+        telemetry.addData("Launcher", "%s, %.0f / %.0f ticks/s, %d shots left",
+                launcher.stepName(), launcher.actualSpeed(), launcher.targetSpeed(),
+                launcher.shotsLeft());
         telemetry.update();
     }
 }

@@ -138,14 +138,11 @@ final class KimHiveVision {
 
     /** Level distance from the camera to a CELL's tags, using the robot's Pinpoint position. */
     double distanceToCellInches(boolean isStartRaisedCell, Pose robotPose) {
-        double cellXForRed = isStartRaisedCell ? HiveField.START_RAISED_CELL_X_INCHES
-                : HiveField.START_LOWERED_CELL_X_INCHES;
-        Pose cell = HiveField.pose(alliance, cellXForRed, HiveField.CELL_Y_INCHES, 0.0);
         double cameraX = robotPose.x()
                 + HiveField.CAMERA_FORWARD_INCHES * Math.cos(robotPose.heading());
         double cameraY = robotPose.y()
                 + HiveField.CAMERA_FORWARD_INCHES * Math.sin(robotPose.heading());
-        return Math.hypot(cell.x() - cameraX, cell.y() - cameraY);
+        return HiveField.distanceToCellInches(alliance, isStartRaisedCell, cameraX, cameraY);
     }
 
     CellView startRaisedCell() {

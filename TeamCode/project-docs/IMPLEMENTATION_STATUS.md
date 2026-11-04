@@ -12,6 +12,11 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 4 of 6 (preset shot): `HiveAuto` now drives to a preset launch spot in front of
+  the CELL raised at the start of a match, fires all 4 preloads, then parks. The launcher spins up
+  during the drive, and the 23 s cutoff stops any firing and starts the return. A missing launcher
+  skips firing. The vision answer still does not change what the robot does. The launch spot and
+  speed are placeholders. Compiles only; no shot has been tried.
 - Hive Auto, stage 3 of 6 (launcher alone): added `KimCode/KimLauncher`, which holds wheel speed and
   feeds shots on timers, `HiveShotTable`, which turns distance into speed, and the
   `HiveLauncherTest` TeleOp, which maps controls through `InputManager` and does not drive.

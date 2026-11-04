@@ -49,12 +49,17 @@ final class HiveField {
     static final double CELL_Y_INCHES = -12.75;
 
     /**
-     * PLACEHOLDER: the robot launches from straight in front of the raised CELL, at this y. It
-     * has to be a distance the launcher can reach, and the raised CELL's tags have to stay in the
-     * camera's picture so the robot can aim. Closer than about y = -46 puts them above the top of
-     * the picture with the placeholder camera mount.
+     * PLACEHOLDER: how far from the field's center line the robot launches. A CELL's opening points
+     * along the x axis, away from the HIVE's pivot, so the robot stands on that side, level with
+     * the CELL's y, and faces back toward the center. It has to be a distance the launcher can
+     * reach, and the raised CELL's tags have to stay in the camera's picture so the robot can aim.
+     * Closer than about x = 48 puts them above the top of the picture with the placeholder mount.
      */
-    static final double LAUNCH_Y_INCHES = -54.0;
+    static final double LAUNCH_X_INCHES = 52.0;
+
+    /** Going between the launch spot and the Red wall through here misses the HIVE frame's feet. */
+    private static final double CLEAR_OF_FRAME_X_INCHES = 24.0;
+    static final double CLEAR_OF_FRAME_Y_INCHES = -42.0;
 
     /** Height of a tag under a raised CELL, from the field CAD. */
     static final double RAISED_TAG_HEIGHT_INCHES = 49.0;
@@ -83,6 +88,21 @@ final class HiveField {
     /** The x of a CELL, written for Red. */
     static double cellXInches(boolean isStartRaisedCell) {
         return isStartRaisedCell ? START_RAISED_CELL_X_INCHES : START_LOWERED_CELL_X_INCHES;
+    }
+
+    /** The x of the spot this CELL is launched from, written for Red. */
+    static double launchXInches(boolean isStartRaisedCell) {
+        return isStartRaisedCell ? LAUNCH_X_INCHES : -LAUNCH_X_INCHES;
+    }
+
+    /** The heading that points the robot from the launch spot into this CELL, written for Red. */
+    static double launchHeadingDegrees(boolean isStartRaisedCell) {
+        return isStartRaisedCell ? 180.0 : 0.0;
+    }
+
+    /** The x of the spot that keeps the robot clear of the frame near this CELL, written for Red. */
+    static double clearOfFrameXInches(boolean isStartRaisedCell) {
+        return isStartRaisedCell ? CLEAR_OF_FRAME_X_INCHES : -CLEAR_OF_FRAME_X_INCHES;
     }
 
     /** Level distance from a point on the field to a CELL's tags. */

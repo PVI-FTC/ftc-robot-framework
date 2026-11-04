@@ -21,12 +21,18 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
  * See "KimCode Hive Auto exception" in ARCHITECTURE.md.</p>
  */
 public abstract class HiveAuto extends OpMode {
-    private enum Stage { LOCATE_DRIVE, LOCATE_READ, LAUNCH_DRIVE, AIM, LAUNCH, RETURN, DONE }
+    private enum Stage {
+        LOCATE_DRIVE, LOCATE_READ, LAUNCH_CLEAR_FRAME, LAUNCH_DRIVE, AIM, LAUNCH,
+        RETURN_CLEAR_FRAME, RETURN, DONE
+    }
 
     private static final int PRELOADED_BALLS = 4;
 
-    /** From this time on, whatever the robot is doing, it drives to the LOADING ZONE. */
-    private static final double RETURN_CUTOFF_SECONDS = 23.0;
+    /**
+     * From this time on, whatever the robot is doing, it drives to the LOADING ZONE. The drive from
+     * the launch spot took about 10 s at the path speed below in the harness, so this leaves time.
+     */
+    private static final double RETURN_CUTOFF_SECONDS = 18.0;
     /** The robot stops here even if it hasn't arrived, so it is motionless when AUTO ends. */
     private static final double HARD_STOP_SECONDS = 29.0;
     /** Share of the robot's top speed used on paths. Kept low for first runs; raise it later. */
@@ -106,8 +112,8 @@ public abstract class HiveAuto extends OpMode {
         double seconds = matchTimer.seconds();
         if (stage != Stage.DONE && seconds >= HARD_STOP_SECONDS) {
             enterDone();
-        } else if (stage != Stage.DONE && stage != Stage.RETURN
-                && seconds >= RETURN_CUTOFF_SECONDS) {
+        } else if (stage != Stage.DONE && stage != Stage.RETURN_CLEAR_FRAME
+                && stage != Stage.RETURN && seconds >= RETURN_CUTOFF_SECONDS) {
             enterReturn();
         }
     }
@@ -128,6 +134,12 @@ public abstract class HiveAuto extends OpMode {
                     enterLaunchDrive();
                 }
                 break;
+            case LAUNCH_CLEAR_FRAME:
+                if (!follower.following()) {
+                    enterStage(Stage.LAUNCH_DRIVE);
+                    driveTo(launchSpot());
+                }
+                break;
             case LAUNCH_DRIVE:
                 if (!follower.following()) {
                     if (usingVision) {
@@ -144,6 +156,12 @@ public abstract class HiveAuto extends OpMode {
             case LAUNCH:
                 if (launcher.isDoneFiring()) {
                     enterReturn();
+                }
+                break;
+            case RETURN_CLEAR_FRAME:
+                if (!follower.following()) {
+                    enterStage(Stage.RETURN);
+                    driveTo(fieldPose(HiveField.PARK_X_INCHES, HiveField.PARK_Y_INCHES));
                 }
                 break;
             case RETURN:
@@ -166,12 +184,12 @@ public abstract class HiveAuto extends OpMode {
 
     /** Spins up during the drive, so the wheel is ready as soon as the robot arrives. */
     private void enterLaunchDrive() {
-        enterStage(Stage.LAUNCH_DRIVE);
-        Pose launchSpot = fieldPose(HiveField.cellXInches(targetIsStartRaisedCell),
-                HiveField.LAUNCH_Y_INCHES);
+        enterStage(Stage.LAUNCH_CLEAR_FRAME);
+        Pose launchSpot = launchSpot();
         launcher.spinUpTo(HiveShotTable.speedForDistance(HiveField.distanceToCellInches(
                 alliance(), targetIsStartRaisedCell, launchSpot.x(), launchSpot.y())));
-        driveTo(launchSpot);
+        // Finishes turning on this first leg, so the last leg is straight at the CELL's opening.
+        driveTo(clearOfFrameSpot(HiveField.launchHeadingDegrees(targetIsStartRaisedCell)));
     }
 
     /**
@@ -216,9 +234,9 @@ public abstract class HiveAuto extends OpMode {
     }
 
     private void enterReturn() {
-        enterStage(Stage.RETURN);
+        enterStage(Stage.RETURN_CLEAR_FRAME);
         launcher.stop();
-        driveTo(fieldPose(HiveField.PARK_X_INCHES, HiveField.PARK_Y_INCHES));
+        driveTo(clearOfFrameSpot(HiveField.FACING_HIVE_DEGREES));
     }
 
     private void enterDone() {
@@ -252,6 +270,16 @@ public abstract class HiveAuto extends OpMode {
 
     private Pose startPose() {
         return fieldPose(HiveField.START_X_INCHES, HiveField.START_Y_INCHES);
+    }
+
+    private Pose launchSpot() {
+        return HiveField.pose(alliance(), HiveField.launchXInches(targetIsStartRaisedCell),
+                HiveField.CELL_Y_INCHES, HiveField.launchHeadingDegrees(targetIsStartRaisedCell));
+    }
+
+    private Pose clearOfFrameSpot(double headingDegrees) {
+        return HiveField.pose(alliance(), HiveField.clearOfFrameXInches(targetIsStartRaisedCell),
+                HiveField.CLEAR_OF_FRAME_Y_INCHES, headingDegrees);
     }
 
     private Pose fieldPose(double xInches, double yInches) {

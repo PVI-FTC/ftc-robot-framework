@@ -12,6 +12,16 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
+  pivot, but the robot was launching along y, into the CELL's side wall. It now launches from
+  (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New
+  `LAUNCH_CLEAR_FRAME` and `RETURN_CLEAR_FRAME` stages drive through a spot that misses the frame's
+  feet, and the return cutoff moved from 23 s to 18 s because the longer return takes about 10 s.
+  Harness runs on both alliances and both HIVE tilts: with a scratch `headingFeedback` of 2.2 the
+  robot reaches the spot, sees all 4 tags, aims, and parks by about 22 s with no hits. **Open
+  problem:** with the 205.6 in `pedro/Constants.java`, the robot chatters through the turn, never
+  reaches the launch spot, and doesn't park. `Constants.java` is shared, so it is unchanged until
+  the team picks a value. Harness results only; nothing has run on a robot.
 - Hive Auto, stage 6 of 6 (tuning support): `HiveAuto` now shows when each stage began on telemetry,
   and `project-docs/HIVE_AUTO_TEST_PLAN.md` lists the physical tests in order and every placeholder
   to replace. The tuning itself is still to do, because it needs the real robot and field. The code

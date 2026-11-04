@@ -42,6 +42,8 @@ public abstract class HiveAuto extends OpMode {
     private final ElapsedTime matchTimer = new ElapsedTime();
     private final ElapsedTime stageTimer = new ElapsedTime();
     private final ElapsedTime aimTimer = new ElapsedTime();
+    /** When each stage began, for timing a run. See HIVE_AUTO_TEST_PLAN.md. */
+    private final StringBuilder stageTimes = new StringBuilder();
     private Follower follower;
     private KimHiveVision vision;
     private KimLauncher launcher;
@@ -70,6 +72,7 @@ public abstract class HiveAuto extends OpMode {
     @Override
     public void start() {
         matchTimer.reset();
+        enterStage(Stage.LOCATE_DRIVE);
         // Set again because the Pinpoint may have still been starting up during init.
         follower.setPose(startPose());
         // The follower only learns the new pose on its next update, so name the start here.
@@ -113,8 +116,7 @@ public abstract class HiveAuto extends OpMode {
         switch (stage) {
             case LOCATE_DRIVE:
                 if (!follower.following()) {
-                    stage = Stage.LOCATE_READ;
-                    stageTimer.reset();
+                    enterStage(Stage.LOCATE_READ);
                 }
                 break;
             case LOCATE_READ:
@@ -129,8 +131,7 @@ public abstract class HiveAuto extends OpMode {
             case LAUNCH_DRIVE:
                 if (!follower.following()) {
                     if (usingVision) {
-                        stage = Stage.AIM;
-                        stageTimer.reset();
+                        enterStage(Stage.AIM);
                         aimTimer.reset();
                     } else {
                         enterLaunch();
@@ -165,7 +166,7 @@ public abstract class HiveAuto extends OpMode {
 
     /** Spins up during the drive, so the wheel is ready as soon as the robot arrives. */
     private void enterLaunchDrive() {
-        stage = Stage.LAUNCH_DRIVE;
+        enterStage(Stage.LAUNCH_DRIVE);
         Pose launchSpot = fieldPose(HiveField.cellXInches(targetIsStartRaisedCell),
                 HiveField.LAUNCH_Y_INCHES);
         launcher.spinUpTo(HiveShotTable.speedForDistance(HiveField.distanceToCellInches(
@@ -210,20 +211,26 @@ public abstract class HiveAuto extends OpMode {
     }
 
     private void enterLaunch() {
-        stage = Stage.LAUNCH;
+        enterStage(Stage.LAUNCH);
         launcher.fire(PRELOADED_BALLS);
     }
 
     private void enterReturn() {
-        stage = Stage.RETURN;
+        enterStage(Stage.RETURN);
         launcher.stop();
         driveTo(fieldPose(HiveField.PARK_X_INCHES, HiveField.PARK_Y_INCHES));
     }
 
     private void enterDone() {
-        stage = Stage.DONE;
+        enterStage(Stage.DONE);
         launcher.stop();
         follower.stop();
+    }
+
+    private void enterStage(Stage newStage) {
+        stage = newStage;
+        stageTimer.reset();
+        stageTimes.append(String.format("%s %.1f  ", newStage, matchTimer.seconds()));
     }
 
     /** Starts one straight path from wherever the robot is now. */
@@ -264,6 +271,7 @@ public abstract class HiveAuto extends OpMode {
         telemetry.addData("Launcher", "%s, %.0f / %.0f ticks/s, %d shots left",
                 launcher.stepName(), launcher.actualSpeed(), launcher.targetSpeed(),
                 launcher.shotsLeft());
+        telemetry.addData("Stage times", stageTimes);
         telemetry.update();
     }
 }

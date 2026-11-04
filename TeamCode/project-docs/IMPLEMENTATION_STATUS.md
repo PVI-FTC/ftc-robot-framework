@@ -12,6 +12,10 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, stage 6 of 6 (tuning support): `HiveAuto` now shows when each stage began on telemetry,
+  and `project-docs/HIVE_AUTO_TEST_PLAN.md` lists the physical tests in order and every placeholder
+  to replace. The tuning itself is still to do, because it needs the real robot and field. The code
+  stages are complete, but nothing has been run on a robot, so the Auto is not match-ready.
 - Hive Auto, stage 5 of 6 (aim with vision): the vision answer now picks the target CELL, including
   the other CELL if the HIVE has tipped. A new `AIM` stage sets launcher speed from the tag angle
   and corrects heading, for up to 2 s. Heading is only corrected when all 4 tags are seen, because a

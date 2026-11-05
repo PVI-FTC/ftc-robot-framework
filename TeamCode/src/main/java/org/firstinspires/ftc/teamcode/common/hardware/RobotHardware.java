@@ -9,9 +9,31 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  * optional, so their unavailable states do not prevent drivetrain use.</p>
  */
 public class RobotHardware {
-    private final DriveHardware driveHardware = new DriveHardware();
-    private final IntakeHardware intakeHardware = new IntakeHardware();
+    private final DriveHardware driveHardware;
+    private final IntakeHardware intakeHardware;
     private final VisionHardware visionHardware = new VisionHardware();
+
+    /** Creates the shared baseline hardware composition. */
+    public RobotHardware() {
+        this(new DriveHardware());
+    }
+
+    /** Creates shared hardware around the supplied drivetrain configuration. */
+    public RobotHardware(DriveHardware driveHardware) {
+        this(driveHardware, new IntakeHardware());
+    }
+
+    /** Creates shared hardware around the supplied drivetrain and intake configurations. */
+    public RobotHardware(DriveHardware driveHardware, IntakeHardware intakeHardware) {
+        if (driveHardware == null) {
+            throw new IllegalArgumentException("Robot hardware needs drive hardware.");
+        }
+        if (intakeHardware == null) {
+            throw new IllegalArgumentException("Robot hardware needs intake hardware.");
+        }
+        this.driveHardware = driveHardware;
+        this.intakeHardware = intakeHardware;
+    }
 
     /** Initializes shared hardware in drivetrain, intake, then vision order. */
     public void initialize(HardwareMap hardwareMap) {

@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Restored `TeamAAutoOpMode` as the three-step basic zone autonomous on branch
+  `TeamA-Mini1-Basic-Auto`. It commands robot-forward travel, positive-strafe robot-left travel
+  based on the reported physical test, and then robot-forward travel. All three commands use the
+  existing non-blocking `TimedDriveStep` at 50 percent power, with `INITIAL_FORWARD_SECONDS`,
+  `MOVE_LEFT_SECONDS`, and `MOVE_FORWARD_SECONDS` exposed as student-adjustable timing values.
+  Team A TeleOp and the shared drivetrain calculation remain unchanged.
 - Corrected Team A's physically observed drive-channel ordering. The Control Hub names map to the
   physical front-left, front-right, rear-left, and rear-right positions in the order `frontRight`,
   `rearLeft`, `frontLeft`, and `rearRight`. `DriveHardware` now has a narrow name-and-direction

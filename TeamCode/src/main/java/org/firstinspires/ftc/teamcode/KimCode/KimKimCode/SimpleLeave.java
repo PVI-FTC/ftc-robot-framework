@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.KimCode;
+package org.firstinspires.ftc.teamcode.KimCode.KimKimCode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.KimCode;
+package org.firstinspires.ftc.teamcode.KimCode.ClaudeKimCode;
 
 /**
  * Turns a distance to the CELL into a launcher speed.

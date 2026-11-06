@@ -12,6 +12,79 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
+  pivot, but the robot was launching along y, into the CELL's side wall. It now launches from
+  (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New
+  `LAUNCH_CLEAR_FRAME` and `RETURN_CLEAR_FRAME` stages drive through a spot that misses the frame's
+  feet, and the return cutoff moved from 23 s to 18 s because the longer return takes about 10 s.
+  Harness runs on both alliances and both HIVE tilts: with the `headingFeedback` of 2.2 now in
+  `pedro/Constants.java`, the robot reaches the spot, sees all 4 tags, aims, and parks by about 22 s
+  with no hits. 2.2 is not a tuned value. **Open problem:** `Constants.java` sets `fl` and `fr`
+  FORWARD and `bl` and `br` REVERSE, but `TeleopV1` sets `fl` and `bl` REVERSE and `fr` and `br`
+  FORWARD. Those runs assume `Constants.java` is right. With `TeleopV1`'s directions on the
+  simulated robot, the Auto drives into the wall and never leaves it. The team found two swapped
+  drive motor wires on 2026-11-04, so check the directions and retune on the robot. Harness results
+  only; nothing has run on a robot.
+- Hive Auto, stage 6 of 6 (tuning support): `HiveAuto` now shows when each stage began on telemetry,
+  and `project-docs/HIVE_AUTO_TEST_PLAN.md` lists the physical tests in order and every placeholder
+  to replace. The tuning itself is still to do, because it needs the real robot and field. The code
+  stages are complete, but nothing has been run on a robot, so the Auto is not match-ready.
+- Hive Auto, stage 5 of 6 (aim with vision): the vision answer now picks the target CELL, including
+  the other CELL if the HIVE has tipped. A new `AIM` stage sets launcher speed from the tag angle
+  and corrects heading, for up to 2 s. Heading is only corrected when all 4 tags are seen, because a
+  partial set would give a false center. With no vision answer, the robot assumes the HIVE has not
+  tipped and makes the preset shot. Compiles only, with the logic checked outside the robot; aiming
+  has not been tried, and its accuracy depends on the placeholder camera mount.
+- Hive Auto, stage 4 of 6 (preset shot): `HiveAuto` now drives to a preset launch spot in front of
+  the CELL raised at the start of a match, fires all 4 preloads, then parks. The launcher spins up
+  during the drive, and the 23 s cutoff stops any firing and starts the return. A missing launcher
+  skips firing. The vision answer still does not change what the robot does. The launch spot and
+  speed are placeholders. Compiles only; no shot has been tried.
+- Hive Auto, stage 3 of 6 (launcher alone): added `KimCode/KimLauncher`, which holds wheel speed and
+  feeds shots on timers, `HiveShotTable`, which turns distance into speed, and the
+  `HiveLauncherTest` TeleOp, which maps controls through `InputManager` and does not drive.
+  `HiveAuto` does not use the launcher yet. Motor names, directions, feed timing, and every table
+  speed are placeholders. A missing motor reports nothing instead of stopping an OpMode. Compiles
+  only; no launcher has run.
+- Hive Auto, stage 2 of 6 (see the tags): added `KimCode/KimHiveVision`, which reads tags 30-45 from
+  the Limelight, `HiveCellFinder`, which votes on the raised CELL from tag height, and the
+  `HiveVisionTest` TeleOp, which reports what the camera sees with the robot not driving. `HiveAuto`
+  now stops at the viewing spot for up to 3 s and shows the answer on telemetry; it does not act on
+  the answer yet. A missing Limelight reports nothing instead of stopping the Auto. Camera height,
+  tilt, and forward offset and the pipeline number are placeholders. Compiles only; the steep view
+  of the downward-facing tags has not been tried on a real camera.
+- Hive Auto, stage 1 of 6 (drive and park): added `KimCode/HiveField`, `HiveAuto`, `HiveAutoRed`,
+  and `HiveAutoBlue`. The iterative OpMode leaves the wall, drives to a viewing spot, then parks in
+  the LOADING ZONE, using a follower from `pedro/Constants.create()`. A clock check before every
+  stage forces the return at 23 s and stops the robot at 29 s. Paths are capped at 30% of top speed
+  for first runs. This is a recorded exception to the usual layers; see "KimCode Hive Auto
+  exception" in `ARCHITECTURE.md`. `TeamCode:assembleDebug` passes, which proves compilation only:
+  field positions come from CAD, motor directions are unsettled between `TeleopV1` and `Constants`,
+  and nothing has run on a robot.
+- Fixed the standalone `KimCode/TeleopV1` mecanum rotation and strafe mappings by negating the
+  right-stick X and left-stick X inputs before passing them to Pedro's manual drive API. Forward
+  and reverse mappings are unchanged; this corrects left/right rotation and strafe direction at
+  the TeleOp input boundary.
+- Pedro 3 migration completed in the current working tree: `revhub:3.0.2` and `tuning:1.0.1`
+  replace the Pedro 2 artifacts. The Pedro 3 `pedro/procedures` sources are present, with
+  `Constants.java` and `Tuning.java` copied directly from the reference `pedro3` project.
+  Mecanum, Pinpoint, and the incomplete Foresight tuner are registered as in that reference.
+  Existing Pedro 2-era Team A paths and the autonomous route selector were adapted to the
+  Pedro 3 APIs. The obsolete Pedro 2 monolithic tuner was removed.
+- Added independent `KimCode/TeleopV1.java`, adapted from the reference `pedro3` project. It does
+  not depend on `TeamAPedroRobot` or `TeamAPedroPathStep`, uses `InputManager`, and owns follower
+  and Limelight access in a private controller within the one-file KimCode entry point.
+- Current verification: `git diff --check` and
+  `.\gradlew.bat --no-daemon --console=plain TeamCode:assembleDebug` pass with RevHub `3.0.2`.
+  This is a software/build verification only; physical wiring, tuning, and path accuracy remain
+  hardware-validation tasks. The copied reference `pedro/Constants.java` intentionally leaves
+  `Constants.create()` as `return null` until the team completes its Foresight configuration.
+
+### Historical records below
+
+Entries below this point preserve earlier prompt evidence and may describe the former Pedro 2,
+Panels, or Predictive Braking workflow. They are historical records, not instructions for the
+current Pedro 3 implementation.
 - Corrected Team A's physically observed drive-channel ordering. The Control Hub names map to the
   physical front-left, front-right, rear-left, and rear-right positions in the order `frontRight`,
   `rearLeft`, `frontLeft`, and `rearRight`. `DriveHardware` now has a narrow name-and-direction
@@ -56,11 +129,11 @@ PVI-FTC | Editable master guide
   `TeamCode:assembleDebug` passed with `BUILD SUCCESSFUL` (52 tasks, 0 errors). Architecture
   boundaries are preserved: `RumbleManager` still holds only a `Gamepad` reference and contains
   no hardware map, FSM, subsystem, or autonomous logic.
-- Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable setup and tuning guide grounded in the current
-  Team A code and recorded physical evidence. It inventories the pinned dependencies, hardware and
-  Pinpoint facts, exact active constants, completed and uncompleted tuners, Panels workflow,
-  localization/direction evidence, future-robot replacement map, and sign-off checklist. Unverified
-  physical dimensions are explicitly separated from inconsistent Visualizer-only footprints.
+- Added `PEDRO_ROBOT_SETUP_REFERENCE.md`, a reusable Pedro 3 setup and tuning guide grounded in the
+  current Team A code and official AutoTune workflow. It inventories the pinned dependencies,
+  hardware and Pinpoint facts, current config locations, procedure registration, build steps,
+  localization/direction evidence, future-robot replacement map, and sign-off checklist. Older
+  Pedro 2/Panels records are explicitly marked historical.
 - LP-11 preserves the student-created Pedro Visualizer `1.2.1` export as
   `TeamCode/project-docs/TeamA_LP11_Pilot.pp`. The reviewed chain contains one straight line from
   `(0, 0)` to `(24, 0)` inches, no control points or waits, and an effective `0` degree heading.
@@ -837,26 +910,26 @@ PVI-FTC | Editable master guide
   - disabled-by-default LP-09 pose telemetry and deadman-controlled raised-wheel requests at the
     configured restricted ceiling
 ## Build status
-- Approved JDK: Record the team-approved version here. Microsoft OpenJDK Java 17.0.x
+- Build runtime observed in the latest verification: Java 24; source/target 8 deprecation warnings are emitted.
 - Android Studio version: Quail 1
-- FTC SDK version or tag: Release 11.2.1
+- FTC SDK version or tag: Release 12.0.0
+- Pedro dependencies: `revhub:3.0.2`, `tuning:1.0.1`
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
+- Latest result: `BUILD SUCCESSFUL`; `git diff --check` passed.
 ## Known limitations and TODO items
-- `TeamAPedroTuning` exposes the full Pedro Quickstart menu applicable to Team A's mecanum robot.
-  The Swerve-only folder is omitted. The operator must follow the documented Pedro order rather
-  than menu order because every applicable option is now visible.
-- Full-power velocities, heading PIDF, Predictive Braking coefficients, `P=0.15`, and the `0.97`
-  parametric-end constraint are recorded and validated by the Line test. The director accepted the
-  evidence and the `0.20` application limit, so path readiness is open. No pilot path exists yet.
-- Before LP-09, resync Android Studio if Pedro imports remain red; the command-line build already
-  resolves and compiles Pedro 2.1.2.
-- LP-09 verified Pinpoint pose signs, approximate distances, return-to-start error, both encoder
-  directions, recorded motor directions, restricted raised-wheel movement, cancellation, Driver
-  Station STOP, and `robot.stop()`. Ground driving outside a later supervised tuning/test plan has
-  not been authorized.
-- Path readiness is open after version-matched tuning recorded accepted velocities, heading PIDF,
-  Predictive Braking values, constraints, repeatability, and safe stop behavior. LP-11 still must
-  implement and cautiously validate the first pilot path.
+- `pedro/Constants.java` is copied from the local `pedro3` project and `create()` intentionally
+  returns `null`. `KimCode/TeleopV1` therefore compiles but cannot drive until the team completes
+  constants and constructs the follower.
+- Mecanum, Pinpoint, and Foresight procedures are registered. The local reference has not completed
+  Foresight tuning; generated values still need review and must be copied into the Pedro 3
+  `ForesightConfig`. Pinpoint configuration also remains unfinished in the reference Constants file.
+- Earlier LP-10 velocities, heading PIDF, Predictive Braking coefficients, `P=0.15`, and the `0.97`
+  parametric-end constraint are historical Pedro 2 evidence. They are not verified Pedro 3 tuning
+  results and must not be used to open the current path-following gate.
+- No successful physical hardware validation has been recorded for this Pedro 3 integration. The
+  build proves compilation and packaging only.
+- Older LP-09/LP-10 records describe hardware and tuning checks made with the former Pedro 2
+  implementation. They do not establish Pedro 3 localization, tuning, or path readiness.
 - Configure branch protection and pull-request review.
 - Consider adding compile-only GitHub Actions validation.
 - MV-03 software checks verify that `VisionPortalAprilTagSource` preserves

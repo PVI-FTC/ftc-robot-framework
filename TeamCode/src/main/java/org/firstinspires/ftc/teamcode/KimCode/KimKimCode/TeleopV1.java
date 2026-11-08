@@ -19,6 +19,8 @@ public class TeleopV1 extends LinearOpMode {
     private DcMotor bl;
     private DcMotorEx outtake;
     private DcMotorEx intake;
+    private DcMotorEx tubing;
+    private DcMotorEx transfer;
     private final ElapsedTime forwardTimer = new ElapsedTime();
     private Limelight3A limelight;
 
@@ -36,6 +38,8 @@ public class TeleopV1 extends LinearOpMode {
         br.setDirection(DcMotorSimple.Direction.FORWARD);
         //outtake = hardwareMap.get(DcMotorEx.class, "pollen");
         //intake = hardwareMap.get(DcMotorEx.class, "intake");
+        //tubing = hardwareMap.get(DcMotorEx.class, "tubing");
+        //transfer = hardwareMap.get(DcMotorEx.class, "transfer");
 
         // LIMELIGHT STUFF --------------
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
@@ -54,21 +58,7 @@ public class TeleopV1 extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-
-            LLResult result = limelight.getLatestResult();
-            if (result != null) {
-                if (result.isValid()) {
-                    telemetry.addData("tx", result.getTx());
-                    telemetry.addData("ty", result.getTy());
-
-                    // FIXED: Pass the 'result' variable into the method
-                    telemetry.addData("distance", getDistance(result));
-
-                    telemetry.update();
-                }
-            }
-
-            // SIMPLE STUFF HERE (Commented out)
+            // commands stuff
             /*
             if (gamepad1.left_trigger_pressed) {
                 intake.setPower(-0.8);
@@ -86,7 +76,7 @@ public class TeleopV1 extends LinearOpMode {
             }
              */
 
-            // MECHANUM DRIVE STUFF DOWN HERE
+            //drive stuff
             double y = -gamepad1.left_stick_y; // Remember: Y stick is negative when pushed forward
             double x = gamepad1.left_stick_x;  // Counteract imperfect strafing
             double turnInput = gamepad1.right_stick_x;
@@ -102,6 +92,21 @@ public class TeleopV1 extends LinearOpMode {
             bl.setPower(backLeftPower);
             fr.setPower(frontRightPower);
             br.setPower(backRightPower);
+
+            //limelight stuff
+
+            LLResult result = limelight.getLatestResult();
+            if (result != null) {
+                if (result.isValid()) {
+                    telemetry.addData("tx", result.getTx());
+                    telemetry.addData("ty", result.getTy());
+
+                    // FIXED: Pass the 'result' variable into the method
+                    telemetry.addData("distance", getDistance(result));
+
+                    telemetry.update();
+                }
+            }
         }
     }
 

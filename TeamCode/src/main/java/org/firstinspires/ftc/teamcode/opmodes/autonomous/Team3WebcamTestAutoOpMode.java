@@ -8,6 +8,7 @@ import org.firstinspires.ftc.teamcode.common.localization.FieldPose;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservation;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.common.vision.AprilTagPose;
+import org.firstinspires.ftc.teamcode.robots.team3.Team3HiveGoal;
 import org.firstinspires.ftc.teamcode.robots.team3.Team3PedroRobot;
 
 import java.util.List;
@@ -70,7 +71,9 @@ public class Team3WebcamTestAutoOpMode extends OpMode {
         telemetry.addData("Tags Detected", observations.size());
 
         for (AprilTagObservation observation : observations) {
-            telemetry.addData("Tag ID", observation.getTagId());
+            Team3HiveGoal hiveGoal = Team3HiveGoal.fromTagId(observation.getTagId());
+            telemetry.addData("Tag ID", "%d (%s)", observation.getTagId(),
+                    hiveGoal != null ? hiveGoal.getDisplayName() : "Non-Goal Tag");
             telemetry.addData("Quality", observation.getQualityStatus());
             AprilTagPose cameraPose = observation.getCameraRelativePose();
             if (cameraPose != null) {

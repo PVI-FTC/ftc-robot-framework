@@ -3,9 +3,11 @@ package org.firstinspires.ftc.teamcode.opmodes.teleop;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.common.vision.AprilTagObservationSnapshot;
 import org.firstinspires.ftc.teamcode.core.input.InputManager;
 import org.firstinspires.ftc.teamcode.core.util.RumbleManager;
 import org.firstinspires.ftc.teamcode.robots.team3.Team3DriveAssistLevel;
+import org.firstinspires.ftc.teamcode.robots.team3.Team3HiveGoal;
 import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
 
 /**
@@ -22,7 +24,8 @@ import org.firstinspires.ftc.teamcode.robots.team3.Team3Robot;
  * Right Bumper (hold) = outtake reverse (-1.0 full power, or matches trigger pull if trigger is also held).<br>
  * D-pad Up (hold) = midtake forward at 50% power.<br>
  * D-pad Down (hold) = midtake reverse at 50% power.<br>
- * D-pad Left / Right (press) = auto-aim robot heading toward visible AprilTag.<br>
+ * D-pad Left (press) = auto-aim robot heading (rotation only) toward visible AprilTag / HIVE Goal.<br>
+ * D-pad Right (press) = snap &amp; drive in 3-DOF (distance + lateral center + angle) to the shooting spot in front of whichever of the 4 HIVE Goals is visible.<br>
  * X = toggle intake-deploy servo between stowed and deployed (servo does not move until X is pressed; first press stows).<br>
  * Y = toggle full pose lock ON / OFF (starts OFF; when ON, resists all displacement and returns to original spot).<br>
  * </p>
@@ -81,9 +84,9 @@ public class Team3TeleOp extends OpMode {
         if (driverInput.wasYJustPressed()) {
             Team3DriveAssistLevel newLevel = robot.toggleDriveAssist();
             if (newLevel == Team3DriveAssistLevel.FULL) {
-                gamepad1.rumbleBlips(2); // 2 blips: FULL (XY + Heading lock ON)
+                rumble.rumbleNow(250); // FULL (XY + Heading lock ON)
             } else {
-                gamepad1.rumbleBlips(1); // 1 blip: HEADING (Direction hold only, XY manual)
+                rumble.rumbleNow(120); // HEADING (Direction hold only, XY manual)
             }
         }
 
@@ -119,11 +122,23 @@ public class Team3TeleOp extends OpMode {
             robot.toggleIntakeDeploy();
         }
 
-        // AprilTag Auto-Aim: press D-pad Left or D-pad Right to snap target heading to visible AprilTag.
-        if (driverInput.wasDpadLeftJustPressed() || driverInput.wasDpadRightJustPressed()) {
+        // D-pad Left: auto-aim robot heading (rotation only) toward visible AprilTag / HIVE Goal.
+        if (driverInput.wasDpadLeftJustPressed()) {
             int aimedTagId = robot.aimAtVisibleAprilTag();
             if (aimedTagId >= 0) {
-                rumble.rumbleNow(150); // Quick buzz confirming AprilTag lock
+                rumble.rumbleNow(150); // Quick buzz confirming AprilTag angle lock
+            }
+        } else if (driverInput.isDpadLeftHeld()
+                && robot.getAprilTagObservationSnapshot().isFreshFrame()) {
+            robot.aimAtVisibleAprilTag();
+        }
+
+        // D-pad Right: snap & navigate in 3-DOF (distance + lateral center + angle) to the shooting
+        // spot in front of whichever of the 4 HIVE Goals (2 Red, 2 Blue) is currently in view.
+        if (driverInput.wasDpadRightJustPressed()) {
+            Team3HiveGoal snappedGoal = robot.snapToVisibleGoalSpot();
+            if (snappedGoal != null) {
+                rumble.rumbleNow(250); // Buzz confirming 3-DOF HIVE Goal anchor engaged
             }
         }
 
@@ -172,7 +187,11 @@ public class Team3TeleOp extends OpMode {
         telemetry.addData("Deploy", robot.getIntakeDeployStateName());
         telemetry.addData("Midtake", "%s (D-Up: 50%% Fwd | D-Down: 50%% Rev)", robot.getMidtakeStateName());
         telemetry.addData("Outtake", "%s (%.0f%%) (RT: Fwd Var | RB: Rev)", robot.getOuttakeStateName(), robot.getOuttakePower() * 100.0);
-        telemetry.addData("Vision", robot.getVisionStateName());
+        telemetry.addData("Vision", "%s | Tags: %d [%s]",
+                robot.getVisionStateName(),
+                robot.getAprilTagObservations().size(),
+                robot.getVisibleTagsTelemetrySummary());
+        telemetry.addData("Hive Goal Snap", robot.getLastSnappedGoalSummary());
         telemetry.update();
     }
 }

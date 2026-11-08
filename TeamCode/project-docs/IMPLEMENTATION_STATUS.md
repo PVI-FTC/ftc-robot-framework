@@ -53,11 +53,18 @@ PVI-FTC | Editable master guide
 | **Right Bumper (hold)** | Outtake Reverse | Reverse ($-1.0$, or trigger-scaled if trigger held) |
 | **D-pad Up (hold)** | Midtake Forward | 50% power |
 | **D-pad Down (hold)** | Midtake Reverse | 50% power |
-| **D-pad Left / Right (press)** | AprilTag Auto-Aim | Snaps target heading to visible AprilTag bearing (+ 150ms buzz) |
+| **D-pad Left (press)** | AprilTag Auto-Aim (Angle Only) | Snaps target heading to visible HIVE Goal / AprilTag center (+ 150ms buzz) |
+| **D-pad Right (press)** | 4-Goal 3-DOF Snap & Drive | Snaps & drives (distance + lateral center + angle) to shooting spot in front of visible HIVE Goal (+ 2 blips) |
 | **X (press)** | Intake Deploy / Stow | Toggle servo; zero movement on boot, first press stows |
 | **Y (press)** | Pose Lock Toggle | Toggle full (X,Y) position lock ON / OFF |
 
-4. **Table / Bench Testing TeleOp (`Team3TableTestTeleOp.java`)**:
+4. **4-Goal BIOBUZZ HIVE AprilTag 3-DOF Snap & Navigate (`Team3HiveGoal.java`, `Team3FieldObstacles.java`, `Team3PoseLock.java`, `Team3Robot.java`, `Team3VisionConfiguration.java`)**:
+   - Created `Team3HiveGoal.java`: Models all 4 BIOBUZZ HIVE Goals (`RED_SCORING` tags `30-33`, `RED_AUDIENCE` tags `34-37`, `BLUE_AUDIENCE` tags `38-41`, `BLUE_SCORING` tags `42-45`, plus DECODE fallback tags `20` and `24`). Encodes each tag's horizontal offset within its 4-tag cluster (`-6.50, -2.75, +2.75, +6.50` inches) so seeing any 1 to 4 tags of a goal resolves the true center of that HIVE goal, along with canonical `[0, 144]` field coordinates, outward normal angle, and per-goal shooting anchor parameters (`targetDistanceInches`, `targetLateralOffsetInches`, `targetHeadingOffsetDegrees`).
+   - Created `Team3FieldObstacles.java`: Models the 6 floor-level BIOBUZZ obstacles from `path.pp.json` / official CAD (the 2 thin `2.6" x 41.4"` HIVE floor frame bases/legs and the 4 wall FLOWERs, plus the 4 perimeter walls, inflated by the `8.0"` half-robot radius + `2.0"` safety margin = `10.0"` clearance). Provides 3-layer obstacle avoidance: (1) target spot safety clamping (`clampToSafeFieldPoint`), (2) exact Liang-Barsky line-box intersection and shortest 1- or 2-corner detour waypoint planning (`planSafeFieldRoute`), and (3) continuous real-time potential-field repulsion (`computeRepulsionFieldVector`).
+   - Updated `VisionHardware.java` & `VisionPortalAprilTagSource.java`: Added `VisionHardware.createMultiTagVisionHardware(...)` supporting both BIOBUZZ (`AprilTagGameDatabase.getBioBuzzTagLibrary()`) and DECODE (`AprilTagGameDatabase.getDecodeTagLibrary()`) tag libraries and 3D camera mount rotation (`pitch`, `yaw`, `roll`) while leaving Team A's existing `VisionHardware` constructors 100% untouched.
+   - Updated `Team3PoseLock.java` & `Team3Robot.java`: Added `setTargetPoseRoute(...)` and `snapToVisibleGoalSpot()` (mapped to **D-pad Right** in `Team3TeleOp.java`) which reconstructs the robot's field pose from the observed HIVE goal, plans a collision-free waypoint route around any floor obstacle to the perpendicular shooting spot, and engages `FULL` Pose Lock with live obstacle repulsion.
+   - Configured measured webcam mounting parameters in `Team3VisionConfiguration.java`: `CAMERA_RIGHT_INCHES = 6.0`, `CAMERA_FORWARD_INCHES = 1.5`, `CAMERA_UP_INCHES = 11.5`, `CAMERA_PITCH_DEGREES = 25.0`, `CAMERA_YAW_DEGREES = 0.0`, `CAMERA_ROLL_DEGREES = 0.0`.
+5. **Table / Bench Testing TeleOp (`Team3TableTestTeleOp.java`)**:
    - Created `opmodes.testing.Team3TableTestTeleOp` (`@TeleOp(name = "Team 3 Table Test (No Odo)", group = "Team 3 Testing")`).
    - Calls `robot.enableManualDrive()` (`Team3DriveAssistLevel.OFF`) in `start()`, applies a `0.08` joystick deadband (`STICK_DEADBAND`), and omits the `Y` pose-lock toggle so Pinpoint odometry and IMU heading correction never spin the wheels when the robot is sitting on a table or blocks during intake, midtake, outtake, and servo testing.
 5. **Pedro Autonomous Intake, Scoring Step, RumbleManager, and AprilTag Vision Integration**:
@@ -1037,6 +1044,15 @@ current Pedro 3 implementation.
   - Updated `Team3Robot`: composed `DriveSubsystem` with `Team3StabilizedDriveController`, enabled Lynx module bulk caching mode `AUTO`, added `toggleDriveAssist()` and target getters (`getTargetXInches()`, `getTargetYInches()`, `getXInches()`, `getYInches()`). Removed redundant `Team3HeadingHoldSubsystem`.
   - Updated `Team3TeleOp`: starts with assist `OFF` by default; button `Y` toggles `OFF (MANUAL)` and `ON (FULL POSE LOCK)` (locking current pose upon activation). Telemetry reports live Pinpoint coordinates (fusing odometry + IMU), locked origin coordinates, displacement error, and loop time in ms.
   - Build verified: `TeamCode:assembleDebug` passed (`BUILD SUCCESSFUL`, 52 tasks, 0 errors). `git diff --check` passed clean.
+
+- Team 3 AprilTag Vision, Auto-Aim, and HIVE Navigation Architecture:
+  - *FTC SDK 12 AprilTag Library & Detection*: Identified that FTC SDK 12 `AprilTagGameDatabase.getBioBuzzTagLibrary()` only registers clusters, lacking single tag metadata which caused single tag `ftcPose` to be null or skipped. Built `buildMultiTagLibrary()` in `VisionPortalAprilTagSource` registering HIVE tags 30–45 and standard tags with `.setAllowOverwrite(true)`.
+  - *Retained Pose Persistence*: In `VisionPortalAprilTagSource`, retained snapshots now maintain metric poses across loops when `enableMultiTagPose` is active.
+  - *Camera 3D Mount Pitch/Roll Decoupling*: Measured camera mount (`6.0"` right, `1.5"` forward, `11.5"` up, `+25°` upward tilt). Corrected raw `ftcPose.yaw` cross-coupling by extracting horizontal tag tangent vector `tx` from `rawPose.R` and rotating it through camera mount pitch/roll/yaw, accurately calculating true floor `robotYaw`.
+  - *TeleOp D-pad Left Auto-Aim*: Mapped D-pad Left (press/hold) in `Team3TeleOp` to continuously track and lock robot heading toward visible AprilTag / HIVE Goal center via `Team3Robot.aimAtVisibleAprilTag()`. Added `KS_HEADING = 0.05` carpet friction feedforward ramp in `Team3PoseLock` to overcome static friction when error is small.
+  - *TeleOp D-pad Right HIVE 3-DOF Snap*: Mapped D-pad Right in `Team3TeleOp` to `Team3Robot.snapToVisibleGoalSpot()`, snapping virtual anchor in 3-DOF to the shooting spot in front of the visible goal.
+  - *Field Obstacles & Repulsion*: Added `Team3FieldObstacles` modeling 6 floor obstacles (2 HIVE base rails + 4 FLOWERs) and 4 perimeter walls in field coordinates with Liang-Barsky line-box intersection waypoint routing and real-time potential field repulsion.
+  - *Verification*: `TeamCode:assembleDebug` built clean (`BUILD SUCCESSFUL`). `git diff --check` passed clean.
 
 ## Update instructions
 After every completed update, replace or extend the sections above with:

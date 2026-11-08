@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.robots.team3;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Pure mathematical controller providing closed-loop 3-DOF pose stabilization (X, Y, Heading).
  *
@@ -52,6 +55,10 @@ public class Team3PoseLock {
 
     /** Heading proportional gain (power per radian of angular error). */
     public static final double KP_HEADING = 1.2;
+    /** Minimum rotational power kick to overcome static friction on carpet. */
+    public static final double KS_HEADING = 0.05;
+    /** Boundary zone across which rotational friction feedforward ramps linearly (~3 deg). */
+    public static final double HEADING_RAMP_RADIANS = Math.toRadians(3.0);
     /** Maximum heading correction power clamp. */
     public static final double MAX_HEADING_CORRECTION = 0.45;
     /** Small angular deadband to eliminate motor jitter when pointing straight (~0.5 deg). */
@@ -75,6 +82,8 @@ public class Team3PoseLock {
     public static final double STOPPED_SPEED_THRESHOLD_IPS = 1.5;
     /** Maximum time in seconds to wait for coasting deceleration before forcing locked anchor. */
     public static final double MAX_DECEL_TIME_SECONDS = 0.18;
+    /** Radius in inches within which an intermediate obstacle-avoidance waypoint smoothly hands off. */
+    public static final double WAYPOINT_PASS_RADIUS_INCHES = 4.5;
 
     // --- Operating States ---
     private Team3DriveAssistLevel assistLevel = Team3DriveAssistLevel.HEADING;
@@ -82,11 +91,20 @@ public class Team3PoseLock {
     private boolean isSteering;
     private double steeringSettleTimerSeconds;
 
-    // --- Locked Anchors ---
+    // --- Locked Anchors & Multi-Waypoint Obstacle Avoidance ---
     private double anchorX;
     private double anchorY;
     private double anchorHeading;
     private boolean anchorInitialized;
+
+    private final List<double[]> odoRouteWaypoints = new ArrayList<>();
+    private int routeWaypointIndex;
+    private boolean hasFieldTransform;
+    private double refOdoX;
+    private double refOdoY;
+    private double refFieldX;
+    private double refFieldY;
+    private double odoMinusFieldHeadingRad;
 
     // --- History for Velocity & Derivation ---
     private double lastRobotX;
@@ -146,6 +164,9 @@ public class Team3PoseLock {
         lastErrorRobotFwd = 0.0;
         lastErrorRobotLeft = 0.0;
 
+        odoRouteWaypoints.clear();
+        routeWaypointIndex = 0;
+
         telemetryErrorInches = 0.0;
         telemetryHeadingErrorDegrees = 0.0;
     }
@@ -170,8 +191,90 @@ public class Team3PoseLock {
             anchorY = currentY;
             anchorInitialized = true;
         }
+        if (assistLevel == Team3DriveAssistLevel.OFF) {
+            assistLevel = Team3DriveAssistLevel.HEADING;
+        }
         isSteering = false;
         steeringSettleTimerSeconds = STEER_SETTLE_SECONDS;
+    }
+
+    /**
+     * Sets a 3-DOF target pose anchor (X, Y, Heading) and immediately engages {@link Team3DriveAssistLevel#FULL}
+     * in {@link TranslationState#LOCKED} mode so the robot automatically drives and rotates to the
+     * target anchor and locks there until the driver touches the sticks.
+     *
+     * @param targetXInches target field X coordinate in inches
+     * @param targetYInches target field Y coordinate in inches
+     * @param targetHeadingRadians target field heading in radians
+     * @param currentXInches current physical robot X in inches
+     * @param currentYInches current physical robot Y in inches
+     * @param currentHeadingRadians current physical robot heading in radians
+     */
+    public void setTargetPoseAnchor(double targetXInches, double targetYInches, double targetHeadingRadians,
+                                    double currentXInches, double currentYInches, double currentHeadingRadians) {
+        odoRouteWaypoints.clear();
+        routeWaypointIndex = 0;
+
+        anchorX = targetXInches;
+        anchorY = targetYInches;
+        anchorHeading = normalizeAngle(targetHeadingRadians);
+        anchorInitialized = true;
+
+        if (!hasLastPose) {
+            lastRobotX = currentXInches;
+            lastRobotY = currentYInches;
+            lastRobotHeading = currentHeadingRadians;
+            hasLastPose = true;
+        }
+
+        assistLevel = Team3DriveAssistLevel.FULL;
+        translationState = TranslationState.LOCKED;
+        isSteering = false;
+        steeringSettleTimerSeconds = STEER_SETTLE_SECONDS;
+        decelTransTimerSeconds = 0.0;
+
+        integralFwd = 0.0;
+        integralLeft = 0.0;
+        lastErrorRobotFwd = 0.0;
+        lastErrorRobotLeft = 0.0;
+    }
+
+    /**
+     * Sets an obstacle-avoiding multi-waypoint route in Pinpoint odometry coordinates along with
+     * the live {@code [0, 144]} BIOBUZZ field coordinate transform so the robot smoothly routes
+     * around any stationary obstacle (HIVE floor frame bases, wall FLOWERs, perimeter walls) and
+     * locks at the final shooting spot.
+     */
+    public void setTargetPoseRoute(List<double[]> odoWaypoints,
+                                   double targetHeadingRadians,
+                                   double currentOdoX,
+                                   double currentOdoY,
+                                   double currentOdoHeading,
+                                   double currentFieldX,
+                                   double currentFieldY,
+                                   double odoMinusFieldHeadingRadians) {
+        if (odoWaypoints == null || odoWaypoints.isEmpty()) {
+            return;
+        }
+        double[] firstWp = odoWaypoints.get(0);
+        setTargetPoseAnchor(firstWp[0], firstWp[1], targetHeadingRadians,
+                currentOdoX, currentOdoY, currentOdoHeading);
+
+        odoRouteWaypoints.clear();
+        odoRouteWaypoints.addAll(odoWaypoints);
+        routeWaypointIndex = 0;
+
+        this.hasFieldTransform = true;
+        this.refOdoX = currentOdoX;
+        this.refOdoY = currentOdoY;
+        this.refFieldX = currentFieldX;
+        this.refFieldY = currentFieldY;
+        this.odoMinusFieldHeadingRad = odoMinusFieldHeadingRadians;
+    }
+
+    /** Returns the number of waypoints in the active obstacle-avoiding route (1 = direct, >1 = detour). */
+    public int getActiveRouteWaypointCount() {
+        return odoRouteWaypoints.size();
     }
 
     /** Returns the locked target X in inches for telemetry. */
@@ -267,11 +370,13 @@ public class Team3PoseLock {
         if (assistLevel == Team3DriveAssistLevel.FULL) {
             // FULL Mode: Holds physical X, Y coordinates as well as heading
             if (isDriverTranslating) {
-                // Driver is manually translating: pass stick commands directly
+                // Driver is manually translating: pass stick commands directly and clear any route
                 translationState = TranslationState.MANUAL_DRIVING;
                 decelTransTimerSeconds = 0.0;
                 integralFwd = 0.0;
                 integralLeft = 0.0;
+                odoRouteWaypoints.clear();
+                routeWaypointIndex = 0;
                 output[0] = forwardStick;
                 output[1] = strafeStick;
             } else {
@@ -307,6 +412,17 @@ public class Team3PoseLock {
                 }
 
                 if (translationState == TranslationState.LOCKED) {
+                    // Advance smoothly through intermediate obstacle-avoidance waypoints
+                    while (routeWaypointIndex < odoRouteWaypoints.size() - 1
+                            && Math.hypot(anchorX - robotX, anchorY - robotY) <= WAYPOINT_PASS_RADIUS_INCHES) {
+                        routeWaypointIndex++;
+                        double[] nextWp = odoRouteWaypoints.get(routeWaypointIndex);
+                        anchorX = nextWp[0];
+                        anchorY = nextWp[1];
+                        integralFwd = 0.0;
+                        integralLeft = 0.0;
+                    }
+
                     // In LOCKED state: virtual anchor NEVER moves regardless of how far pushed or dragged!
                     double dx = anchorX - robotX;
                     double dy = anchorY - robotY;
@@ -347,17 +463,37 @@ public class Team3PoseLock {
                     double sFwd = computeFrictionCompensation(errRobotFwd, POSITION_DEADBAND_INCHES, POSITION_RAMP_INCHES, KS_TRANSLATIONAL);
                     double sLeft = computeFrictionCompensation(errRobotLeft, POSITION_DEADBAND_INCHES, POSITION_RAMP_INCHES, KS_TRANSLATIONAL);
 
-                    // Closed-loop PID with true velocity damping
+                    // Real-time stationary obstacle & wall repulsion while moving toward target
+                    double repulseRobotFwd = 0.0;
+                    double repulseRobotLeft = 0.0;
+                    if (hasFieldTransform && telemetryErrorInches > 1.0) {
+                        double cosT = Math.cos(odoMinusFieldHeadingRad);
+                        double sinT = Math.sin(odoMinusFieldHeadingRad);
+                        double dOdoX = robotX - refOdoX;
+                        double dOdoY = robotY - refOdoY;
+                        double liveFieldX = refFieldX + dOdoX * cosT + dOdoY * sinT;
+                        double liveFieldY = refFieldY - dOdoX * sinT + dOdoY * cosT;
+
+                        double[] repulseField = Team3FieldObstacles.computeRepulsionFieldVector(liveFieldX, liveFieldY);
+                        double repulseOdoX = repulseField[0] * cosT - repulseField[1] * sinT;
+                        double repulseOdoY = repulseField[0] * sinT + repulseField[1] * cosT;
+                        repulseRobotFwd = repulseOdoX * Math.cos(robotHeading) + repulseOdoY * Math.sin(robotHeading);
+                        repulseRobotLeft = -repulseOdoX * Math.sin(robotHeading) + repulseOdoY * Math.cos(robotHeading);
+                    }
+
+                    // Closed-loop PID with true velocity damping + obstacle repulsion
                     double corrFwd = (KP_TRANSLATIONAL * errRobotFwd)
                             - (KD_TRANSLATIONAL * vRobotFwd)
                             + (KI_TRANSLATIONAL * integralFwd)
-                            + sFwd;
+                            + sFwd
+                            + repulseRobotFwd;
                     corrFwd = Math.max(-MAX_TRANSLATIONAL_CORRECTION, Math.min(MAX_TRANSLATIONAL_CORRECTION, corrFwd));
 
                     double corrLeft = (KP_TRANSLATIONAL * errRobotLeft)
                             - (KD_TRANSLATIONAL * vRobotLeft)
                             + (KI_TRANSLATIONAL * integralLeft)
-                            + sLeft;
+                            + sLeft
+                            + repulseRobotLeft;
                     corrLeft = Math.max(-MAX_TRANSLATIONAL_CORRECTION, Math.min(MAX_TRANSLATIONAL_CORRECTION, corrLeft));
 
                     output[0] = corrFwd;
@@ -405,8 +541,10 @@ public class Team3PoseLock {
                     // In FTC/Pinpoint coordinate geometry: CCW is positive.
                     // In MecanumDriveController: positive rotate turns Clockwise.
                     // When robot drifts CCW (dh < 0), we need positive rotate (CW) to return to target.
-                    // Therefore, correction = -dh * KP_HEADING.
-                    double correction = -dh * KP_HEADING;
+                    // Therefore, correction = -dh * KP_HEADING - sHeading.
+                    double sHeading = computeFrictionCompensation(
+                            dh, HEADING_DEADBAND_RADIANS, HEADING_RAMP_RADIANS, KS_HEADING);
+                    double correction = (-dh * KP_HEADING) - sHeading;
                     output[2] = Math.max(-MAX_HEADING_CORRECTION, Math.min(MAX_HEADING_CORRECTION, correction));
                 }
             }

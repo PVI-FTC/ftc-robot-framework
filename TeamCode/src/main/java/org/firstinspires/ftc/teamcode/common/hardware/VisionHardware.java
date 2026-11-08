@@ -42,6 +42,17 @@ public class VisionHardware {
         this(new VisionPortalAprilTagSource(cameraConfiguration, localizationConfiguration));
     }
 
+    /**
+     * Creates VisionPortal hardware configured with both BIOBUZZ (HIVE tags 30-45) and DECODE
+     * (tags 20-24) libraries and full camera-mount rotation support.
+     */
+    public static VisionHardware createMultiTagVisionHardware(
+            AprilTagCameraConfiguration cameraConfiguration,
+            AprilTagLocalizationConfiguration localizationConfiguration) {
+        return new VisionHardware(new VisionPortalAprilTagSource(
+                cameraConfiguration, localizationConfiguration, true));
+    }
+
     /** Allows a hardware-layer source to be supplied by a later vision composition. */
     VisionHardware(AprilTagVisionSource source) {
         if (source == null) {

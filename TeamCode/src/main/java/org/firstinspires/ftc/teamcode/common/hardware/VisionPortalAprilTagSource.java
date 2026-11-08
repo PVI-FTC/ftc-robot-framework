@@ -19,6 +19,7 @@ import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
+import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 import org.firstinspires.ftc.vision.apriltag.AprilTagMetadata;
 import org.firstinspires.ftc.vision.apriltag.AprilTagPoseFtc;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
@@ -37,6 +38,8 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
             "FTC camera frame: lens origin, +X right, +Y forward, +Z up";
     private static final String METRIC_QUALITY =
             "Experimental metric pose from fresh, calibrated, verified tag 22 data.";
+    private static final String MULTI_TAG_METRIC_QUALITY =
+            "Metric pose from fresh calibrated AprilTag detection.";
     private static final String RETAINED_ID_ONLY_QUALITY =
             "Retained ID from last frame; metric pose requires a fresh frame.";
     private static final String FIELD_POSE_ACCEPTED =
@@ -44,22 +47,30 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
 
     private final AprilTagCameraConfiguration configuration;
     private final AprilTagLocalizationConfiguration localizationConfiguration;
+    private final boolean enableMultiTagPose;
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
     private AprilTagObservationSnapshot snapshot = AprilTagObservationSnapshot.unavailable();
     private boolean available;
 
     VisionPortalAprilTagSource(AprilTagCameraConfiguration configuration) {
-        this(configuration, null);
+        this(configuration, null, false);
     }
 
     VisionPortalAprilTagSource(AprilTagCameraConfiguration configuration,
                                AprilTagLocalizationConfiguration localizationConfiguration) {
+        this(configuration, localizationConfiguration, false);
+    }
+
+    VisionPortalAprilTagSource(AprilTagCameraConfiguration configuration,
+                               AprilTagLocalizationConfiguration localizationConfiguration,
+                               boolean enableMultiTagPose) {
         if (configuration == null) {
             throw new IllegalArgumentException("Vision source needs a camera configuration.");
         }
         this.configuration = configuration;
         this.localizationConfiguration = localizationConfiguration;
+        this.enableMultiTagPose = enableMultiTagPose;
     }
 
     @Override
@@ -68,9 +79,12 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         try {
             WebcamName webcam = hardwareMap.get(WebcamName.class,
                     configuration.getWebcamHardwareName());
+            AprilTagLibrary tagLibrary = enableMultiTagPose
+                    ? buildMultiTagLibrary()
+                    : AprilTagGameDatabase.getDecodeTagLibrary();
             AprilTagProcessor.Builder processorBuilder = new AprilTagProcessor.Builder()
                     .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
-                    .setTagLibrary(AprilTagGameDatabase.getDecodeTagLibrary())
+                    .setTagLibrary(tagLibrary)
                     .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES);
             if (canConfigureSdkCameraPose()) {
                 processorBuilder.setCameraPose(
@@ -79,7 +93,9 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                                 configuration.getMountForwardInches(),
                                 configuration.getMountUpInches(), 0),
                         new YawPitchRollAngles(AngleUnit.DEGREES,
-                                0, -90, 0, 0));
+                                configuration.getMountYawDegrees(),
+                                -90.0 + configuration.getMountPitchDegrees(),
+                                configuration.getMountRollDegrees(), 0));
             }
             aprilTagProcessor = processorBuilder.build();
             visionPortal = new VisionPortal.Builder()
@@ -106,7 +122,9 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         List<AprilTagDetection> freshDetections = aprilTagProcessor.getFreshDetections();
         if (freshDetections == null) {
             snapshot = AprilTagObservationSnapshot.retained(
-                    copyAsRetainedIdOnly(snapshot.getObservations()));
+                    enableMultiTagPose
+                            ? snapshot.getObservations()
+                            : copyAsRetainedIdOnly(snapshot.getObservations()));
             return;
         }
 
@@ -144,9 +162,75 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 ftcPose.pitch, ftcPose.roll, ftcPose.yaw,
                 ftcPose.range, ftcPose.bearing, ftcPose.elevation);
 
-        double robotRight = ftcPose.x + configuration.getMountRightInches();
-        double robotForward = ftcPose.y + configuration.getMountForwardInches();
-        double robotUp = ftcPose.z + configuration.getMountUpInches();
+        double camX = ftcPose.x;
+        double camY = ftcPose.y;
+        double camZ = ftcPose.z;
+        double robotYaw = ftcPose.yaw;
+
+        if (enableMultiTagPose) {
+            double rollRad = Math.toRadians(configuration.getMountRollDegrees());
+            double pitchRad = Math.toRadians(configuration.getMountPitchDegrees());
+            double yawRad = Math.toRadians(configuration.getMountYawDegrees());
+
+            // Extract tag's horizontal right unit vector t_x from rawPose.R (column 0) in FTC camera axes
+            boolean hasRawRotation = detection.rawPose != null && detection.rawPose.R != null;
+            double txCamX = hasRawRotation ? detection.rawPose.R.get(0, 0) : Math.cos(Math.toRadians(ftcPose.yaw));
+            double txCamY = hasRawRotation ? detection.rawPose.R.get(2, 0) : Math.sin(Math.toRadians(ftcPose.yaw));
+            double txCamZ = hasRawRotation ? -detection.rawPose.R.get(1, 0) : 0.0;
+
+            // 1. Roll around camera Y (forward) axis
+            if (!isZero(rollRad)) {
+                double cosR = Math.cos(rollRad);
+                double sinR = Math.sin(rollRad);
+                double rx = camX * cosR - camZ * sinR;
+                double rz = camX * sinR + camZ * cosR;
+                camX = rx;
+                camZ = rz;
+
+                double trx = txCamX * cosR - txCamZ * sinR;
+                double trz = txCamX * sinR + txCamZ * cosR;
+                txCamX = trx;
+                txCamZ = trz;
+            }
+            // 2. Pitch around camera X (right) axis (positive pitch tilts camera upward)
+            if (!isZero(pitchRad)) {
+                double cosP = Math.cos(pitchRad);
+                double sinP = Math.sin(pitchRad);
+                double py = camY * cosP - camZ * sinP;
+                double pz = camY * sinP + camZ * cosP;
+                camY = py;
+                camZ = pz;
+
+                double tpy = txCamY * cosP - txCamZ * sinP;
+                double tpz = txCamY * sinP + txCamZ * cosP;
+                txCamY = tpy;
+                txCamZ = tpz;
+            }
+            // 3. Yaw around vertical Z (up) axis (positive yaw rotates camera CCW / left)
+            if (!isZero(yawRad)) {
+                double cosY = Math.cos(yawRad);
+                double sinY = Math.sin(yawRad);
+                double yx = camX * cosY - camY * sinY;
+                double yy = camX * sinY + camY * cosY;
+                camX = yx;
+                camY = yy;
+
+                double tyx = txCamX * cosY - txCamY * sinY;
+                double tyy = txCamX * sinY + txCamY * cosY;
+                txCamX = tyx;
+                txCamY = tyy;
+            }
+
+            if (Math.hypot(txCamX, txCamY) > 1e-4) {
+                robotYaw = Math.toDegrees(Math.atan2(txCamY, txCamX));
+            } else {
+                robotYaw = ftcPose.yaw - configuration.getMountYawDegrees();
+            }
+        }
+
+        double robotRight = camX + configuration.getMountRightInches();
+        double robotForward = camY + configuration.getMountForwardInches();
+        double robotUp = camZ + configuration.getMountUpInches();
         double robotRange = Math.hypot(robotRight, robotForward);
         double robotBearing = Math.toDegrees(Math.atan2(-robotRight, robotForward));
         double robotElevation = Math.toDegrees(Math.atan2(robotUp, robotForward));
@@ -156,12 +240,16 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                     "ID detected; metric pose unavailable: transformed values are not finite.");
         }
 
+        double robotPitch = ftcPose.pitch + (enableMultiTagPose ? configuration.getMountPitchDegrees() : 0.0);
+        double robotRoll = ftcPose.roll + (enableMultiTagPose ? configuration.getMountRollDegrees() : 0.0);
+
         AprilTagPose robotPose = new AprilTagPose(configuration.getRobotFrameName(),
                 robotRight, robotForward, robotUp,
-                ftcPose.pitch, ftcPose.roll, ftcPose.yaw,
+                robotPitch, robotRoll, robotYaw,
                 robotRange, robotBearing, robotElevation);
         return new AprilTagObservation(detection.id, detection.frameAcquisitionNanoTime,
-                METRIC_QUALITY, cameraPose, robotPose);
+                enableMultiTagPose ? MULTI_TAG_METRIC_QUALITY : METRIC_QUALITY,
+                cameraPose, robotPose);
     }
 
     private FieldPoseCandidateResult createFieldPoseCandidate(AprilTagSingleDetection detection) {
@@ -225,15 +313,21 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
                 || metadata.fieldPosition == null || metadata.fieldOrientation == null) {
             return false;
         }
-        String expectedName = detection.id == 20 ? "BlueTarget"
-                : detection.id == 24 ? "RedTarget" : "";
         double tagSizeInches = DistanceUnit.INCH.fromUnit(
                 metadata.distanceUnit, metadata.tagsize);
+        if (enableMultiTagPose) {
+            return isFinite(tagSizeInches) && tagSizeInches > 0.0;
+        }
+        String expectedName = detection.id == 20 ? "BlueTarget"
+                : detection.id == 24 ? "RedTarget" : "";
         return expectedName.equals(metadata.name) && isFinite(tagSizeInches)
                 && Math.abs(tagSizeInches - VERIFIED_TAG_SIZE_INCHES) <= COMPARISON_TOLERANCE;
     }
 
     private boolean canConfigureSdkCameraPose() {
+        if (enableMultiTagPose) {
+            return localizationConfiguration != null && configuration.isMountVerified();
+        }
         return localizationConfiguration != null && configuration.isMountVerified()
                 && isZero(configuration.getMountYawDegrees())
                 && isZero(configuration.getMountPitchDegrees())
@@ -244,22 +338,35 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         if (detection.frameAcquisitionNanoTime <= 0) {
             return "the frame acquisition timestamp is invalid.";
         }
-        if (detection.id != 20 && detection.id != 22 && detection.id != 24) {
-            return "only DECODE tags 20, 22, and 24 are verified for this experiment.";
-        }
-        AprilTagMetadata metadata = detection.metadata;
-        if (metadata == null) {
-            return "tag 22 metadata is missing.";
-        }
-        if (metadata.id != detection.id
-                || metadata.distanceUnit == null) {
-            return "tag 22 metadata does not match the verified SDK entry.";
-        }
-        double tagSizeInches = DistanceUnit.INCH.fromUnit(
-                metadata.distanceUnit, metadata.tagsize);
-        if (!isFinite(tagSizeInches)
-                || Math.abs(tagSizeInches - VERIFIED_TAG_SIZE_INCHES) > COMPARISON_TOLERANCE) {
-            return "tag 22 black-square size is not the verified 6.5 inches.";
+        if (!enableMultiTagPose) {
+            if (detection.id != VERIFIED_TAG_ID) {
+                return "only DECODE tag 22 is verified for this experiment.";
+            }
+            AprilTagMetadata metadata = detection.metadata;
+            if (metadata == null) {
+                return "tag 22 metadata is missing.";
+            }
+            if (metadata.id != VERIFIED_TAG_ID
+                    || !VERIFIED_TAG_NAME.equals(metadata.name)
+                    || metadata.distanceUnit == null) {
+                return "tag 22 metadata does not match the verified SDK entry.";
+            }
+            double tagSizeInches = DistanceUnit.INCH.fromUnit(
+                    metadata.distanceUnit, metadata.tagsize);
+            if (!isFinite(tagSizeInches)
+                    || Math.abs(tagSizeInches - VERIFIED_TAG_SIZE_INCHES) > COMPARISON_TOLERANCE) {
+                return "tag 22 black-square size is not the verified 6.5 inches.";
+            }
+        } else {
+            AprilTagMetadata metadata = detection.metadata;
+            if (metadata == null || metadata.id != detection.id || metadata.distanceUnit == null) {
+                return "tag metadata is missing or invalid.";
+            }
+            double tagSizeInches = DistanceUnit.INCH.fromUnit(
+                    metadata.distanceUnit, metadata.tagsize);
+            if (!isFinite(tagSizeInches) || tagSizeInches <= 0.0) {
+                return "tag size is invalid.";
+            }
         }
         if (!configuration.isCalibrationVerified()
                 || configuration.getStreamWidth() != 640
@@ -277,9 +384,10 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
         if (!configuration.isMountVerified()) {
             return "the camera mount is not verified.";
         }
-        if (!isZero(configuration.getMountYawDegrees())
+        if (!enableMultiTagPose
+                && (!isZero(configuration.getMountYawDegrees())
                 || !isZero(configuration.getMountPitchDegrees())
-                || !isZero(configuration.getMountRollDegrees())) {
+                || !isZero(configuration.getMountRollDegrees()))) {
             return "nonzero camera-mount rotation conversion is not verified.";
         }
         return null;
@@ -300,6 +408,44 @@ class VisionPortalAprilTagSource implements AprilTagVisionSource {
 
     private boolean isZero(double value) {
         return Math.abs(value) <= COMPARISON_TOLERANCE;
+    }
+
+    private static AprilTagLibrary buildMultiTagLibrary() {
+        AprilTagLibrary.Builder builder = new AprilTagLibrary.Builder();
+        builder.setAllowOverwrite(true);
+        builder.addTags(AprilTagGameDatabase.getCenterStageTagLibrary());
+        builder.addTags(AprilTagGameDatabase.getIntoTheDeepTagLibrary());
+        builder.addTags(AprilTagGameDatabase.getDecodeTagLibrary());
+        builder.addTags(AprilTagGameDatabase.getSampleTagLibrary());
+
+        // In FTC SDK 12.0, AprilTagGameDatabase.getBioBuzzTagLibrary() only populates
+        // getAllClusters() and leaves getAllTags() empty. Registering tags 30-45 as
+        // individual 3.25-inch single tags ensures AprilTagProcessor solves a 3D
+        // AprilTagSingleDetection pose (ftcPose) for every visible BIOBUZZ HIVE tag.
+        for (int id = 30; id <= 33; id++) {
+            builder.addTag(id, "RED SCORING_" + id, 3.25, DistanceUnit.INCH);
+        }
+        for (int id = 34; id <= 37; id++) {
+            builder.addTag(id, "RED AUDIENCE_" + id, 3.25, DistanceUnit.INCH);
+        }
+        for (int id = 38; id <= 41; id++) {
+            builder.addTag(id, "BLUE AUDIENCE_" + id, 3.25, DistanceUnit.INCH);
+        }
+        for (int id = 42; id <= 45; id++) {
+            builder.addTag(id, "BLUE SCORING_" + id, 3.25, DistanceUnit.INCH);
+        }
+
+        // Also register remaining standard 36h11 tag IDs (0, 17-19, 25-29, 581-582) for lab testing
+        builder.addTag(0, "Tag_0", 3.25, DistanceUnit.INCH);
+        for (int id = 17; id <= 19; id++) {
+            builder.addTag(id, "Tag_" + id, 3.25, DistanceUnit.INCH);
+        }
+        for (int id = 25; id <= 29; id++) {
+            builder.addTag(id, "Tag_" + id, 3.25, DistanceUnit.INCH);
+        }
+        builder.addTag(581, "Sample_581", 3.0, DistanceUnit.INCH);
+        builder.addTag(582, "Sample_582", 3.0, DistanceUnit.INCH);
+        return builder.build();
     }
 
     private List<AprilTagObservation> copyAsRetainedIdOnly(

@@ -14,10 +14,9 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot;
  */
 @TeleOp(name = "Team A Mecanum Drive", group = "Team A")
 public class TeamATeleOp extends OpMode {
-    private static final double TRIGGER_DEADZONE = 0.05;
-
     private TeamARobot robot;
     private InputManager driverInput;
+    private boolean intakeRunning;
 
     @Override
     public void init() {
@@ -45,17 +44,25 @@ public class TeamATeleOp extends OpMode {
             robot.enableManualDrive();
         }
 
-        if (driverInput.wasLeftBumperJustPressed()) {
-            robot.disableVision();
-        } else if (driverInput.wasRightBumperJustPressed()) {
-            robot.enableVision();
+        if (driverInput.wasAJustPressed()) {
+            intakeRunning = !intakeRunning;
+            if (intakeRunning) {
+                robot.startIntake();
+            } else {
+                robot.stopIntake();
+            }
         }
 
-        double intakePower = driverInput.getRightTrigger();
-        if (intakePower > TRIGGER_DEADZONE) {
-            robot.startIntake(intakePower);
-        } else {
-            robot.stopIntake();
+        if (driverInput.wasBJustPressed()) {
+            robot.toggleMidtake();
+        }
+
+        if (driverInput.wasRightBumperJustPressed()) {
+            robot.togglePollenOuttakeVelocity();
+        }
+
+        if (driverInput.wasLeftBumperJustPressed()) {
+            robot.toggleNectarOuttakeVelocity();
         }
 
         robot.drive(driverInput.getLeftStickY(), -driverInput.getLeftStickX(),
@@ -82,6 +89,12 @@ public class TeamATeleOp extends OpMode {
         telemetry.addData("Rear Right Power", robot.getRearRightMotorPower());
         telemetry.addData("Intake State", robot.getIntakeStateName());
         telemetry.addData("Intake Available", robot.isIntakeAvailable());
+        telemetry.addData("Midtake State", robot.getMidtakeStateName());
+        telemetry.addData("Midtake Available", robot.isMidtakeAvailable());
+        telemetry.addData("Pollen Outtake State", robot.getPollenOuttakeStateName());
+        telemetry.addData("Pollen Outtake Available", robot.isPollenOuttakeAvailable());
+        telemetry.addData("Nectar Outtake State", robot.getNectarOuttakeStateName());
+        telemetry.addData("Nectar Outtake Available", robot.isNectarOuttakeAvailable());
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
         telemetry.update();

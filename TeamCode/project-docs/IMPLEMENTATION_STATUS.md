@@ -12,6 +12,16 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Team A's simple robot now includes optional `midtakeMotor`, `pollenMotor`, and `nectarMotor`
+  hardware behind Team A-specific FSM subsystems. Gamepad 1 A toggles the existing `intakeMotor`,
+  B toggles the full-power forward midtake, right bumper cycles the pollen outtake, and left bumper
+  cycles the nectar outtake. All mappings use `InputManager` press edges, so holding a button does
+  not repeat a command; the former right-trigger intake and bumper vision mappings were removed.
+  Both 6,000 RPM outtakes use `DcMotorEx`, `RUN_USING_ENCODER`, and angular `setVelocity`: their
+  first press selects 40% idle velocity, their second selects 80% launch velocity, and later
+  presses alternate those speeds independently. The existing intake direction remains unchanged;
+  midtake and both outtakes are `FORWARD`. These changes have only been compile-checked and still
+  require physical configuration and velocity validation on Team A's robot.
 - Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
   pivot, but the robot was launching along y, into the CELL's side wall. It now launches from
   (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New

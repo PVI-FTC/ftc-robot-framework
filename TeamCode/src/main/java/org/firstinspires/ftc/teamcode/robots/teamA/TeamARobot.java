@@ -11,6 +11,10 @@ import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.vision.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.core.robot.Robot;
+import org.firstinspires.ftc.teamcode.robots.teamA.hardware.TeamAMidtakeHardware;
+import org.firstinspires.ftc.teamcode.robots.teamA.hardware.TeamAOuttakeHardware;
+import org.firstinspires.ftc.teamcode.robots.teamA.subsystems.TeamAMidtakeSubsystem;
+import org.firstinspires.ftc.teamcode.robots.teamA.subsystems.TeamAOuttakeSubsystem;
 
 /**
  * Team A's robot composition and public drivetrain API.
@@ -20,10 +24,19 @@ import org.firstinspires.ftc.teamcode.core.robot.Robot;
  * responsibility for behavior and hardware access.</p>
  */
 public class TeamARobot extends Robot implements AutonomousRobotControl {
+    public static final String POLLEN_MOTOR_NAME = "pollenMotor";
+    public static final String NECTAR_MOTOR_NAME = "nectarMotor";
+
     private final RobotHardware robotHardware;
+    private final TeamAMidtakeHardware midtakeHardware = new TeamAMidtakeHardware();
+    private final TeamAOuttakeHardware pollenHardware = new TeamAOuttakeHardware(POLLEN_MOTOR_NAME);
+    private final TeamAOuttakeHardware nectarHardware = new TeamAOuttakeHardware(NECTAR_MOTOR_NAME);
     private final DriveSubsystem driveSubsystem;
     private final IntakeSubsystem intakeSubsystem;
     private final VisionSubsystem visionSubsystem;
+    private final TeamAMidtakeSubsystem midtakeSubsystem;
+    private final TeamAOuttakeSubsystem pollenSubsystem;
+    private final TeamAOuttakeSubsystem nectarSubsystem;
     private boolean hardwareInitialized;
 
     /** Creates Team A's robot with its geared drivetrain direction configuration. */
@@ -54,9 +67,15 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         driveSubsystem = new DriveSubsystem(robotHardware.getDriveHardware());
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
         visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
+        midtakeSubsystem = new TeamAMidtakeSubsystem(midtakeHardware);
+        pollenSubsystem = new TeamAOuttakeSubsystem("Pollen Outtake", pollenHardware);
+        nectarSubsystem = new TeamAOuttakeSubsystem("Nectar Outtake", nectarHardware);
         registerSubsystem(driveSubsystem);
         registerSubsystem(intakeSubsystem);
         registerSubsystem(visionSubsystem);
+        registerSubsystem(midtakeSubsystem);
+        registerSubsystem(pollenSubsystem);
+        registerSubsystem(nectarSubsystem);
     }
 
     /**
@@ -70,6 +89,9 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         }
 
         robotHardware.initialize(hardwareMap);
+        midtakeHardware.initialize(hardwareMap);
+        pollenHardware.initialize(hardwareMap);
+        nectarHardware.initialize(hardwareMap);
         hardwareInitialized = true;
         super.initialize();
     }
@@ -129,6 +151,21 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         intakeSubsystem.eject();
     }
 
+    /** Toggles the Team A pollen midtake between stopped and full forward power. */
+    public void toggleMidtake() {
+        midtakeSubsystem.toggle();
+    }
+
+    /** Alternates the pollen flywheel between idle and launch velocity. */
+    public void togglePollenOuttakeVelocity() {
+        pollenSubsystem.toggleVelocity();
+    }
+
+    /** Alternates the nectar flywheel between idle and launch velocity. */
+    public void toggleNectarOuttakeVelocity() {
+        nectarSubsystem.toggleVelocity();
+    }
+
     /** Requests vision searching when optional vision hardware is available. */
     public void enableVision() {
         visionSubsystem.enableVision();
@@ -182,6 +219,30 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         return intakeSubsystem.isAvailable();
     }
 
+    public String getMidtakeStateName() {
+        return midtakeSubsystem.getCurrentStateName();
+    }
+
+    public boolean isMidtakeAvailable() {
+        return midtakeSubsystem.isAvailable();
+    }
+
+    public String getPollenOuttakeStateName() {
+        return pollenSubsystem.getCurrentStateName();
+    }
+
+    public boolean isPollenOuttakeAvailable() {
+        return pollenSubsystem.isAvailable();
+    }
+
+    public String getNectarOuttakeStateName() {
+        return nectarSubsystem.getCurrentStateName();
+    }
+
+    public boolean isNectarOuttakeAvailable() {
+        return nectarSubsystem.isAvailable();
+    }
+
     /** Returns the active vision state name for telemetry. */
     public String getVisionStateName() {
         return visionSubsystem.getCurrentStateName();
@@ -195,6 +256,9 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     @Override
     protected void onStop() {
         robotHardware.stopAll();
+        midtakeHardware.stop();
+        pollenHardware.stop();
+        nectarHardware.stop();
     }
 
     private DriveHardware getDriveHardware() {

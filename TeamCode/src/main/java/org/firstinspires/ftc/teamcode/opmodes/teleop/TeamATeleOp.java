@@ -14,8 +14,6 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot;
  */
 @TeleOp(name = "Team A Mecanum Drive", group = "Team A")
 public class TeamATeleOp extends OpMode {
-    private static final double TRIGGER_DEADZONE = 0.05;
-
     private TeamARobot robot;
     private InputManager driverInput;
 
@@ -47,13 +45,10 @@ public class TeamATeleOp extends OpMode {
 
         if (driverInput.wasLeftBumperJustPressed()) {
             robot.disableVision();
-        } else if (driverInput.wasRightBumperJustPressed()) {
-            robot.enableVision();
         }
 
-        double intakePower = driverInput.getRightTrigger();
-        if (intakePower > TRIGGER_DEADZONE) {
-            robot.startIntake(intakePower);
+        if (driverInput.isRightBumperHeld()) {
+            robot.startIntake();
         } else {
             robot.stopIntake();
         }

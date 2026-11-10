@@ -93,13 +93,12 @@ current Pedro 3 implementation.
   both left-stick directions required sign reversal. `TeamATeleOp` therefore maps left-stick Y to
   forward and inverted left-stick X to strafe; right-stick X rotation remains unchanged. No Robot
   or subsystem API changed.
-- Team A's simple TeleOp maps gamepad 1's right bumper to full forward intake power while held and
-  safely stops the intake when the bumper is released. Team A uses the hardware
+- Team A's simple TeleOp maps gamepad 1's right trigger to proportional forward intake power and
+  safely stops the intake below a small trigger deadzone. Team A now uses the hardware
   configuration name `intakeMotor` with its direction set to `REVERSE`; its old gamepad 2 A/B/X/Y
-  intake mappings and the previous gamepad 1 right-trigger mapping were removed. The right bumper
-  no longer enables optional vision. The shared default `intake` hardware name and `FORWARD`
-  direction remain available to Teams B and C. Input continues through `InputManager`, the OpMode
-  calls only the Robot public API, and motor access remains in the hardware wrapper.
+  intake mappings were removed. The shared default `intake` hardware name and `FORWARD` direction
+  remain available to Teams B and C. Input continues through `InputManager`, the OpMode calls only
+  the Robot public API, and motor access remains in the hardware wrapper.
 - Team A's simple drivetrain composition configures the geared drivetrain with the two left motors
   set to `REVERSE` and the two right motors set to `FORWARD`, correcting all four wheels rotating
   backward during a physically tested forward-stick command. The shared `DriveHardware` defaults

@@ -90,6 +90,19 @@ public class TeleopV2 extends LinearOpMode {
             } else {
                 intake.setPower(0);
             }
+
+            if (gamepad1.right_bumper) {
+                transfer.setPower(1);
+            } else {
+                transfer.setPower(0);
+            }
+
+            if (gamepad1.a) {
+                outtake.setPower(1);
+            } else {
+                outtake.setPower(0);
+            }
+
             /*
 
             if (gamepad1.left_trigger_pressed) {

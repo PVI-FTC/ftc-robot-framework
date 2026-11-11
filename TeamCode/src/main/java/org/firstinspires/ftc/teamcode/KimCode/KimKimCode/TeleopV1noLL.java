@@ -15,7 +15,6 @@ public class TeleopV1noLL extends LinearOpMode {
     private DcMotor bl;
     private DcMotorEx outtake;
     private DcMotorEx intake;
-    private DcMotorEx tubing;
     private DcMotorEx transfer;
     private final ElapsedTime timer = new ElapsedTime();
     private final ElapsedTime shotclock = new ElapsedTime();
@@ -35,7 +34,9 @@ public class TeleopV1noLL extends LinearOpMode {
         outtake = hardwareMap.get(DcMotorEx.class, "outtake");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         transfer = hardwareMap.get(DcMotorEx.class, "transfer");
-
+        outtake.setDirection(DcMotorSimple.Direction.FORWARD);
+        intake.setDirection(DcMotorSimple.Direction.FORWARD);
+        transfer.setDirection(DcMotorSimple.Direction.FORWARD);
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -48,7 +49,7 @@ public class TeleopV1noLL extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
             // commands stuff
-
+            /*
             if (gamepad1.right_trigger_pressed && !shooting) {
                 shooting = true;
                 shotclock.reset();
@@ -61,11 +62,26 @@ public class TeleopV1noLL extends LinearOpMode {
                 transfer.setPower(0);
                 outtake.setPower(0);
                 shooting = false;
+
             }
+            */
             if (gamepad1.left_trigger_pressed) {
                 intake.setPower(1);
             } else {
                 intake.setPower(0);
+            }
+
+            if (gamepad1.right_bumper) {
+                transfer.setPower(1);
+            } else {
+                transfer.setPower(0);
+            }
+
+            if (gamepad1.a) {
+                outtake.setPower(0.9
+                );
+            } else {
+                outtake.setPower(0);
             }
             /*
             if (gamepad1.left_trigger_pressed) {

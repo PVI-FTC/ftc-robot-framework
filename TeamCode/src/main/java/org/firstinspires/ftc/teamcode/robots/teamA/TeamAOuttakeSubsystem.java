@@ -114,6 +114,16 @@ final class TeamAOuttakeSubsystem implements Subsystem {
                 || nectarFsm.getCurrentState() == nectarLaunchState;
     }
 
+    boolean isPollenLaunching() {
+        return requestedPollenMode == RequestedMode.LAUNCH
+                && pollenFsm.getCurrentState() == pollenLaunchState;
+    }
+
+    boolean isNectarLaunching() {
+        return requestedNectarMode == RequestedMode.LAUNCH
+                && nectarFsm.getCurrentState() == nectarLaunchState;
+    }
+
     void applyVelocity(OuttakeMotor motor, double velocityTicksPerSecond) {
         if (motor == OuttakeMotor.POLLEN) {
             hardware.setPollenVelocity(velocityTicksPerSecond);

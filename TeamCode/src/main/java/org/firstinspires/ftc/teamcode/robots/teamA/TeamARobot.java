@@ -187,6 +187,26 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         return true;
     }
 
+    /** Runs the Pollen feed only while the Pollen outtake is fully in Launch. */
+    public void setPollenLaunchFeedActive(boolean active) {
+        boolean allowed = !intakeLoopSubsystem.isActive()
+                && outtakeSubsystem.isPollenLaunching();
+        intakeLoopSubsystem.requestManualMidtake(active && allowed);
+    }
+
+    /** Runs the Nectar launch feed only while the Nectar outtake is fully in Launch. */
+    public void setNectarLaunchFeedActive(boolean active) {
+        boolean allowed = !intakeLoopSubsystem.isActive()
+                && outtakeSubsystem.isNectarLaunching();
+        intakeLoopSubsystem.requestNectarLaunchFeed(active && allowed);
+    }
+
+    /** Runs the manually requested Nectar servo only while the intake loop is stopped. */
+    public void setManualNectarServoActive(boolean active) {
+        intakeLoopSubsystem.requestManualNectarServo(
+                active && !intakeLoopSubsystem.isActive());
+    }
+
     public String getIntakeSensorDetectionName() {
         return intakeLoopSubsystem.getIntakeDetectionName();
     }

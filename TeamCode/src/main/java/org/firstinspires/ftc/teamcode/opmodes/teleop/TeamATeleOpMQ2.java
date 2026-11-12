@@ -14,6 +14,8 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot;
  */
 @TeleOp(name = "Team A Mecanum Drive MQ2", group = "Team A")
 public class TeamATeleOpMQ2 extends OpMode {
+    private static final double TRIGGER_DEADZONE = 0.05;
+
     private TeamARobot robot;
     private InputManager driverInput;
     private TeamADpadInputManager dpadInput;
@@ -43,12 +45,6 @@ public class TeamATeleOpMQ2 extends OpMode {
         driverInput.update();
         dpadInput.update();
 
-        if (driverInput.wasYJustPressed()) {
-            robot.enableHeadingHold();
-        } else if (driverInput.wasXJustPressed()) {
-            robot.enableManualDrive();
-        }
-
         if (driverInput.wasAJustReleased()) {
             boolean accepted = robot.toggleIntakeLoop();
             intakeRequestStatus = accepted
@@ -63,7 +59,19 @@ public class TeamATeleOpMQ2 extends OpMode {
             if (driverInput.wasLeftBumperJustReleased()) {
                 robot.cycleNectarOuttakeMode();
             }
+
+            double intakePower = driverInput.getRightTrigger();
+            if (intakePower > TRIGGER_DEADZONE) {
+                robot.startIntake(intakePower);
+            } else {
+                robot.stopIntake();
+            }
         }
+
+        boolean manualControlsAllowed = !robot.isIntakeLoopActive();
+        robot.setPollenLaunchFeedActive(manualControlsAllowed && driverInput.isBHeld());
+        robot.setNectarLaunchFeedActive(manualControlsAllowed && driverInput.isXHeld());
+        robot.setManualNectarServoActive(manualControlsAllowed && driverInput.isYHeld());
 
         if (dpadInput.wasDownJustPressed()) {
             countResetStatus = robot.resetGamePieceCount()

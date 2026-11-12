@@ -30,6 +30,9 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     private TeamAMechanismHardware.ColorReading latestPollenReading;
     private boolean activeRequested;
     private boolean stopRequested;
+    private boolean manualMidtakeRequested;
+    private boolean manualNectarServoRequested;
+    private boolean nectarLaunchFeedRequested;
     private int pendingPollenSorts;
     private int gamePieceCount;
     private int pollenCount;
@@ -68,6 +71,7 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     public void stop() {
         activeRequested = false;
         stopRequested = true;
+        clearManualRequests();
         pendingPollenSorts = 0;
         stopLoopOutputs();
     }
@@ -78,6 +82,7 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     }
 
     void requestStart() {
+        clearManualRequests();
         activeRequested = true;
         stopRequested = false;
     }
@@ -85,6 +90,18 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     void requestStopAfterCurrentTask() {
         activeRequested = false;
         stopRequested = true;
+    }
+
+    void requestManualMidtake(boolean active) {
+        manualMidtakeRequested = active;
+    }
+
+    void requestManualNectarServo(boolean active) {
+        manualNectarServoRequested = active;
+    }
+
+    void requestNectarLaunchFeed(boolean active) {
+        nectarLaunchFeedRequested = active;
     }
 
     boolean isActive() {
@@ -169,8 +186,9 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     }
 
     void updateState(TeamAIntakeLoopState.Mode mode) {
-        // A stopped loop must not override the legacy manual intake API in other Team A OpModes.
-        if (mode != TeamAIntakeLoopState.Mode.STOPPED) {
+        if (mode == TeamAIntakeLoopState.Mode.STOPPED) {
+            applyManualOutputs();
+        } else {
             applyOutputs(mode);
         }
     }
@@ -236,6 +254,20 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
         intakeSubsystem.stopIntake();
         hardware.setMidtakeVelocity(0.0);
         hardware.setNectarServoPower(0.0);
+    }
+
+    private void applyManualOutputs() {
+        hardware.setMidtakeVelocity(manualMidtakeRequested
+                ? MIDTAKE_MAX_VELOCITY_TICKS_PER_SECOND : 0.0);
+        hardware.setNectarServoPower(
+                manualNectarServoRequested || nectarLaunchFeedRequested
+                        ? NECTAR_SERVO_INTAKE_POWER : 0.0);
+    }
+
+    private void clearManualRequests() {
+        manualMidtakeRequested = false;
+        manualNectarServoRequested = false;
+        nectarLaunchFeedRequested = false;
     }
 
     private boolean sortTimeFinished() {

@@ -12,6 +12,14 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added MQ2's held gamepad1 mechanism controls while preserving continuous drivetrain input. Outside
+  the intake loop, right trigger runs `intakeMotor` proportionally above a 0.05 deadzone and Y runs
+  `nectarServo` at full power. B runs `midtakeMotor` at its 2,787.625 ticks/second maximum only
+  while the Pollen outtake is fully in Launch; X runs `nectarServo` at full power only while the
+  Nectar outtake is fully in Launch. Releasing each input stops its requested output. The former X
+  manual-drive and Y heading-hold mappings were removed. All manual mechanism requests are forced
+  off while the intake loop owns the mechanisms, and Robot APIs enforce the launch-state gates
+  below the OpMode.
 - Added a TeamA-only gamepad1 D-pad-down press edge to `TeamATeleOpMQ2`. It requests the narrow
   `TeamARobot.resetGamePieceCount()` API, which resets total, Pollen, and Nectar counts only when
   the intake loop is stopped and neither outtake is currently or imminently launching. Same-loop
@@ -888,6 +896,8 @@ current Pedro 3 implementation.
   - `toggleIntakeLoop()`, `isIntakeLoopActive()`, `getIntakeLoopStateName()`, Pollen/Nectar/total
     count getters, `resetGamePieceCount()`, and intake/pollen sensor classification, hue, and
     distance diagnostics
+  - `setPollenLaunchFeedActive(boolean)`, `setNectarLaunchFeedActive(boolean)`, and
+    `setManualNectarServoActive(boolean)`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
     `getIntakeStateName()`, and `isIntakeAvailable()`

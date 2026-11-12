@@ -30,10 +30,13 @@ final class TeamAMechanismHardware {
 
         midtakeMotor = hardwareMap.get(DcMotorEx.class, MIDTAKE_MOTOR_NAME);
         configureEncoderMotor(midtakeMotor);
+        midtakeMotor.setPower(0.0);
         pollenMotor = hardwareMap.get(DcMotorEx.class, POLLEN_MOTOR_NAME);
         configureEncoderMotor(pollenMotor);
+        setPollenVelocity(0.0);
         nectarMotor = hardwareMap.get(DcMotorEx.class, NECTAR_MOTOR_NAME);
         configureEncoderMotor(nectarMotor);
+        setNectarVelocity(0.0);
         nectarServo = hardwareMap.get(CRServo.class, NECTAR_SERVO_NAME);
         nectarServo.setDirection(CRServo.Direction.FORWARD);
         nectarServo.setPower(0.0);
@@ -44,17 +47,38 @@ final class TeamAMechanismHardware {
     /** Leaves every Team A mechanism output at zero power. */
     void stop() {
         setMotorPowerToZero(midtakeMotor);
-        setMotorPowerToZero(pollenMotor);
-        setMotorPowerToZero(nectarMotor);
+        stopOuttakes();
         if (nectarServo != null) {
             nectarServo.setPower(0.0);
         }
     }
 
+    void setPollenVelocity(double velocityTicksPerSecond) {
+        setVelocity(pollenMotor, velocityTicksPerSecond);
+    }
+
+    void setNectarVelocity(double velocityTicksPerSecond) {
+        setVelocity(nectarMotor, velocityTicksPerSecond);
+    }
+
+    void stopOuttakes() {
+        setPollenVelocity(0.0);
+        setNectarVelocity(0.0);
+    }
+
     private void configureEncoderMotor(DcMotorEx motor) {
         motor.setDirection(DcMotor.Direction.FORWARD);
         motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        motor.setPower(0.0);
+    }
+
+    private void setVelocity(DcMotorEx motor, double velocityTicksPerSecond) {
+        if (motor == null) {
+            return;
+        }
+
+        double safeVelocity = Double.isNaN(velocityTicksPerSecond)
+                ? 0.0 : Math.max(0.0, velocityTicksPerSecond);
+        motor.setVelocity(safeVelocity);
     }
 
     private void setMotorPowerToZero(DcMotor motor) {

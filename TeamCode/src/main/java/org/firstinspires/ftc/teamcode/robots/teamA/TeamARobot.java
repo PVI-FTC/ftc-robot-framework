@@ -24,6 +24,7 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     private final DriveSubsystem driveSubsystem;
     private final IntakeSubsystem intakeSubsystem;
     private final VisionSubsystem visionSubsystem;
+    private final TeamAOuttakeSubsystem outtakeSubsystem;
     private boolean hardwareInitialized;
 
     /** Creates Team A's robot with its geared drivetrain direction configuration. */
@@ -54,9 +55,11 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         driveSubsystem = new DriveSubsystem(robotHardware.getDriveHardware());
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
         visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
+        outtakeSubsystem = new TeamAOuttakeSubsystem(mechanismHardware);
         registerSubsystem(driveSubsystem);
         registerSubsystem(intakeSubsystem);
         registerSubsystem(visionSubsystem);
+        registerSubsystem(outtakeSubsystem);
     }
 
     /**
@@ -130,6 +133,16 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         intakeSubsystem.eject();
     }
 
+    /** Requests the next pollen outtake mode. */
+    public void cyclePollenOuttakeMode() {
+        outtakeSubsystem.cyclePollenMode();
+    }
+
+    /** Requests the next nectar outtake mode. */
+    public void cycleNectarOuttakeMode() {
+        outtakeSubsystem.cycleNectarMode();
+    }
+
     /** Requests vision searching when optional vision hardware is available. */
     public void enableVision() {
         visionSubsystem.enableVision();
@@ -181,6 +194,16 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     /** Returns whether the optional intake hardware was found during initialization. */
     public boolean isIntakeAvailable() {
         return intakeSubsystem.isAvailable();
+    }
+
+    /** Returns the active pollen outtake state name for telemetry. */
+    public String getPollenOuttakeStateName() {
+        return outtakeSubsystem.getPollenStateName();
+    }
+
+    /** Returns the active nectar outtake state name for telemetry. */
+    public String getNectarOuttakeStateName() {
+        return outtakeSubsystem.getNectarStateName();
     }
 
     /** Returns the active vision state name for telemetry. */

@@ -45,10 +45,11 @@ public class TeamATeleOpMQ2 extends OpMode {
             robot.enableManualDrive();
         }
 
-        if (driverInput.wasLeftBumperJustPressed()) {
-            robot.disableVision();
-        } else if (driverInput.wasRightBumperJustPressed()) {
-            robot.enableVision();
+        if (driverInput.wasRightBumperJustReleased()) {
+            robot.cyclePollenOuttakeMode();
+        }
+        if (driverInput.wasLeftBumperJustReleased()) {
+            robot.cycleNectarOuttakeMode();
         }
 
         double intakePower = driverInput.getRightTrigger();
@@ -82,6 +83,8 @@ public class TeamATeleOpMQ2 extends OpMode {
         telemetry.addData("Rear Right Power", robot.getRearRightMotorPower());
         telemetry.addData("Intake State", robot.getIntakeStateName());
         telemetry.addData("Intake Available", robot.isIntakeAvailable());
+        telemetry.addData("Pollen Outtake State", robot.getPollenOuttakeStateName());
+        telemetry.addData("Nectar Outtake State", robot.getNectarOuttakeStateName());
         telemetry.addData("Vision State", robot.getVisionStateName());
         telemetry.addData("Vision Available", robot.isVisionAvailable());
         telemetry.update();

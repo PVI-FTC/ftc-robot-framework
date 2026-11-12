@@ -12,6 +12,13 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added independent Team A pollen and nectar velocity FSMs with `Off`, `Idle`, and `Launch`
+  behavior. `TeamATeleOpMQ2` cycles pollen on gamepad1 right-bumper release and nectar on gamepad1
+  left-bumper release, replacing that TeleOp's previous bumper vision mappings while leaving drive
+  input and `robot.update()` active every loop. Both motors remain in `RUN_USING_ENCODER` and are
+  controlled only with `setVelocity()`. The goBILDA 6,000 RPM and 28-tick specification converts
+  to 2,800 ticks/second maximum; separately editable pollen and nectar constants currently select
+  1,120 ticks/second (40%) for Idle and 2,100 ticks/second (75%) for Launch.
 - Added Team A's required `midtakeMotor`, `pollenMotor`, `nectarMotor`, `nectarServo`,
   `intakeSensor`, and `pollenSensor` through the TeamA-only `TeamAMechanismHardware` wrapper.
   The three new `DcMotorEx` motors initialize `FORWARD` in `RUN_USING_ENCODER`; the continuous
@@ -858,6 +865,8 @@ current Pedro 3 implementation.
   - `drive(double, double, double)`, `enableRequestedDrive()`, `enableManualDrive()`,
     `disableDrive()`, and
     `enableHeadingHold()`
+  - `cyclePollenOuttakeMode()`, `cycleNectarOuttakeMode()`,
+    `getPollenOuttakeStateName()`, and `getNectarOuttakeStateName()`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
     `getIntakeStateName()`, and `isIntakeAvailable()`

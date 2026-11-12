@@ -12,6 +12,8 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added `TeamATeleOpMQ2` as an unchanged Team A behavior copy of `TeamATeleOp`, with the distinct
+  Driver Station name `Team A Mecanum Drive MQ2`. No robot or subsystem API changed.
 - Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
   pivot, but the robot was launching along y, into the CELL's side wall. It now launches from
   (+/-52, -12.75) for Red, facing the center, and Blue's spots are that rotated 180 degrees. New
@@ -868,6 +870,8 @@ current Pedro 3 implementation.
   - left/right stick-axis and trigger getters
 - `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOp`
   - iterative TeleOp lifecycle mapping `gamepad1` to TeamARobot's public drivetrain API
+- `org.firstinspires.ftc.teamcode.opmodes.teleop.TeamATeleOpMQ2`
+  - duplicate Team A iterative TeleOp lifecycle with a distinct MQ2 class and Driver Station name
 - `org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem`
   - `IntakeSubsystem(IntakeHardware)`, lifecycle methods, `startIntake()`, `startIntake(double)`,
     `stopIntake()`, `hold()`, `eject()`, `getCurrentStateName()`, and `isAvailable()`

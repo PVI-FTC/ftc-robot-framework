@@ -5,7 +5,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.common.autonomous.AutonomousRobotControl;
 import org.firstinspires.ftc.teamcode.common.hardware.DriveHardware;
-import org.firstinspires.ftc.teamcode.common.hardware.IntakeHardware;
 import org.firstinspires.ftc.teamcode.common.hardware.RobotHardware;
 import org.firstinspires.ftc.teamcode.common.subsystems.drive.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.common.subsystems.intake.IntakeSubsystem;
@@ -21,6 +20,7 @@ import org.firstinspires.ftc.teamcode.core.robot.Robot;
  */
 public class TeamARobot extends Robot implements AutonomousRobotControl {
     private final RobotHardware robotHardware;
+    private final TeamAMechanismHardware mechanismHardware = new TeamAMechanismHardware();
     private final DriveSubsystem driveSubsystem;
     private final IntakeSubsystem intakeSubsystem;
     private final VisionSubsystem visionSubsystem;
@@ -37,7 +37,7 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
                 DcMotor.Direction.FORWARD,
                 DcMotor.Direction.REVERSE,
                 DcMotor.Direction.FORWARD),
-                new IntakeHardware("intakeMotor", DcMotor.Direction.REVERSE)));
+                new TeamAIntakeHardware()));
     }
 
     /**
@@ -70,6 +70,7 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         }
 
         robotHardware.initialize(hardwareMap);
+        mechanismHardware.initialize(hardwareMap);
         hardwareInitialized = true;
         super.initialize();
     }
@@ -195,6 +196,7 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     @Override
     protected void onStop() {
         robotHardware.stopAll();
+        mechanismHardware.stop();
     }
 
     private DriveHardware getDriveHardware() {

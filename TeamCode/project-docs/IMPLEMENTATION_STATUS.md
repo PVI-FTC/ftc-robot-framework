@@ -12,6 +12,13 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added Team A's required `midtakeMotor`, `pollenMotor`, `nectarMotor`, `nectarServo`,
+  `intakeSensor`, and `pollenSensor` through the TeamA-only `TeamAMechanismHardware` wrapper.
+  The three new `DcMotorEx` motors initialize `FORWARD` in `RUN_USING_ENCODER`; the continuous
+  rotation servo temporarily initializes `FORWARD`; and both sensors are required
+  `RevColorSensorV3` devices. Team A's existing `intakeMotor` now initializes `FORWARD` in
+  `RUN_WITHOUT_ENCODER` through a TeamA-only wrapper that uses the requested basic `DcMotor`
+  interface. All mechanism outputs initialize and stop at zero power. No public API changed.
 - Added `TeamATeleOpMQ2` as an unchanged Team A behavior copy of `TeamATeleOp`, with the distinct
   Driver Station name `Team A Mecanum Drive MQ2`. No robot or subsystem API changed.
 - Hive Auto, launch axis fix: a CELL's opening points along the field's x axis, away from the HIVE's
@@ -921,6 +928,10 @@ current Pedro 3 implementation.
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
 - Latest result: `BUILD SUCCESSFUL`; `git diff --check` passed.
 ## Known limitations and TODO items
+- The Robot Controller hardware configuration must select the requested goBILDA 435 RPM and
+  6,000 RPM motor models; SDK code records their names, device interfaces, directions, and run
+  modes but does not select a motor model. The temporary `nectarServo` direction and all new Team A
+  hardware mappings still require physical verification before powered mechanism testing.
 - `pedro/Constants.java` is copied from the local `pedro3` project and `create()` intentionally
   returns `null`. `KimCode/TeleopV1` therefore compiles but cannot drive until the team completes
   constants and constructs the follower.

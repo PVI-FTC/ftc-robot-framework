@@ -25,6 +25,7 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     private final IntakeSubsystem intakeSubsystem;
     private final VisionSubsystem visionSubsystem;
     private final TeamAOuttakeSubsystem outtakeSubsystem;
+    private final TeamAIntakeLoopSubsystem intakeLoopSubsystem;
     private boolean hardwareInitialized;
 
     /** Creates Team A's robot with its geared drivetrain direction configuration. */
@@ -56,7 +57,9 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         intakeSubsystem = new IntakeSubsystem(robotHardware.getIntakeHardware());
         visionSubsystem = new VisionSubsystem(robotHardware.getVisionHardware());
         outtakeSubsystem = new TeamAOuttakeSubsystem(mechanismHardware);
+        intakeLoopSubsystem = new TeamAIntakeLoopSubsystem(intakeSubsystem, mechanismHardware);
         registerSubsystem(driveSubsystem);
+        registerSubsystem(intakeLoopSubsystem);
         registerSubsystem(intakeSubsystem);
         registerSubsystem(visionSubsystem);
         registerSubsystem(outtakeSubsystem);
@@ -131,6 +134,97 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
     /** Requests reverse intake eject behavior. */
     public void ejectIntake() {
         intakeSubsystem.eject();
+    }
+
+    /**
+     * Toggles the sensor-driven intake loop.
+     *
+     * @return false only when a new start is blocked by a launching outtake or a full robot
+     */
+    public boolean toggleIntakeLoop() {
+        if (intakeLoopSubsystem.isActive()) {
+            intakeLoopSubsystem.requestStopAfterCurrentTask();
+            return true;
+        }
+        if (outtakeSubsystem.isAnyLaunching() || intakeLoopSubsystem.isFull()) {
+            return false;
+        }
+        intakeLoopSubsystem.requestStart();
+        return true;
+    }
+
+    public boolean isIntakeLoopActive() {
+        return intakeLoopSubsystem.isActive();
+    }
+
+    public String getIntakeLoopStateName() {
+        return intakeLoopSubsystem.getStateName();
+    }
+
+    public int getGamePieceCount() {
+        return intakeLoopSubsystem.getGamePieceCount();
+    }
+
+    public int getPollenCount() {
+        return intakeLoopSubsystem.getPollenCount();
+    }
+
+    public int getNectarCount() {
+        return intakeLoopSubsystem.getNectarCount();
+    }
+
+    /**
+     * Resets stored game-piece counts only while the intake is stopped and neither outtake is
+     * launching.
+     *
+     * @return true when the counts were reset
+     */
+    public boolean resetGamePieceCount() {
+        if (intakeLoopSubsystem.isActive() || outtakeSubsystem.isAnyLaunching()) {
+            return false;
+        }
+        intakeLoopSubsystem.resetGamePieceCounts();
+        return true;
+    }
+
+    public String getIntakeSensorDetectionName() {
+        return intakeLoopSubsystem.getIntakeDetectionName();
+    }
+
+    public String getPollenSensorDetectionName() {
+        return intakeLoopSubsystem.getPollenDetectionName();
+    }
+
+    public double getIntakeSensorDistanceCm() {
+        return intakeLoopSubsystem.getIntakeSensorDistanceCm();
+    }
+
+    public float getIntakeSensorHueDegrees() {
+        return intakeLoopSubsystem.getIntakeSensorHueDegrees();
+    }
+
+    public float getIntakeSensorSaturation() {
+        return intakeLoopSubsystem.getIntakeSensorSaturation();
+    }
+
+    public float getIntakeSensorValue() {
+        return intakeLoopSubsystem.getIntakeSensorValue();
+    }
+
+    public double getPollenSensorDistanceCm() {
+        return intakeLoopSubsystem.getPollenSensorDistanceCm();
+    }
+
+    public float getPollenSensorHueDegrees() {
+        return intakeLoopSubsystem.getPollenSensorHueDegrees();
+    }
+
+    public float getPollenSensorSaturation() {
+        return intakeLoopSubsystem.getPollenSensorSaturation();
+    }
+
+    public float getPollenSensorValue() {
+        return intakeLoopSubsystem.getPollenSensorValue();
     }
 
     /** Requests the next pollen outtake mode. */

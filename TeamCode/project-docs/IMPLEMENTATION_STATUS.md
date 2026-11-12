@@ -12,6 +12,24 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added a TeamA-only gamepad1 D-pad-down press edge to `TeamATeleOpMQ2`. It requests the narrow
+  `TeamARobot.resetGamePieceCount()` API, which resets total, Pollen, and Nectar counts only when
+  the intake loop is stopped and neither outtake is currently or imminently launching. Same-loop
+  bumper requests are evaluated first so a transition into Launch blocks the reset. Telemetry
+  reports whether the request succeeded or was blocked; shared input code and other teams are
+  unchanged.
+- Added Team A's non-blocking sensor-driven intake loop. A gamepad1 A-button release toggles the
+  loop; a new start is rejected while either outtake is launching or the stored count is four.
+  While active, outtake bumper requests are ignored but drivetrain input remains live. The loop
+  counts debounced intake-sensor Pollen and red/blue Nectar events, queues each Pollen for a timed
+  max-velocity midtake sort, and lets any queued sort finish before stopping. It stops on an
+  A-button release, a Pollen event at `pollenSensor`, or four held pieces, commanding
+  `intakeMotor`, `midtakeMotor`, and `nectarServo` to zero. The midtake uses `setVelocity()` at the
+  calculated 2,788 ticks/second maximum for a tunable 0.50 seconds. HSV classification combines a
+  tunable 5 cm proximity gate, saturation/value gates, Pollen yellow and Nectar red/blue hue
+  ranges, sensor gain, and three-sample detection/clear debounce. Telemetry exposes classifications,
+  hue, saturation, value, distance, loop state, and Pollen/Nectar/total counts for physical
+  calibration.
 - Added independent Team A pollen and nectar velocity FSMs with `Off`, `Idle`, and `Launch`
   behavior. `TeamATeleOpMQ2` cycles pollen on gamepad1 right-bumper release and nectar on gamepad1
   left-bumper release, replacing that TeleOp's previous bumper vision mappings while leaving drive
@@ -867,6 +885,9 @@ current Pedro 3 implementation.
     `enableHeadingHold()`
   - `cyclePollenOuttakeMode()`, `cycleNectarOuttakeMode()`,
     `getPollenOuttakeStateName()`, and `getNectarOuttakeStateName()`
+  - `toggleIntakeLoop()`, `isIntakeLoopActive()`, `getIntakeLoopStateName()`, Pollen/Nectar/total
+    count getters, `resetGamePieceCount()`, and intake/pollen sensor classification, hue, and
+    distance diagnostics
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
     `getIntakeStateName()`, and `isIntakeAvailable()`
@@ -937,6 +958,11 @@ current Pedro 3 implementation.
 - TeamCode build command (Windows): `.\gradlew.bat TeamCode:assembleDebug`
 - Latest result: `BUILD SUCCESSFUL`; `git diff --check` passed.
 ## Known limitations and TODO items
+- Team A's color gain, proximity, HSV, debounce, 0.50-second Pollen sort duration, and continuous
+  servo power are safe software starting values, not physically calibrated results. Tune them from
+  MQ2 telemetry with the mounted sensors and real yellow Pollen plus both red and blue Nectar. The
+  stored game-piece counts currently increase at intake and are not decremented by outtake events;
+  later scoring logic must add a reliable removal signal before using the count across cycles.
 - The Robot Controller hardware configuration must select the requested goBILDA 435 RPM and
   6,000 RPM motor models; SDK code records their names, device interfaces, directions, and run
   modes but does not select a motor model. The temporary `nectarServo` direction and all new Team A

@@ -14,16 +14,18 @@ import org.firstinspires.ftc.teamcode.robots.teamA.TeamARobot;
  */
 @TeleOp(name = "Team A Mecanum Drive MQ2", group = "Team A")
 public class TeamATeleOpMQ2 extends OpMode {
-    private static final double TRIGGER_DEADZONE = 0.05;
-
     private TeamARobot robot;
     private InputManager driverInput;
+    private TeamADpadInputManager dpadInput;
+    private String intakeRequestStatus = "Not requested";
+    private String countResetStatus = "Not requested";
 
     @Override
     public void init() {
         robot = new TeamARobot();
         robot.initialize(hardwareMap);
         driverInput = new InputManager(gamepad1);
+        dpadInput = new TeamADpadInputManager(gamepad1);
 
         telemetry.addData("Status", "Team A robot initialized");
         telemetry.update();
@@ -32,12 +34,14 @@ public class TeamATeleOpMQ2 extends OpMode {
     @Override
     public void start() {
         driverInput.update();
+        dpadInput.update();
         robot.enableManualDrive();
     }
 
     @Override
     public void loop() {
         driverInput.update();
+        dpadInput.update();
 
         if (driverInput.wasYJustPressed()) {
             robot.enableHeadingHold();
@@ -45,18 +49,26 @@ public class TeamATeleOpMQ2 extends OpMode {
             robot.enableManualDrive();
         }
 
-        if (driverInput.wasRightBumperJustReleased()) {
-            robot.cyclePollenOuttakeMode();
-        }
-        if (driverInput.wasLeftBumperJustReleased()) {
-            robot.cycleNectarOuttakeMode();
+        if (driverInput.wasAJustReleased()) {
+            boolean accepted = robot.toggleIntakeLoop();
+            intakeRequestStatus = accepted
+                    ? "Accepted"
+                    : "Blocked: outtake launching or robot holds 4 pieces";
         }
 
-        double intakePower = driverInput.getRightTrigger();
-        if (intakePower > TRIGGER_DEADZONE) {
-            robot.startIntake(intakePower);
-        } else {
-            robot.stopIntake();
+        if (!robot.isIntakeLoopActive()) {
+            if (driverInput.wasRightBumperJustReleased()) {
+                robot.cyclePollenOuttakeMode();
+            }
+            if (driverInput.wasLeftBumperJustReleased()) {
+                robot.cycleNectarOuttakeMode();
+            }
+        }
+
+        if (dpadInput.wasDownJustPressed()) {
+            countResetStatus = robot.resetGamePieceCount()
+                    ? "Counts reset"
+                    : "Blocked: intake running or outtake launching";
         }
 
         robot.drive(driverInput.getLeftStickY(), -driverInput.getLeftStickX(),
@@ -83,6 +95,22 @@ public class TeamATeleOpMQ2 extends OpMode {
         telemetry.addData("Rear Right Power", robot.getRearRightMotorPower());
         telemetry.addData("Intake State", robot.getIntakeStateName());
         telemetry.addData("Intake Available", robot.isIntakeAvailable());
+        telemetry.addData("Intake Loop", robot.getIntakeLoopStateName());
+        telemetry.addData("Intake Request", intakeRequestStatus);
+        telemetry.addData("Game Pieces", robot.getGamePieceCount());
+        telemetry.addData("Pollen Count", robot.getPollenCount());
+        telemetry.addData("Nectar Count", robot.getNectarCount());
+        telemetry.addData("Count Reset", countResetStatus);
+        telemetry.addData("Intake Detection", robot.getIntakeSensorDetectionName());
+        telemetry.addData("Intake Sensor Hue", robot.getIntakeSensorHueDegrees());
+        telemetry.addData("Intake Sensor Saturation", robot.getIntakeSensorSaturation());
+        telemetry.addData("Intake Sensor Value", robot.getIntakeSensorValue());
+        telemetry.addData("Intake Sensor Distance cm", robot.getIntakeSensorDistanceCm());
+        telemetry.addData("Pollen Detection", robot.getPollenSensorDetectionName());
+        telemetry.addData("Pollen Sensor Hue", robot.getPollenSensorHueDegrees());
+        telemetry.addData("Pollen Sensor Saturation", robot.getPollenSensorSaturation());
+        telemetry.addData("Pollen Sensor Value", robot.getPollenSensorValue());
+        telemetry.addData("Pollen Sensor Distance cm", robot.getPollenSensorDistanceCm());
         telemetry.addData("Pollen Outtake State", robot.getPollenOuttakeStateName());
         telemetry.addData("Nectar Outtake State", robot.getNectarOuttakeStateName());
         telemetry.addData("Vision State", robot.getVisionStateName());

@@ -36,13 +36,13 @@ final class TeamAMechanismHardware {
         }
 
         midtakeMotor = hardwareMap.get(DcMotorEx.class, MIDTAKE_MOTOR_NAME);
-        configureEncoderMotor(midtakeMotor);
+        configureEncoderMotor(midtakeMotor, DcMotor.Direction.REVERSE);
         setMidtakeVelocity(0.0);
         pollenMotor = hardwareMap.get(DcMotorEx.class, POLLEN_MOTOR_NAME);
-        configureEncoderMotor(pollenMotor);
+        configureEncoderMotor(pollenMotor, DcMotor.Direction.REVERSE);
         setPollenVelocity(0.0);
         nectarMotor = hardwareMap.get(DcMotorEx.class, NECTAR_MOTOR_NAME);
-        configureEncoderMotor(nectarMotor);
+        configureEncoderMotor(nectarMotor, DcMotor.Direction.FORWARD);
         setNectarVelocity(0.0);
         nectarServo = hardwareMap.get(CRServo.class, NECTAR_SERVO_NAME);
         nectarServo.setDirection(CRServo.Direction.FORWARD);
@@ -95,8 +95,8 @@ final class TeamAMechanismHardware {
         return readColor(pollenSensor);
     }
 
-    private void configureEncoderMotor(DcMotorEx motor) {
-        motor.setDirection(DcMotor.Direction.FORWARD);
+    private void configureEncoderMotor(DcMotorEx motor, DcMotor.Direction direction) {
+        motor.setDirection(direction);
         motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 

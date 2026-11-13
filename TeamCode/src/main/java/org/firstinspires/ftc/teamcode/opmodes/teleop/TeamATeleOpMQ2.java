@@ -69,6 +69,9 @@ public class TeamATeleOpMQ2 extends OpMode {
         }
 
         boolean manualControlsAllowed = !robot.isIntakeLoopActive();
+        double midtakePower = driverInput.getLeftTrigger();
+        robot.setManualMidtakePower(manualControlsAllowed && midtakePower > TRIGGER_DEADZONE
+                ? midtakePower : 0.0);
         robot.setPollenLaunchFeedActive(manualControlsAllowed && driverInput.isBHeld());
         robot.setNectarLaunchFeedActive(manualControlsAllowed && driverInput.isXHeld());
         robot.setManualNectarServoActive(manualControlsAllowed && driverInput.isYHeld());

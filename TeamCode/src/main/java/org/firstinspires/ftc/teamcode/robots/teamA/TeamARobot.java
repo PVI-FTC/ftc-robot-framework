@@ -194,6 +194,12 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
         intakeLoopSubsystem.requestManualMidtake(active && allowed);
     }
 
+    /** Runs the midtake proportionally while the automatic intake loop is stopped. */
+    public void setManualMidtakePower(double power) {
+        intakeLoopSubsystem.requestManualMidtakePower(
+                intakeLoopSubsystem.isActive() ? 0.0 : power);
+    }
+
     /** Runs the Nectar launch feed only while the Nectar outtake is fully in Launch. */
     public void setNectarLaunchFeedActive(boolean active) {
         boolean allowed = !intakeLoopSubsystem.isActive()

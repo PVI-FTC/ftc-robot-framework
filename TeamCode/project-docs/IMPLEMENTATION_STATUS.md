@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Reversed Team A's `midtakeMotor`, `pollenMotor`, and `intakeMotor` hardware directions, reduced
+  both outtake Idle velocities to 560 ticks/second (20% of the 2,800 ticks/second maximum), and
+  mapped gamepad1 left
+  trigger in `TeamATeleOpMQ2` to proportional `midtakeMotor` velocity above the existing 0.05
+  trigger deadzone. The existing B-button Pollen launch feed remains launch-gated, and all manual
+  mechanism requests remain disabled while the automatic intake loop is active.
 - Added MQ2's held gamepad1 mechanism controls while preserving continuous drivetrain input. Outside
   the intake loop, right trigger runs `intakeMotor` proportionally above a 0.05 deadzone and Y runs
   `nectarServo` at full power. B runs `midtakeMotor` at its 2,787.625 ticks/second maximum only
@@ -44,12 +50,13 @@ PVI-FTC | Editable master guide
   input and `robot.update()` active every loop. Both motors remain in `RUN_USING_ENCODER` and are
   controlled only with `setVelocity()`. The goBILDA 6,000 RPM and 28-tick specification converts
   to 2,800 ticks/second maximum; separately editable pollen and nectar constants currently select
-  1,120 ticks/second (40%) for Idle and 2,100 ticks/second (75%) for Launch.
+  560 ticks/second (20%) for Idle and 2,100 ticks/second (75%) for Launch.
 - Added Team A's required `midtakeMotor`, `pollenMotor`, `nectarMotor`, `nectarServo`,
   `intakeSensor`, and `pollenSensor` through the TeamA-only `TeamAMechanismHardware` wrapper.
-  The three new `DcMotorEx` motors initialize `FORWARD` in `RUN_USING_ENCODER`; the continuous
-  rotation servo temporarily initializes `FORWARD`; and both sensors are required
-  `RevColorSensorV3` devices. Team A's existing `intakeMotor` now initializes `FORWARD` in
+  The `midtakeMotor` and `pollenMotor` initialize `REVERSE`, while `nectarMotor` initializes
+  `FORWARD`; all three use `RUN_USING_ENCODER`. The continuous rotation servo temporarily
+  initializes `FORWARD`; and both sensors are required
+  `RevColorSensorV3` devices. Team A's existing `intakeMotor` now initializes `REVERSE` in
   `RUN_WITHOUT_ENCODER` through a TeamA-only wrapper that uses the requested basic `DcMotor`
   interface. All mechanism outputs initialize and stop at zero power. No public API changed.
 - Added `TeamATeleOpMQ2` as an unchanged Team A behavior copy of `TeamATeleOp`, with the distinct
@@ -896,8 +903,8 @@ current Pedro 3 implementation.
   - `toggleIntakeLoop()`, `isIntakeLoopActive()`, `getIntakeLoopStateName()`, Pollen/Nectar/total
     count getters, `resetGamePieceCount()`, and intake/pollen sensor classification, hue, and
     distance diagnostics
-  - `setPollenLaunchFeedActive(boolean)`, `setNectarLaunchFeedActive(boolean)`, and
-    `setManualNectarServoActive(boolean)`
+  - `setPollenLaunchFeedActive(boolean)`, `setManualMidtakePower(double)`,
+    `setNectarLaunchFeedActive(boolean)`, and `setManualNectarServoActive(boolean)`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
     `getIntakeStateName()`, and `isIntakeAvailable()`

@@ -12,7 +12,7 @@ final class TeamAIntakeHardware extends IntakeHardware {
     private DcMotor intakeMotor;
 
     TeamAIntakeHardware() {
-        super(INTAKE_MOTOR_NAME, DcMotor.Direction.FORWARD);
+        super(INTAKE_MOTOR_NAME, DcMotor.Direction.REVERSE);
     }
 
     @Override
@@ -23,7 +23,7 @@ final class TeamAIntakeHardware extends IntakeHardware {
 
         try {
             intakeMotor = hardwareMap.get(DcMotor.class, INTAKE_MOTOR_NAME);
-            intakeMotor.setDirection(DcMotor.Direction.FORWARD);
+            intakeMotor.setDirection(DcMotor.Direction.REVERSE);
             intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             stop();

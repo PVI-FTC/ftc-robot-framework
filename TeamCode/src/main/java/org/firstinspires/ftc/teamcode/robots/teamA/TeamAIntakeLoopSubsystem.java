@@ -31,6 +31,7 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     private boolean activeRequested;
     private boolean stopRequested;
     private boolean manualMidtakeRequested;
+    private double manualMidtakePowerRequested;
     private boolean manualNectarServoRequested;
     private boolean nectarLaunchFeedRequested;
     private int pendingPollenSorts;
@@ -94,6 +95,11 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
 
     void requestManualMidtake(boolean active) {
         manualMidtakeRequested = active;
+    }
+
+    void requestManualMidtakePower(double power) {
+        manualMidtakePowerRequested = Double.isNaN(power)
+                ? 0.0 : Math.max(0.0, Math.min(1.0, power));
     }
 
     void requestManualNectarServo(boolean active) {
@@ -257,8 +263,10 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
     }
 
     private void applyManualOutputs() {
-        hardware.setMidtakeVelocity(manualMidtakeRequested
-                ? MIDTAKE_MAX_VELOCITY_TICKS_PER_SECOND : 0.0);
+        double requestedPower = manualMidtakeRequested
+                ? 1.0 : manualMidtakePowerRequested;
+        hardware.setMidtakeVelocity(
+                requestedPower * MIDTAKE_MAX_VELOCITY_TICKS_PER_SECOND);
         hardware.setNectarServoPower(
                 manualNectarServoRequested || nectarLaunchFeedRequested
                         ? NECTAR_SERVO_INTAKE_POWER : 0.0);
@@ -266,6 +274,7 @@ final class TeamAIntakeLoopSubsystem implements Subsystem {
 
     private void clearManualRequests() {
         manualMidtakeRequested = false;
+        manualMidtakePowerRequested = 0.0;
         manualNectarServoRequested = false;
         nectarLaunchFeedRequested = false;
     }

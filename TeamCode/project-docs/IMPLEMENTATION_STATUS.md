@@ -12,6 +12,12 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added `TeamAStrafeLeftAuto`, a non-blocking Team A autonomous OpMode that uses the existing
+  `AutoSequence` and `TimedDriveStep` APIs to command 20% robot-left strafe power for an estimated
+  1.25 seconds, then disables the drivetrain. The estimate targets 0.5 foot based on the reported
+  1 foot per 0.5 seconds at full power and assumes speed scales linearly with power. It is
+  registered on the Driver Station as `Team A Strafe Left 0.5ft`; no public Robot or subsystem
+  APIs changed.
 - Reversed Team A's `midtakeMotor`, `pollenMotor`, and `intakeMotor` hardware directions, reduced
   both outtake Idle velocities to 560 ticks/second (20% of the 2,800 ticks/second maximum), and
   mapped gamepad1 left
@@ -957,6 +963,8 @@ current Pedro 3 implementation.
   - narrow `enableRequestedDrive()`, drive, and intake requests implemented by TeamARobot
 - `org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAAutoOpMode`
   - iterative non-blocking Team A demonstration autonomous sequence
+- `org.firstinspires.ftc.teamcode.opmodes.autonomous.TeamAStrafeLeftAuto`
+  - iterative non-blocking estimated 0.5-foot Team A left-strafe autonomous sequence
 - `org.firstinspires.ftc.teamcode.robots.teamB.TeamBRobot` and
   `org.firstinspires.ftc.teamcode.robots.teamC.TeamCRobot`
   - constructors, `initialize(HardwareMap)`, public drive/intake/vision requests, state and

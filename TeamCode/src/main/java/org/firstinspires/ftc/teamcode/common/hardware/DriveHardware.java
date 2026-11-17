@@ -26,6 +26,31 @@ public class DriveHardware {
     private double rearLeftPower;
     private double rearRightPower;
 
+    private final DcMotor.Direction frontLeftDirection;
+    private final DcMotor.Direction frontRightDirection;
+    private final DcMotor.Direction rearLeftDirection;
+    private final DcMotor.Direction rearRightDirection;
+
+    /** Preserves the baseline left-reversed, right-forward motor directions. */
+    public DriveHardware() {
+        this(DcMotor.Direction.REVERSE, DcMotor.Direction.FORWARD,
+                DcMotor.Direction.REVERSE, DcMotor.Direction.FORWARD);
+    }
+
+    /** Configures directions in front-left, front-right, rear-left, rear-right order. */
+    public DriveHardware(DcMotor.Direction frontLeftDirection,
+            DcMotor.Direction frontRightDirection, DcMotor.Direction rearLeftDirection,
+            DcMotor.Direction rearRightDirection) {
+        if (frontLeftDirection == null || frontRightDirection == null
+                || rearLeftDirection == null || rearRightDirection == null) {
+            throw new IllegalArgumentException("All four motor directions are required.");
+        }
+        this.frontLeftDirection = frontLeftDirection;
+        this.frontRightDirection = frontRightDirection;
+        this.rearLeftDirection = rearLeftDirection;
+        this.rearRightDirection = rearRightDirection;
+    }
+
     /** Finds and configures the required drive motors. */
     public void initialize(HardwareMap hardwareMap) {
         if (hardwareMap == null) {
@@ -37,10 +62,10 @@ public class DriveHardware {
         rearLeft = getRequiredMotor(hardwareMap, REAR_LEFT_MOTOR_NAME);
         rearRight = getRequiredMotor(hardwareMap, REAR_RIGHT_MOTOR_NAME);
 
-        frontLeft.setDirection(DcMotor.Direction.REVERSE);
-        rearLeft.setDirection(DcMotor.Direction.REVERSE);
-        frontRight.setDirection(DcMotor.Direction.FORWARD);
-        rearRight.setDirection(DcMotor.Direction.FORWARD);
+        frontLeft.setDirection(frontLeftDirection);
+        rearLeft.setDirection(rearLeftDirection);
+        frontRight.setDirection(frontRightDirection);
+        rearRight.setDirection(rearRightDirection);
         setBrakeMode();
         setRunWithoutEncoderMode();
         stop();

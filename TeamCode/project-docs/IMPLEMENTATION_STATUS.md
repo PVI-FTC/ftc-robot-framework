@@ -12,6 +12,160 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Team 4 commit preparation (2026-11-17): reviewed all accumulated Team 4 changes
+  for the student's explicit request to commit everything on Team_4_Branch.
+  Corrected setup documentation to reflect final user clarification: intake CR
+  servo `intake4Servo` is on Expansion Hub SERVO 0; linear `conveyor4Lift` remains
+  through its power module on an unconfirmed separate Hub signal port. Earlier
+  relocation/configuration entries below are historical and do not establish the
+  current wiring. User reports linear lift works; intake shows Available=true and
+  Intaking/Ejecting states but does not move. Intake hardware diagnosis remains
+  unresolved; no physical fix or successful intake test is claimed.
+  Pre-commit JDK 17 `TeamCode:assembleDebug` and staged `git diff --check` passed.
+  Reviewed all 11 pending files and architecture boundaries. No robot deployment
+  or remote push was performed for this commit request.
+- Joystick-only lift endpoints (2026-11-13): student explicitly selected stick
+  up/down -> full extension/retraction, with continued endpoint travel on release.
+  Removed G2 B/X bindings, confirmation gates, rate-based jogging and saved-reference
+  storage/restoration. Centered stick retains the selected 0/1 target with PWM on;
+  before any stick command, INIT/START leave lift PWM disabled. A/Y and centered
+  stick must be neutral once after START; unused B/X no longer gate readiness.
+  Removed obsolete Robot public reference/confirmation APIs after verifying no
+  remaining callers, retaining moveConveyorLift and state/availability/target APIs.
+  Updated telemetry and CONVEYOR_4_SETUP.md. G1 intake and G2 belt unchanged.
+  Baseline and final JDK 17 `TeamCode:assembleDebug` and `git diff --check` passed.
+  Actual subsystem/FSM JVM checks with fake hardware passed startup/deadband,
+  endpoint selection without B/X, release retention, invalid input, belt independence,
+  STOP and missing-device handling. Reviewed removed API references and control
+  boundaries. No commit or deployment; physical verification pending.
+  Hub was disconnected during work;
+  outstanding type/name/location configuration corrections were not applied.
+- Lift relocation (2026-11-13): student moved the linear actuator to Expansion Hub
+  servo port 0. Backed up the current saved Team 4 XML and moved only the positional
+  `conveyor4Lift` entry from Control Hub servo port 0 to Expansion Hub 2 servo port 0.
+  Uploaded and read back the saved XML to verify the mapping. Existing G2 B retract,
+  X confirm, left stick up extend/down retract controls already resolve by name,
+  requiring no Java change or APK rebuild. Updated CONVEYOR_4_SETUP.md. No robot
+  restart, OpMode start or movement issued; reload and hardware verification pending.
+- Live Team 4 configuration correction (2026-11-13): read the Control Hub's
+  `/sdcard/FIRST/Team 4.xml` while investigating nonresponsive G2 B/X/lift stick.
+  Lift `conveyor4Lift` was incorrectly configured as ContinuousRotationServo on
+  Control Hub servo port 0, so the ServoImplEx lookup could not find it. Backed up
+  the XML locally under ignored `build/robot-config-check`, changed that entry to
+  Servo, and corrected intake name `intake4servo` to `intake4Servo` on servo port 3
+  (retaining ContinuousRotationServo for the intake). Pushed only the corrected
+  saved XML and read it back to verify both entries. No APK install, OpMode start,
+  robot restart or movement was issued. Java B -> retract, X -> confirm, left stick
+  up/down -> extend/retract logic was inspected and needed no change for this fault.
+  TODO: operator reload/restart and physical verification; configuration correction
+  is not yet evidence that the running app has reloaded or that hardware moved.
+- Team 4 CR-servo intake (2026-11-13): added `robots.team4.Team4IntakeHardware`
+  for optional CRServo `intake4Servo`. Default Team4Robot composition selects this
+  wrapper using new `RobotHardware(DriveHardware, IntakeHardware)` overload; existing
+  constructors retain their original DC intake defaults. Reuses IntakeSubsystem,
+  existing FSM/states and Team4Robot startIntake/ejectIntake/stopIntake APIs.
+  Team4TeleOp G1 hold Y intakes, hold A reverses, neither or both stops. A/Y must
+  be released once after START. INIT/STOP command zero. Initial servo power is
+  +/-0.50, with direction/power constants in the Team 4 wrapper. Missing servo
+  reports Intake Available=false without disabling driving. G2 conveyor mappings
+  and G1 drive mapping retained. Added TEAM4_INTAKE_SETUP.md and intake telemetry.
+  Configuration name is a new chosen default; exact model and physical direction
+  remain unprovided. Baseline and final JDK 17 `TeamCode:assembleDebug` builds and
+  `git diff --check` passed. A temporary JVM harness exercised the actual CR-servo
+  wrapper and shared intake FSM with fake SDK hardware: INIT, intake/reverse,
+  release/STOP, power clamp, nonfinite input and absent-device handling passed.
+  Reviewed G1 mapping and hardware boundaries; only the wrapper touches CRServo.
+  No deployment, commit or push. TODO: configure intake4Servo as Continuous Rotation
+  Servo, verify physical direction, trial power and release/STOP on the robot.
+- Conveyor lift confirmation persistence (2026-11-11): corrected overlapping G2 X
+  confirmation/hold mapping. X now confirms without requiring a centered stick,
+  pauses jog input for that frame only, and does not inhibit later joystick input
+  while held. Up extends and down retracts; centered stick holds target. New
+  Team4Robot APIs `restoreConveyorLiftReference()` and `isConveyorLiftConfirmed()`
+  expose TeleOp-only START restoration and explicit telemetry. Conveyor4Hardware
+  stores confirmed target in Android app preferences, saved on confirmation,
+  centered-stick hold and normal STOP; unchanged targets do not rewrite storage.
+  B clears saved reference and requests retraction, including after confirmation.
+  INIT/autonomous leave PWM disabled until an explicit command; TeleOp START may
+  resume the saved target on update. Saved target is not measured position, and
+  abrupt power loss during jogging can leave an older saved target. Added stick
+  and confirmed telemetry and revised CONVEYOR_4_SETUP.md. Baseline and final
+  JDK 17 `TeamCode:assembleDebug` builds and `git diff --check` passed. A temporary
+  JVM test using actual subsystem/FSM and fake hardware/storage passed reference
+  gating, B/X, repeat confirmation, both jog directions, hold/STOP persistence,
+  new-run restoration, INIT isolation and B reset. Android on-device storage and
+  joystick verification remain TODO. No commit, push or deployment occurred.
+- Conveyor-4 (2026-11-04): restored the six Team 4 files from recoverable commit
+  `35680bc` onto Team_4_Branch at the student's request, without committing.
+  Added `robots.team4.conveyor.Conveyor4Hardware` and `Conveyor4Subsystem` (display
+  name `conveyor-4`) and integrated them into Team4Robot/Team4TeleOp. G2 uses its own
+  InputManager: hold A/Y for belt forward/reverse at initial +/-0.30 power; neither
+  or both stops. Left stick up/down slews lift target positive/negative, centered
+  holds PWM target, 0.10 deadband, maximum 0.05 stroke/s and capped 0.10 s updates.
+  Initial G2 B requests retraction; G2 X with centered stick confirms visually
+  retracted reference before jogging. No automatic arrival detection; X during
+  initial retraction cannot guarantee an intermediate stop. Neutral G2 is required
+  after START. INIT leaves motor stopped and servo PWM off; STOP stops belt and
+  disables servo PWM without removing external SPM power. Autonomous does not
+  request conveyor movement. Optional hardware names `conveyor4Motor` and
+  `conveyor4Lift` have separate availability telemetry; lift PWM is 1000-2000 us.
+  Narrow Team4Robot APIs added: runConveyorForward/Reverse, stopConveyor,
+  moveConveyorLift(double), retractConveyorLiftToReference,
+  confirmConveyorLiftRetracted, and conveyor state/target/availability getters.
+  Existing public APIs retained. Added `CONVEYOR_4_SETUP.md` with configuration,
+  operation and tuning. Full-size drive occupies four Hub motor ports, so belt
+  requires another free motor port (Expansion Hub if needed).
+  Restored baseline and final JDK 17 `TeamCode:assembleDebug` builds passed;
+  `git diff --check` passed. A temporary JVM check of the actual subsystem/FSM
+  with fake hardware passed INIT/STOP, reference gating, belt direction/stop,
+  independent lift hold, deadband, invalid input, time cap and target clamps.
+  Reviewed control and hardware boundaries. No commit, push or deployment occurred.
+  TODO: confirm motor direction, motor power, lift travel clearance/limits,
+  retraction reference and target hold on the actual conveyor. No measured position
+  is available and boot-time movement with external servo power is not prevented.
+- T4-LZ-11 duration adjustment (2026-10-09): at the student's request, increased
+  `DRIVE_DURATION_SECONDS` fivefold from 0.75 to 3.75 seconds. Forward power remains
+  0.20; sequence and stop behavior are unchanged. Measured 11-inch travel is still
+  pending verification; this request supplies no measured distance result.
+  JDK 17 `TeamCode:assembleDebug` and `git diff --check` passed. No deployment occurred.
+- Team 4 timed loading-zone autonomous (2026-10-09): added
+  `opmodes.autonomous.Team4LoadingZoneAuto`, registered as `T4-LZ-11` in `Team 4`.
+  INIT leaves drive disabled; START begins one existing `TimedDriveStep` through
+  `AutoSequence`, requesting forward 0.20 with zero strafe/rotation for 0.75 seconds.
+  Power and duration are named constants; 0.75 seconds is an uncalibrated initial trial,
+  not a measured 11-inch result. Calibration: new time = old time * 11 / measured inches.
+  Completion holds drive disabled; FTC STOP cancels the sequence and stops the robot.
+  Loops update the sequence and robot once without blocking or gamepad input.
+  `Team4Robot` now implements `AutonomousRobotControl` and adds the narrow public
+  `enableRequestedDrive()` delegation. Other existing APIs and directions are preserved.
+  Continued the pending Team 4 work without committing it; no unrelated files changed.
+  Baseline and final JDK 17 `TeamCode:assembleDebug` builds passed; `git diff --check`
+  passed. Review confirmed Robot API control, shared timed-step reuse, and stop handling.
+  TODO: confirm corrected wheel directions and calibrate travel from the actual wall
+  start on the intended surface. No deployment or physical result is recorded.
+- Team 4 direction correction (2026-10-07): student reported front-left correct and
+  the other three wheels reversed in every raised-wheel TeleOp test. Team4Robot now
+  configures FL REVERSE, FR REVERSE, RL FORWARD, RR REVERSE. This is a correction
+  based on the report; repeat raised-wheel verification is pending.
+  Added `DriveHardware(Direction, Direction, Direction, Direction)` (FL/FR/RL/RR)
+  and `RobotHardware(DriveHardware)` constructors so team-specific directions stay
+  in Team 4 composition. Existing no-argument constructors retain baseline behavior.
+  No OpMode hardware access, FSM manipulation, or control mapping change was added.
+  Baseline and final JDK 17 `TeamCode:assembleDebug` builds passed; `git diff --check`
+  passed. Changes remain uncommitted and have not been deployed by Codex.
+- Team 4 mecanum TeleOp (2026-10-07): copied `TeamBTeleOp` and `TeamBRobot` as
+  `opmodes.teleop.Team4TeleOp` and `robots.team4.Team4Robot`. Driver Station entry:
+  `Team 4 TeleOp`, group `Team 4`. Left stick drives/strafe; right stick X rotates.
+  Team 4 reuses the existing shared mecanum controller, hardware wrappers, subsystems,
+  InputManager, and safe stop lifecycle. Required motor names remain `frontLeft`,
+  `frontRight`, `rearLeft`, and `rearRight`; initial directions used the shared baseline
+  and are superseded by the Team 4 correction above.
+  Intake remains optional and vision unavailable; no mechanism controls were added.
+  The new robot exposes the same constructors and drive/intake/vision request and
+  diagnostic APIs as TeamBRobot; existing APIs are unchanged. The requested new team
+  uses `robots.team4` beyond the original A/B/C package plan.
+  Baseline and final JDK 17 `TeamCode:assembleDebug` builds and `git diff --check` passed.
+  TODO: verify the new robot's wiring, wheel arrangement, and motor directions on hardware.
 - SDK 12 AprilTag compatibility fix (2026-10-07, `codex/fix-sdk12-apriltag`): the upstream
   SDK upgrade from 11.2.1 to 12.0.0 caused 11 compilation errors in
   `VisionPortalAprilTagSource` because individual-tag `id` and `metadata` fields are no longer

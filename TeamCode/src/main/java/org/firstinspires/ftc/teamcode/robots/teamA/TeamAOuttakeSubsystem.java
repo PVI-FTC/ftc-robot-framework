@@ -9,9 +9,9 @@ final class TeamAOuttakeSubsystem implements Subsystem {
     // 6,000 RPM * 28 encoder ticks per revolution / 60 seconds = 2,800 ticks per second.
     // Each motor has separate constants so its real-world launch and idle speeds are easy to tune.
     static final double POLLEN_IDLE_VELOCITY_TICKS_PER_SECOND = 560.0;
-    static final double POLLEN_LAUNCH_VELOCITY_TICKS_PER_SECOND = 1400.0;
+    static final double POLLEN_LAUNCH_VELOCITY_TICKS_PER_SECOND = 1500.0;
     static final double NECTAR_IDLE_VELOCITY_TICKS_PER_SECOND = 560.0;
-    static final double NECTAR_LAUNCH_VELOCITY_TICKS_PER_SECOND = 1680.0;
+    static final double NECTAR_LAUNCH_VELOCITY_TICKS_PER_SECOND = 1580.0;
 
     enum OuttakeMotor {
         POLLEN,

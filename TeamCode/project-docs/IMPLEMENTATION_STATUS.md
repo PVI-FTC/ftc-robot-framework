@@ -12,6 +12,16 @@ PVI-FTC | Editable master guide
 - Last completed prompt: LP-10 Pedro tuning and path-readiness acceptance
 - Last verified commit: d7b9014 (LP-09 reviewed implementation)
 ## Completed work
+- Added Team A's required regular `flowerRampServo` through `TeamAMechanismHardware`. It is moved
+  to position `0.60` during hardware initialization and when either Team A TeleOp starts, then to
+  the safe position `0.0` when the robot stops. In `TeamATeleOpMQ2`, a gamepad1 D-pad Up press moves
+  it to position `0.75` and D-pad Down returns it to `0.60`; the former D-pad Down game-piece-count
+  reset mapping is replaced. Added the narrow `TeamARobot.resetFlowerRampServo()` and
+  `moveFlowerRampServoToSecondPosition()` public APIs so OpModes do not access hardware directly.
+  Reconfigured the existing encoder-controlled `midtakeMotor` velocity
+  conversion for the goBILDA 3.7:1 Yellow Jacket: 1,620 RPM and 103.8 output ticks/revolution give
+  a maximum request of 2,802.6 ticks/second. The Robot Controller configuration must also select
+  the matching 1,620 RPM goBILDA motor model for `midtakeMotor`.
 - Added `TeamAStrafeLeftAuto`, a non-blocking Team A autonomous OpMode that uses the existing
   `AutoSequence` and `TimedDriveStep` APIs to command 20% robot-left strafe power for an estimated
   1.25 seconds, then disables the drivetrain. The estimate targets 0.5 foot based on the reported
@@ -32,12 +42,9 @@ PVI-FTC | Editable master guide
   manual-drive and Y heading-hold mappings were removed. All manual mechanism requests are forced
   off while the intake loop owns the mechanisms, and Robot APIs enforce the launch-state gates
   below the OpMode.
-- Added a TeamA-only gamepad1 D-pad-down press edge to `TeamATeleOpMQ2`. It requests the narrow
-  `TeamARobot.resetGamePieceCount()` API, which resets total, Pollen, and Nectar counts only when
-  the intake loop is stopped and neither outtake is currently or imminently launching. Same-loop
-  bumper requests are evaluated first so a transition into Launch blocks the reset. Telemetry
-  reports whether the request succeeded or was blocked; shared input code and other teams are
-  unchanged.
+- The earlier gamepad1 D-pad-down game-piece-count reset mapping in `TeamATeleOpMQ2` was replaced
+  by the flower-ramp position controls. The `TeamARobot.resetGamePieceCount()` API remains
+  available but is not currently mapped in this TeleOp.
 - Added Team A's non-blocking sensor-driven intake loop. A gamepad1 A-button release toggles the
   loop; a new start is rejected while either outtake is launching or the stored count is four.
   While active, outtake bumper requests are ignored but drivetrain input remains live. The loop
@@ -910,7 +917,8 @@ current Pedro 3 implementation.
     count getters, `resetGamePieceCount()`, and intake/pollen sensor classification, hue, and
     distance diagnostics
   - `setPollenLaunchFeedActive(boolean)`, `setManualMidtakePower(double)`,
-    `setNectarLaunchFeedActive(boolean)`, and `setManualNectarServoActive(boolean)`
+    `setNectarLaunchFeedActive(boolean)`, `setManualNectarServoActive(boolean)`, and
+    `resetFlowerRampServo()`, and `moveFlowerRampServoToSecondPosition()`
   - drivetrain state, requested-input, and last-commanded-power telemetry getters
   - `startIntake()`, `startIntake(double)`, `stopIntake()`, `holdIntake()`, `ejectIntake()`,
     `getIntakeStateName()`, and `isIntakeAvailable()`
@@ -988,10 +996,11 @@ current Pedro 3 implementation.
   MQ2 telemetry with the mounted sensors and real yellow Pollen plus both red and blue Nectar. The
   stored game-piece counts currently increase at intake and are not decremented by outtake events;
   later scoring logic must add a reliable removal signal before using the count across cycles.
-- The Robot Controller hardware configuration must select the requested goBILDA 435 RPM and
-  6,000 RPM motor models; SDK code records their names, device interfaces, directions, and run
-  modes but does not select a motor model. The temporary `nectarServo` direction and all new Team A
-  hardware mappings still require physical verification before powered mechanism testing.
+- The Robot Controller hardware configuration must select the requested goBILDA 1,620 RPM
+  `midtakeMotor` and 6,000 RPM outtake motor models; SDK code records their names, device
+  interfaces, directions, run modes, and velocity requests but does not select a motor model. The
+  temporary `nectarServo` direction, `flowerRampServo` zero position, and all new Team A hardware
+  mappings still require physical verification before powered mechanism testing.
 - `pedro/Constants.java` is copied from the local `pedro3` project and `create()` intentionally
   returns `null`. `KimCode/TeleopV1` therefore compiles but cannot drive until the team completes
   constants and constructs the follower.

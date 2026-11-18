@@ -32,6 +32,7 @@ public class TeamATeleOp extends OpMode {
     @Override
     public void start() {
         driverInput.update();
+        robot.resetFlowerRampServo();
         robot.enableManualDrive();
     }
 

@@ -20,7 +20,6 @@ public class TeamATeleOpMQ2 extends OpMode {
     private InputManager driverInput;
     private TeamADpadInputManager dpadInput;
     private String intakeRequestStatus = "Not requested";
-    private String countResetStatus = "Not requested";
 
     @Override
     public void init() {
@@ -37,6 +36,7 @@ public class TeamATeleOpMQ2 extends OpMode {
     public void start() {
         driverInput.update();
         dpadInput.update();
+        robot.resetFlowerRampServo();
         robot.enableManualDrive();
     }
 
@@ -76,10 +76,10 @@ public class TeamATeleOpMQ2 extends OpMode {
         robot.setNectarLaunchFeedActive(manualControlsAllowed && driverInput.isXHeld());
         robot.setManualNectarServoActive(manualControlsAllowed && driverInput.isYHeld());
 
-        if (dpadInput.wasDownJustPressed()) {
-            countResetStatus = robot.resetGamePieceCount()
-                    ? "Counts reset"
-                    : "Blocked: intake running or outtake launching";
+        if (dpadInput.wasUpJustPressed()) {
+            robot.moveFlowerRampServoToSecondPosition();
+        } else if (dpadInput.wasDownJustPressed()) {
+            robot.resetFlowerRampServo();
         }
 
         robot.drive(driverInput.getLeftStickY(), -driverInput.getLeftStickX(),
@@ -111,7 +111,6 @@ public class TeamATeleOpMQ2 extends OpMode {
         telemetry.addData("Game Pieces", robot.getGamePieceCount());
         telemetry.addData("Pollen Count", robot.getPollenCount());
         telemetry.addData("Nectar Count", robot.getNectarCount());
-        telemetry.addData("Count Reset", countResetStatus);
         telemetry.addData("Intake Detection", robot.getIntakeSensorDetectionName());
         telemetry.addData("Intake Sensor Hue", robot.getIntakeSensorHueDegrees());
         telemetry.addData("Intake Sensor Saturation", robot.getIntakeSensorSaturation());

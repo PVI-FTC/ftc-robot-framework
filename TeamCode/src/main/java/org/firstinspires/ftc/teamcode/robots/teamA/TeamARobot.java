@@ -213,6 +213,18 @@ public class TeamARobot extends Robot implements AutonomousRobotControl {
                 active && !intakeLoopSubsystem.isActive());
     }
 
+    /** Moves the flower ramp to its 0.60 TeleOp starting position. */
+    public void resetFlowerRampServo() {
+        mechanismHardware.setFlowerRampPosition(
+                TeamAMechanismHardware.FLOWER_RAMP_START_POSITION);
+    }
+
+    /** Moves the flower ramp to its second position at 0.75. */
+    public void moveFlowerRampServoToSecondPosition() {
+        mechanismHardware.setFlowerRampPosition(
+                TeamAMechanismHardware.FLOWER_RAMP_SECOND_POSITION);
+    }
+
     public String getIntakeSensorDetectionName() {
         return intakeLoopSubsystem.getIntakeDetectionName();
     }

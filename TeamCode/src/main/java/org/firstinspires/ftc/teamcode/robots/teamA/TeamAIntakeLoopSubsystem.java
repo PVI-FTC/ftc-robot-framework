@@ -9,8 +9,8 @@ import org.firstinspires.ftc.teamcode.core.robot.Subsystem;
 
 /** Coordinates Team A's non-blocking intake, color counting, and Pollen sorting loop. */
 final class TeamAIntakeLoopSubsystem implements Subsystem {
-    // 435 RPM * 384.5 output ticks per revolution / 60 seconds = 2,787.625 ticks/second.
-    static final double MIDTAKE_MAX_VELOCITY_TICKS_PER_SECOND = 2787.625;
+    // 1,620 RPM * 103.8 output ticks per revolution / 60 seconds = 2,802.6 ticks/second.
+    static final double MIDTAKE_MAX_VELOCITY_TICKS_PER_SECOND = 2802.6;
     static final double POLLEN_SORT_TIME_SECONDS = 0.50;
     static final double NECTAR_SERVO_INTAKE_POWER = 1.0;
     static final int MAX_GAME_PIECES = 4;

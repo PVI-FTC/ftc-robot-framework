@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.SwitchableLight;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -15,10 +16,13 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 /** Hardware access for Team A's midtake, pollen, and nectar mechanisms. */
 final class TeamAMechanismHardware {
     static final float COLOR_SENSOR_GAIN = 2.0f;
+    static final double FLOWER_RAMP_START_POSITION = 0.52;
+    static final double FLOWER_RAMP_SECOND_POSITION = 0.92;
     static final String MIDTAKE_MOTOR_NAME = "midtakeMotor";
     static final String POLLEN_MOTOR_NAME = "pollenMotor";
     static final String NECTAR_MOTOR_NAME = "nectarMotor";
     static final String NECTAR_SERVO_NAME = "nectarServo";
+    static final String FLOWER_RAMP_SERVO_NAME = "flowerRampServo";
     static final String INTAKE_SENSOR_NAME = "intakeSensor";
     static final String POLLEN_SENSOR_NAME = "pollenSensor";
 
@@ -26,6 +30,7 @@ final class TeamAMechanismHardware {
     private DcMotorEx pollenMotor;
     private DcMotorEx nectarMotor;
     private CRServo nectarServo;
+    private Servo flowerRampServo;
     private RevColorSensorV3 intakeSensor;
     private RevColorSensorV3 pollenSensor;
 
@@ -47,6 +52,8 @@ final class TeamAMechanismHardware {
         nectarServo = hardwareMap.get(CRServo.class, NECTAR_SERVO_NAME);
         nectarServo.setDirection(CRServo.Direction.FORWARD);
         nectarServo.setPower(0.0);
+        flowerRampServo = hardwareMap.get(Servo.class, FLOWER_RAMP_SERVO_NAME);
+        setFlowerRampPosition(FLOWER_RAMP_START_POSITION);
         intakeSensor = hardwareMap.get(RevColorSensorV3.class, INTAKE_SENSOR_NAME);
         pollenSensor = hardwareMap.get(RevColorSensorV3.class, POLLEN_SENSOR_NAME);
         configureColorSensor(intakeSensor);
@@ -60,6 +67,7 @@ final class TeamAMechanismHardware {
         if (nectarServo != null) {
             nectarServo.setPower(0.0);
         }
+        setFlowerRampPosition(0.0);
     }
 
     void setPollenVelocity(double velocityTicksPerSecond) {
@@ -85,6 +93,15 @@ final class TeamAMechanismHardware {
         }
         double safePower = Double.isNaN(power) ? 0.0 : Math.max(-1.0, Math.min(1.0, power));
         nectarServo.setPower(safePower);
+    }
+
+    void setFlowerRampPosition(double position) {
+        if (flowerRampServo == null) {
+            return;
+        }
+        double safePosition = Double.isNaN(position)
+                ? 0.0 : Math.max(0.0, Math.min(1.0, position));
+        flowerRampServo.setPosition(safePosition);
     }
 
     ColorReading readIntakeSensor() {

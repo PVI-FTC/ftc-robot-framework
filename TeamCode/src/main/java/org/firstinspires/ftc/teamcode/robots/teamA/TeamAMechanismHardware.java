@@ -17,7 +17,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 final class TeamAMechanismHardware {
     static final float COLOR_SENSOR_GAIN = 2.0f;
     static final double FLOWER_RAMP_START_POSITION = 0.52;
-    static final double FLOWER_RAMP_SECOND_POSITION = 0.92;
+    static final double FLOWER_RAMP_SECOND_POSITION = 0.91;
     static final String MIDTAKE_MOTOR_NAME = "midtakeMotor";
     static final String POLLEN_MOTOR_NAME = "pollenMotor";
     static final String NECTAR_MOTOR_NAME = "nectarMotor";

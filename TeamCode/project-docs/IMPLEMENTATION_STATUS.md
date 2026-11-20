@@ -19,9 +19,11 @@ PVI-FTC | Editable master guide
   reset mapping is replaced. Added the narrow `TeamARobot.resetFlowerRampServo()` and
   `moveFlowerRampServoToSecondPosition()` public APIs so OpModes do not access hardware directly.
   Reconfigured the existing encoder-controlled `midtakeMotor` velocity
-  conversion for the goBILDA 3.7:1 Yellow Jacket: 1,620 RPM and 103.8 output ticks/revolution give
-  a maximum request of 2,802.6 ticks/second. The Robot Controller configuration must also select
-  the matching 1,620 RPM goBILDA motor model for `midtakeMotor`.
+  conversion for the goBILDA 5.2:1 Yellow Jacket: 1,150 RPM and 145.1 output ticks/revolution give
+  a rounded maximum request of 2,781.1 ticks/second. `TeamATeleOpMQ2` continues to scale its
+  gamepad1 left-trigger request against this maximum, and the automatic Pollen sort and B-button
+  launch feed use the same value. The Robot Controller configuration must also select the matching
+  1,150 RPM goBILDA motor model for `midtakeMotor`.
 - Added `TeamAStrafeLeftAuto`, a non-blocking Team A autonomous OpMode that uses the existing
   `AutoSequence` and `TimedDriveStep` APIs to command 20% robot-left strafe power for an estimated
   1.25 seconds, then disables the drivetrain. The estimate targets 0.5 foot based on the reported
@@ -36,7 +38,7 @@ PVI-FTC | Editable master guide
   mechanism requests remain disabled while the automatic intake loop is active.
 - Added MQ2's held gamepad1 mechanism controls while preserving continuous drivetrain input. Outside
   the intake loop, right trigger runs `intakeMotor` proportionally above a 0.05 deadzone and Y runs
-  `nectarServo` at full power. B runs `midtakeMotor` at its 2,787.625 ticks/second maximum only
+  `nectarServo` at full power. B runs `midtakeMotor` at its 2,781.1 ticks/second maximum only
   while the Pollen outtake is fully in Launch; X runs `nectarServo` at full power only while the
   Nectar outtake is fully in Launch. Releasing each input stops its requested output. The former X
   manual-drive and Y heading-hold mappings were removed. All manual mechanism requests are forced
@@ -52,7 +54,7 @@ PVI-FTC | Editable master guide
   max-velocity midtake sort, and lets any queued sort finish before stopping. It stops on an
   A-button release, a Pollen event at `pollenSensor`, or four held pieces, commanding
   `intakeMotor`, `midtakeMotor`, and `nectarServo` to zero. The midtake uses `setVelocity()` at the
-  calculated 2,788 ticks/second maximum for a tunable 0.50 seconds. HSV classification combines a
+  calculated 2,781.1 ticks/second maximum for a tunable 0.50 seconds. HSV classification combines a
   tunable 5 cm proximity gate, saturation/value gates, Pollen yellow and Nectar red/blue hue
   ranges, sensor gain, and three-sample detection/clear debounce. Telemetry exposes classifications,
   hue, saturation, value, distance, loop state, and Pollen/Nectar/total counts for physical
@@ -996,7 +998,7 @@ current Pedro 3 implementation.
   MQ2 telemetry with the mounted sensors and real yellow Pollen plus both red and blue Nectar. The
   stored game-piece counts currently increase at intake and are not decremented by outtake events;
   later scoring logic must add a reliable removal signal before using the count across cycles.
-- The Robot Controller hardware configuration must select the requested goBILDA 1,620 RPM
+- The Robot Controller hardware configuration must select the requested goBILDA 1,150 RPM
   `midtakeMotor` and 6,000 RPM outtake motor models; SDK code records their names, device
   interfaces, directions, run modes, and velocity requests but does not select a motor model. The
   temporary `nectarServo` direction, `flowerRampServo` zero position, and all new Team A hardware
